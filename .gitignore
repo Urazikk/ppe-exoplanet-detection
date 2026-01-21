@@ -1,0 +1,19 @@
+# Environnement Python
+backend/venv/
+__pycache__/
+*.py[cod]
+.env
+
+# Données Astronomiques (très lourdes)
+backend/data/raw/*
+backend/data/processed/*
+!backend/data/raw/.gitkeep
+
+# Dépendances Node / React
+node_modules/
+frontend/build/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

@@ -1,4 +1,4 @@
-from acquisition import fetch_lightcurve, save_raw_data
+from src.acquisition import fetch_lightcurve, save_raw_data
 
 # On choisit une cible célèbre : Kepler-90
 TARGET = "Kepler-90"

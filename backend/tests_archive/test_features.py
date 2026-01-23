@@ -1,8 +1,9 @@
-from acquisition import fetch_lightcurve
-from preprocessing import clean_lightcurve
-from features import run_feature_extraction
+from src.p01_acquisition import fetch_lightcurve
+from src.p02_preprocessing import clean_lightcurve
+from src.p04_features import run_feature_extraction
 import os
 import time
+import numpy as np
 
 def test_features():
     target = "Kepler-10"
@@ -13,8 +14,6 @@ def test_features():
     
     if lc_raw:
         # 2. Nettoyage AGRESSIF pour la rapidité
-        # On utilise 'ultra' pour diviser le nombre de points par 50
-        # TSFRESH adore les séries entre 1000 et 10000 points.
         lc_clean = clean_lightcurve(lc_raw, quality="ultra")
         lc_clean = lc_clean.remove_nans()
         
@@ -23,6 +22,7 @@ def test_features():
         # 3. Extraction
         try:
             start = time.time()
+            # On passe l'objet nettoyé, features.py s'occupe de la conversion de type
             features_df = run_feature_extraction(lc_clean, target)
             
             print(f"\n✅ Terminé en {time.time() - start:.2f}s !")
@@ -31,9 +31,12 @@ def test_features():
             # Sauvegarde
             os.makedirs("data/processed/", exist_ok=True)
             features_df.to_csv(f"data/processed/{target}_features.csv", index=False)
+            print(f"[OK] Fichier sauvegardé dans data/processed/")
             
         except Exception as e:
             print(f"❌ Erreur : {e}")
+            import traceback
+            traceback.print_exc()
 
 if __name__ == "__main__":
     test_features()

@@ -1,5 +1,5 @@
-from acquisition import fetch_lightcurve, save_raw_data
-from preprocessing import clean_lightcurve, fold_lightcurve, plot_results
+from src.p01_acquisition import fetch_lightcurve, save_raw_data
+from src.p02_preprocessing import clean_lightcurve, fold_lightcurve, plot_results
 
 # Paramètres pour Pi Mensae
 TARGET = "Pi Mensae"

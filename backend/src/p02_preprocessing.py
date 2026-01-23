@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import lightkurve as lk
 
-def clean_lightcurve(lc, quality="auto"):
+def clean_and_flatten(lc, quality="auto"):
     """
     Nettoie la courbe avec une adaptation automatique au volume de points.
     
@@ -21,7 +22,6 @@ def clean_lightcurve(lc, quality="auto"):
     if quality == "auto":
         if n_points > 100000:
             print(f"[!] Volume important détecté ({n_points} pts). Application d'un binning...")
-            # On regroupe les points pour accélérer le flattening
             lc = lc.bin(time_bin_size=0.01) 
         else:
             print(f"[i] Volume raisonnable ({n_points} pts). Pas de binning nécessaire.")
@@ -43,13 +43,23 @@ def fold_lightcurve(lc_flat, period, t0=None):
     if lc_flat is None: return None
     return lc_flat.fold(period=period, epoch_time=t0)
 
+def get_period_hint(lc_flat):
+    """
+    Trouve une période probable via BLS (Box Least Squares).
+    Utile pour l'IA et l'augmentation automatique.
+    """
+    if lc_flat is None: return 1.0
+    period_search = np.linspace(0.5, 20, 5000)
+    bls = lc_flat.to_periodogram(method='bls', period=period_search)
+    return float(bls.period_at_max_power.value)
+
 def plot_results(lc_clean, lc_folded, target_name, period):
     """
-    Affiche uniquement les résultats du prétraitement (sans la courbe brute grise).
+    Affiche graphiquement les résultats du prétraitement.
     """
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
     
-    # Graphique 1 : Signal Nettoyé et mis à plat
+    # Graphique 1 : Signal Nettoyé et aplati
     lc_clean.scatter(ax=ax1, s=1, color='blue', label="Aplatit")
     ax1.set_title(f"Signal Nettoyé et Aplatit (Detrended) - {target_name}")
     ax1.set_ylabel("Flux Relatif")

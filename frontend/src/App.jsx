@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Search, Activity, Zap, Globe, Clock, BarChart3, Loader2, LogOut } from 'lucide-react'
+import { Search, Activity, Zap, Globe, Clock, BarChart3, Loader2, LogOut, LayoutGrid, Star } from 'lucide-react'
 import LoginScreen from './components/LoginScreen'
 import LightCurvePlot from './components/LightCurvePlot'
 import ScoreGauge from './components/ScoreGauge'
@@ -23,26 +23,23 @@ function App() {
   const [username, setUsername] = useState(localStorage.getItem('exodetect_user') || '')
   const [searchInput, setSearchInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
+  const [loadingTarget, setLoadingTarget] = useState('')
+  const [selectedResult, setSelectedResult] = useState(null)
   const [error, setError] = useState(null)
   const [status, setStatus] = useState(null)
-  const [history, setHistory] = useState([])
+  const [dashboard, setDashboard] = useState([])
+  const [viewMode, setViewMode] = useState('dashboard')
 
-  // Configure axios avec le token
   const api = axios.create({
     baseURL: API_BASE,
     headers: token ? { Authorization: `Bearer ${token}` } : {}
   })
 
-  // Verification du token au chargement
   useEffect(() => {
     if (token) {
       api.get('/auth/verify')
-        .then(res => {
-          if (!res.data.valid) handleLogout()
-        })
+        .then(res => { if (!res.data.valid) handleLogout() })
         .catch(() => handleLogout())
-
       api.get('/status')
         .then(res => setStatus(res.data))
         .catch(() => setStatus(null))
@@ -57,41 +54,51 @@ function App() {
   }
 
   const handleLogout = () => {
-    if (token) {
-      api.post('/auth/logout').catch(() => {})
-    }
+    if (token) api.post('/auth/logout').catch(() => {})
     setToken(null)
     setUsername('')
-    setResult(null)
-    setHistory([])
+    setSelectedResult(null)
+    setDashboard([])
     localStorage.removeItem('exodetect_token')
     localStorage.removeItem('exodetect_user')
   }
 
   const analyzeTarget = async (targetId) => {
     if (!targetId.trim()) return
+    const existing = dashboard.find(d => d.target === targetId.trim())
+    if (existing) {
+      setSelectedResult(existing)
+      setViewMode('detail')
+      return
+    }
 
     setLoading(true)
+    setLoadingTarget(targetId.trim())
     setError(null)
-    setResult(null)
 
     try {
       const res = await api.get('/analyze', { params: { id: targetId.trim() } })
-      setResult(res.data)
-
-      setHistory(prev => {
-        const filtered = prev.filter(h => h.target !== res.data.target)
-        return [res.data, ...filtered].slice(0, 10)
+      const result = res.data
+      setDashboard(prev => {
+        const filtered = prev.filter(d => d.target !== result.target)
+        return [result, ...filtered]
       })
+      setSelectedResult(result)
+      setViewMode('detail')
     } catch (err) {
-      if (err.response?.status === 401) {
-        handleLogout()
-        return
-      }
-      const msg = err.response?.data?.error || 'Erreur de connexion au backend'
-      setError(msg)
+      if (err.response?.status === 401) { handleLogout(); return }
+      setError(err.response?.data?.error || 'Erreur de connexion au backend')
     } finally {
       setLoading(false)
+      setLoadingTarget('')
+    }
+  }
+
+  const removeFromDashboard = (target) => {
+    setDashboard(prev => prev.filter(d => d.target !== target))
+    if (selectedResult?.target === target) {
+      setSelectedResult(null)
+      setViewMode('dashboard')
     }
   }
 
@@ -100,10 +107,7 @@ function App() {
     analyzeTarget(searchInput)
   }
 
-  // Ecran de login si pas authentifie
-  if (!token) {
-    return <LoginScreen onLogin={handleLogin} />
-  }
+  if (!token) return <LoginScreen onLogin={handleLogin} />
 
   return (
     <div className="app">
@@ -117,12 +121,18 @@ function App() {
             </div>
           </div>
           <div className="header-right">
+            <div className="view-toggle">
+              <button className={`view-btn ${viewMode === 'dashboard' ? 'active' : ''}`} onClick={() => setViewMode('dashboard')}>
+                <LayoutGrid size={15} /> Dashboard
+              </button>
+              <button className={`view-btn ${viewMode === 'detail' ? 'active' : ''}`} onClick={() => setViewMode('detail')} disabled={!selectedResult}>
+                <Star size={15} /> Detail
+              </button>
+            </div>
             <StatusBar status={status} />
             <div className="user-info">
               <span className="user-name">{username}</span>
-              <button className="logout-btn" onClick={handleLogout} title="Se deconnecter">
-                <LogOut size={16} />
-              </button>
+              <button className="logout-btn" onClick={handleLogout} title="Se deconnecter"><LogOut size={16} /></button>
             </div>
           </div>
         </div>
@@ -133,117 +143,113 @@ function App() {
           <form onSubmit={handleSubmit} className="search-form">
             <div className="search-input-wrapper">
               <Search className="search-icon" size={18} />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
+              <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
                 placeholder="Entrez un nom d'etoile (ex: Kepler-10, Pi Mensae, KIC 8462852)"
-                className="search-input"
-                disabled={loading}
-              />
+                className="search-input" disabled={loading} />
               <button type="submit" className="search-btn" disabled={loading}>
                 {loading ? <Loader2 className="spin" size={18} /> : <Zap size={18} />}
                 {loading ? 'Analyse...' : 'Analyser'}
               </button>
             </div>
           </form>
-
           <div className="quick-targets">
             {EXAMPLE_TARGETS.map(t => (
-              <button
-                key={t.id}
-                className="quick-btn"
+              <button key={t.id}
+                className={`quick-btn ${dashboard.find(d => d.target === t.id) ? 'quick-btn-active' : ''}`}
                 onClick={() => { setSearchInput(t.id); analyzeTarget(t.id) }}
-                disabled={loading}
-                title={t.desc}
-              >
+                disabled={loading} title={t.desc}>
                 {t.label}
+                {loadingTarget === t.id && <Loader2 className="spin" size={12} />}
               </button>
             ))}
+            <button className="quick-btn quick-btn-all"
+              onClick={() => { EXAMPLE_TARGETS.forEach((t, i) => setTimeout(() => analyzeTarget(t.id), i * 500)) }}
+              disabled={loading} title="Analyser les 5 exemples">
+              Tout analyser
+            </button>
           </div>
         </section>
 
-        {error && (
-          <div className="error-banner">
-            <span>{error}</span>
-          </div>
-        )}
-
+        {error && <div className="error-banner"><span>{error}</span></div>}
         {loading && (
-          <div className="loading-section">
-            <Loader2 className="spin" size={40} />
-            <p>Telechargement et analyse en cours...</p>
-            <p className="loading-sub">Acquisition NASA MAST, preprocessing, extraction TSFRESH, prediction XGBoost</p>
+          <div className="loading-banner">
+            <Loader2 className="spin" size={18} />
+            <span>Analyse de {loadingTarget} en cours...</span>
           </div>
         )}
 
-        {result && !loading && (
+        {viewMode === 'dashboard' && (
+          <>
+            {dashboard.length === 0 && !loading && (
+              <div className="empty-state">
+                <LayoutGrid size={60} strokeWidth={1} />
+                <h2>Dashboard multi-etoiles</h2>
+                <p>Analysez plusieurs etoiles pour les comparer cote a cote. Cliquez sur les exemples ou "Tout analyser".</p>
+              </div>
+            )}
+            {dashboard.length > 0 && (
+              <>
+                <div className="dashboard-stats">
+                  <div className="stat-item">
+                    <span className="stat-value">{dashboard.length}</span>
+                    <span className="stat-label">Etoiles analysees</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-value">{dashboard.filter(d => d.score > 0.5).length}</span>
+                    <span className="stat-label">Candidates detectees</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-value">
+                      {Math.round(dashboard.reduce((s, d) => s + d.score, 0) / dashboard.length * 100)}%
+                    </span>
+                    <span className="stat-label">Score moyen</span>
+                  </div>
+                </div>
+                <div className="star-cards-grid">
+                  {dashboard.map(result => (
+                    <div key={result.target} className="star-card-wrapper" onClick={() => { setSelectedResult(result); setViewMode('detail') }}>
+                      <StarCard result={result} onRemove={() => removeFromDashboard(result.target)} />
+                    </div>
+                  ))}
+                </div>
+                <ComparisonTable results={dashboard} />
+              </>
+            )}
+          </>
+        )}
+
+        {viewMode === 'detail' && selectedResult && (
           <div className="results-grid">
             <div className="result-card card-score">
-              <ScoreGauge score={result.score} target={result.target} />
+              <ScoreGauge score={selectedResult.score} target={selectedResult.target} />
             </div>
-
             <div className="result-card card-info">
               <h3><Activity size={16} /> Informations</h3>
               <div className="info-grid">
-                <div className="info-item">
-                  <span className="info-label">Cible</span>
-                  <span className="info-value mono">{result.target}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Mission</span>
-                  <span className="info-value">{result.mission}</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Periode detectee</span>
-                  <span className="info-value mono">{result.period} jours</span>
-                </div>
-                <div className="info-item">
-                  <span className="info-label">Points de donnees</span>
-                  <span className="info-value mono">{result.points_count?.toLocaleString()}</span>
-                </div>
+                <div className="info-item"><span className="info-label">Cible</span><span className="info-value mono">{selectedResult.target}</span></div>
+                <div className="info-item"><span className="info-label">Mission</span><span className="info-value">{selectedResult.mission}</span></div>
+                <div className="info-item"><span className="info-label">Periode detectee</span><span className="info-value mono">{selectedResult.period} jours</span></div>
+                <div className="info-item"><span className="info-label">Points de donnees</span><span className="info-value mono">{selectedResult.points_count?.toLocaleString()}</span></div>
               </div>
             </div>
-
             <div className="result-card card-chart">
               <h3><BarChart3 size={16} /> Courbe de lumiere repliee</h3>
-              <LightCurvePlot data={result.data} target={result.target} period={result.period} />
+              <LightCurvePlot data={selectedResult.data} target={selectedResult.target} period={selectedResult.period} />
             </div>
-
-            {result.top_features && result.top_features.length > 0 && (
+            {selectedResult.top_features?.length > 0 && (
               <div className="result-card card-features">
-                <FeaturePanel features={result.top_features} />
+                <FeaturePanel features={selectedResult.top_features} />
               </div>
             )}
           </div>
         )}
 
-        {!result && !loading && !error && (
+        {viewMode === 'detail' && !selectedResult && !loading && (
           <div className="empty-state">
-            <Globe size={60} strokeWidth={1} />
-            <h2>Pret a analyser</h2>
-            <p>Entrez un nom d'etoile ou selectionnez un exemple ci-dessus pour lancer la detection d'exoplanetes.</p>
+            <Star size={60} strokeWidth={1} />
+            <h2>Aucune etoile selectionnee</h2>
+            <p>Analysez une etoile ou cliquez sur une carte du dashboard pour voir les details.</p>
           </div>
-        )}
-
-        {history.length > 1 && (
-          <section className="history-section">
-            <h3><Clock size={16} /> Historique des analyses</h3>
-            <div className="history-list">
-              {history.map((h, i) => (
-                <button
-                  key={`${h.target}-${i}`}
-                  className="history-item"
-                  onClick={() => setResult(h)}
-                >
-                  <span className="history-name">{h.target}</span>
-                  <span className={`history-score ${h.score > 0.7 ? 'high' : h.score > 0.4 ? 'mid' : 'low'}`}>
-                    {(h.score * 100).toFixed(0)}%
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
         )}
       </main>
 

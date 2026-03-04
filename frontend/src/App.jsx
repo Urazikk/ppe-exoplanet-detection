@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Orbit, Activity, Database, Telescope, Star, ChevronRight, Loader2, AlertTriangle, CheckCircle2, Sparkles, Info, RotateCcw, LogIn, LogOut, User, Lock, Eye, EyeOff, ShieldCheck, Beaker } from "lucide-react";
+import { Search, Orbit, Activity, Database, Telescope, Star, ChevronRight, Loader2, AlertTriangle, CheckCircle2, Sparkles, RotateCcw, LogIn, LogOut, User, Lock, Eye, EyeOff, ShieldCheck, Beaker } from "lucide-react";
 
 const API_BASE = "http://localhost:5001";
 
@@ -11,6 +11,18 @@ const PRESET_TARGETS = [
   { id: "Kepler-62", label: "Kepler-62" },
   { id: "Kepler-186", label: "Kepler-186" },
 ];
+
+const STEP_LABELS = {
+  acquisition: "Acquisition",
+  preprocessing: "Preprocessing",
+  bls: "Recherche BLS",
+  prediction: "Prediction IA",
+  formatting: "Formatage",
+  done: "Termine",
+  cache: "Cache",
+};
+
+const ALL_STEPS = ["acquisition", "preprocessing", "bls", "prediction", "formatting"];
 
 /* ── Auth helpers ── */
 let _authStore = null;
@@ -33,6 +45,75 @@ function StarField() {
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
       {stars.map((s, i) => <div key={i} style={{ position: "absolute", left: `${s.x}%`, top: `${s.y}%`, width: s.s, height: s.s, borderRadius: "50%", background: "#fff", opacity: s.o, animation: `twinkle ${2 + s.d}s ease-in-out infinite alternate`, animationDelay: `${s.d}s` }} />)}
+    </div>
+  );
+}
+
+/* ── SSE Progress Panel ── */
+function ProgressPanel({ progress }) {
+  if (!progress || !progress.visible) return null;
+  const { step, message, percent, steps } = progress;
+  const pct = percent || 0;
+  const isComplete = step === "done" || step === "cache";
+  const barColor = isComplete ? "#4ade80" : "#638cff";
+
+  return (
+    <div style={{
+      background: "rgba(10,13,22,0.85)", border: "1px solid rgba(99,140,255,0.15)",
+      borderRadius: 14, padding: "16px 18px", backdropFilter: "blur(12px)",
+      animation: "fadeIn .4s ease-out",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {!isComplete && <Loader2 size={14} style={{ color: "#638cff", animation: "spin 1s linear infinite" }} />}
+          {isComplete && <CheckCircle2 size={14} style={{ color: "#4ade80" }} />}
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e8f5", fontFamily: "'Space Grotesk',sans-serif" }}>
+            Pipeline d'analyse
+          </span>
+        </div>
+        <span style={{ fontSize: 20, fontWeight: 700, fontFamily: "'DM Mono',monospace", color: barColor }}>{pct}%</span>
+      </div>
+
+      <div style={{ height: 4, borderRadius: 2, background: "rgba(99,140,255,0.1)", marginBottom: 14, overflow: "hidden" }}>
+        <div style={{
+          height: "100%", width: `${pct}%`, borderRadius: 2,
+          background: `linear-gradient(90deg, ${barColor}, ${isComplete ? "#22d3ee" : "#8b5cf6"})`,
+          transition: "width 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
+          boxShadow: `0 0 12px ${barColor}40`,
+        }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {(steps || []).map((s, i) => {
+          const isCurrent = s.step === step;
+          const isDone = s.done;
+          const col = isDone ? "#4ade80" : isCurrent ? "#638cff" : "rgba(160,180,220,0.2)";
+          const bg = isDone ? "rgba(74,222,160,0.1)" : isCurrent ? "rgba(99,140,255,0.12)" : "rgba(15,18,30,0.5)";
+          return (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "4px 10px", borderRadius: 6,
+              background: bg, border: `1px solid ${col}30`,
+              transition: "all 0.4s ease",
+            }}>
+              <span style={{ fontSize: 8, fontWeight: 700, fontFamily: "'DM Mono',monospace", color: col, width: 14, textAlign: "center" }}>
+                {isDone ? "\u2713" : `0${i + 1}`}
+              </span>
+              <span style={{ fontSize: 10, fontFamily: "'DM Mono',monospace", color: col }}>
+                {STEP_LABELS[s.step] || s.step}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{
+        fontSize: 11, fontFamily: "'DM Mono',monospace", color: "rgba(160,180,220,0.7)",
+        padding: "6px 8px", background: "rgba(15,18,30,0.5)", borderRadius: 6,
+        borderLeft: `2px solid ${barColor}40`,
+      }}>
+        {message || "Initialisation..."}
+      </div>
     </div>
   );
 }
@@ -219,7 +300,7 @@ function LoginScreen({ onLogin }) {
             <label style={{ display: "block", fontSize: 10, color: "rgba(160,180,220,0.5)", marginBottom: 5, textTransform: "uppercase", letterSpacing: 1.5 }}>Mot de passe</label>
             <div style={{ display: "flex", alignItems: "center", background: "rgba(15,18,30,0.8)", border: "1px solid rgba(99,140,255,0.12)", borderRadius: 10, overflow: "hidden" }}>
               <Lock size={14} style={{ color: "rgba(99,140,255,0.4)", marginLeft: 12 }} />
-              <input value={pw} onChange={e => setPw(e.target.value)} type={show ? "text" : "password"} placeholder="••••••••" style={{ flex: 1, padding: 11, background: "transparent", border: "none", outline: "none", color: "#e0e8f5", fontFamily: "'DM Mono',monospace", fontSize: 13 }} />
+              <input value={pw} onChange={e => setPw(e.target.value)} type={show ? "text" : "password"} placeholder={"\u2022".repeat(8)} style={{ flex: 1, padding: 11, background: "transparent", border: "none", outline: "none", color: "#e0e8f5", fontFamily: "'DM Mono',monospace", fontSize: 13 }} />
               <button type="button" onClick={() => setShow(!show)} style={{ background: "none", border: "none", padding: "8px 12px", cursor: "pointer", color: "rgba(99,140,255,0.4)" }}>{show ? <EyeOff size={14} /> : <Eye size={14} />}</button>
             </div>
           </div>
@@ -244,23 +325,95 @@ export default function ExoPlanetDashboard() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState({ visible: false, step: "", message: "", percent: 0, steps: [] });
+  const abortRef = useRef(null);
 
   const handleLogin = (d) => { const a = { token: d.token, username: d.username }; setAuth(a); setAuthState(a); };
   const handleLogout = async () => { try { await authFetch(`${API_BASE}/api/auth/logout`, { method: "POST" }); } catch {} clearAuth(); setAuthState(null); setAData(null); setMeta(null); setStatus(null); };
 
   useEffect(() => { if (!auth) return; authFetch(`${API_BASE}/api/status`).then(r => r.json()).then(setStatus).catch(() => { clearAuth(); setAuthState(null); }); }, [auth]);
 
-  const analyze = useCallback(async (id) => {
-    if (!auth) return; setLoading(true); setError(null);
-    try {
-      const [ar, mr] = await Promise.all([authFetch(`${API_BASE}/api/analyze?id=${encodeURIComponent(id)}`), authFetch(`${API_BASE}/api/metadata?id=${encodeURIComponent(id)}`)]);
-      if (!ar.ok) { const e = await ar.json(); throw new Error(e.error || "Erreur"); }
-      setAData(await ar.json()); setMeta(await mr.json());
-    } catch (e) { if (e.message === "Session expiree" || e.message === "Non authentifie") { clearAuth(); setAuthState(null); return; } setError(e.message); }
-    finally { setLoading(false); }
+  /* ── SSE-powered analyze ── */
+  const analyze = useCallback((id) => {
+    if (!auth) return;
+    const a = getAuth();
+    if (!a) return;
+
+    // Abort previous request
+    if (abortRef.current) { abortRef.current.abort(); }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoading(true);
+    setError(null);
+    const stepsState = ALL_STEPS.map(s => ({ step: s, done: false }));
+    setProgress({ visible: true, step: "acquisition", message: "Connexion au serveur...", percent: 0, steps: stepsState });
+
+    // Fetch metadata in parallel
+    authFetch(`${API_BASE}/api/metadata?id=${encodeURIComponent(id)}`)
+      .then(r => r.json()).then(setMeta).catch(() => {});
+
+    // SSE stream via fetch + ReadableStream (supports auth headers)
+    fetch(`${API_BASE}/api/analyze/stream?id=${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${a.token}` },
+      signal: controller.signal,
+    }).then(response => {
+      if (!response.ok) throw new Error("Erreur serveur");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      function pump() {
+        return reader.read().then(({ done, value }) => {
+          if (done) { setLoading(false); return; }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          let evt = "", dat = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) { evt = line.slice(7).trim(); }
+            else if (line.startsWith("data: ")) {
+              dat = line.slice(6).trim();
+              if (evt && dat) {
+                try {
+                  const p = JSON.parse(dat);
+                  if (evt === "progress") {
+                    const sn = p.step;
+                    const updated = ALL_STEPS.map(s => ({
+                      step: s,
+                      done: ALL_STEPS.indexOf(s) < ALL_STEPS.indexOf(sn) || sn === "done" || sn === "cache",
+                    }));
+                    setProgress({ visible: true, step: sn, message: p.message || "", percent: p.percent || 0, steps: updated });
+                  } else if (evt === "result") {
+                    setAData(p);
+                    setLoading(false);
+                    setTimeout(() => setProgress(pr => ({ ...pr, visible: false })), 1500);
+                  } else if (evt === "error") {
+                    setError(p.error || "Erreur inconnue");
+                    setLoading(false);
+                    setProgress(pr => ({ ...pr, visible: false }));
+                  }
+                } catch {}
+                evt = ""; dat = "";
+              }
+            }
+          }
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(e => {
+      if (e.name === "AbortError") return;
+      if (e.message === "Session expiree" || e.message === "Non authentifie") { clearAuth(); setAuthState(null); return; }
+      setError(e.message);
+      setLoading(false);
+      setProgress(pr => ({ ...pr, visible: false }));
+    });
   }, [auth]);
 
   useEffect(() => { if (auth && !aData) analyze("Kepler-10"); }, [auth]);
+  useEffect(() => { return () => { if (abortRef.current) abortRef.current.abort(); }; }, []);
 
   const submit = (e) => { e.preventDefault(); if (input.trim()) { setTarget(input.trim()); analyze(input.trim()); } };
   const pick = (id) => { setInput(id); setTarget(id); analyze(id); };
@@ -306,6 +459,9 @@ export default function ExoPlanetDashboard() {
 
         {error && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 10, background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.15)", fontSize: 12, color: "#f87171" }}><AlertTriangle size={13} />{error}</div>}
 
+        {/* SSE Progress */}
+        <ProgressPanel progress={progress} />
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 310px", gap: 16, animation: "fadeIn .6s ease-out" }}>
           <div style={{ background: "rgba(10,13,22,0.7)", border: "1px solid rgba(99,140,255,0.08)", borderRadius: 14, padding: 16, animation: "pulseGlow 6s ease-in-out infinite" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -330,7 +486,7 @@ export default function ExoPlanetDashboard() {
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderTop: "1px solid rgba(99,140,255,0.06)", fontSize: 10, color: "rgba(160,180,220,0.25)" }}>
-          <span>ECE Paris — ING4 Group 1</span><span>NASA MAST Archive · Kepler / TESS</span>
+          <span>ECE Paris — ING4 Group 1 · S. Gallais, M. Rolland, C. De Blauwe, M. Leitao, O. Schwartz, K. Benjelloum</span><span>NASA MAST Archive · Kepler / TESS</span>
         </div>
       </main>
     </div>

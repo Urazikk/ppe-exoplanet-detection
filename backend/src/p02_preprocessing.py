@@ -3,85 +3,16 @@ import matplotlib.pyplot as plt
 import lightkurve as lk
 import time
 
-def clean_and_flatten(lc, quality="auto", progress_cb=None):
-    """
-    Nettoie la courbe avec une adaptation automatique au volume de points.
+def clean_and_flatten(lc, quality="auto"):
+    if lc is None: return None
     
-    OPTIMISATIONS v2:
-    - Binning agressif pour les gros volumes (>50k points)
-    - Flattening avec window_length adaptatif
-    - Callback de progression pour le dashboard
+    lc = lc.remove_nans().remove_outliers(sigma=7)
     
-    Args:
-        lc: La courbe de lumiere brute.
-        quality: "auto", "high", "fast" ou "ultra".
-        progress_cb: Fonction callback(step, message) pour la progression.
-    """
-    if lc is None: 
-        return None
+    # Binning agressif : on reduit a ~3000-5000 points
+    lc = lc.bin(time_bin_size=0.05)
     
-    def report(msg):
-        if progress_cb:
-            progress_cb("preprocessing", msg)
+    lc_flat = lc.flatten(window_length=101)
     
-    n_points = len(lc)
-    report(f"Nettoyage de {n_points:,} points...")
-    
-    # 1. Nettoyage de base (Retrait des NaNs et Outliers)
-    lc = lc.remove_nans().remove_outliers(sigma=5)
-    
-    # 2. Binning adaptatif selon le volume
-    if quality == "auto":
-        if n_points > 500000:
-            report(f"Volume tres important ({n_points:,} pts). Binning agressif...")
-            lc = lc.bin(time_bin_size=0.05)
-        elif n_points > 100000:
-            report(f"Volume important ({n_points:,} pts). Binning moyen...")
-            lc = lc.bin(time_bin_size=0.02)
-        elif n_points > 50000:
-            report(f"Volume moyen ({n_points:,} pts). Binning leger...")
-            lc = lc.bin(time_bin_size=0.01)
-        else:
-            report(f"Volume raisonnable ({n_points:,} pts). Pas de binning.")
-    elif quality == "fast":
-        # Mode API : toujours binner pour la rapidite
-        if n_points > 200000:
-            lc = lc.bin(time_bin_size=0.05)
-        elif n_points > 50000:
-            lc = lc.bin(time_bin_size=0.02)
-        else:
-            lc = lc.bin(time_bin_size=0.01)
-    elif quality == "ultra":
-        lc = lc.bin(time_bin_size=0.05)
-    
-    n_after = len(lc)
-    report(f"Apres binning : {n_after:,} points. Flattening...")
-    
-    # 3. Flattening avec window_length adaptatif
-    # Plus la courbe est courte apres binning, plus la fenetre doit etre petite
-    if n_after < 500:
-        wl = 101
-    elif n_after < 2000:
-        wl = 201
-    elif n_after < 10000:
-        wl = 401
-    else:
-        wl = 601
-    
-    # S'assurer que window_length est impair et < n_points
-    wl = min(wl, n_after // 2)
-    if wl % 2 == 0:
-        wl -= 1
-    wl = max(wl, 5)
-    
-    try:
-        lc_flat = lc.flatten(window_length=wl)
-    except Exception:
-        # Fallback si le flattening echoue
-        report("Flattening standard echoue, tentative avec fenetre reduite...")
-        lc_flat = lc.flatten(window_length=max(5, min(101, n_after // 4)))
-    
-    report(f"Preprocessing termine ({n_after:,} points propres).")
     return lc_flat
 
 

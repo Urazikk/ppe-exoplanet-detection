@@ -1,0 +1,85 @@
+{
+  "test_accuracy": 0.569620253164557,
+  "test_precision": 0.5833333333333334,
+  "test_recall": 0.525,
+  "test_f1": 0.5526315789473685,
+  "test_auc_roc": 0.6608974358974359,
+  "cv_accuracy_mean": 0.646594982078853,
+  "cv_accuracy_std": 0.027914756845715618,
+  "cv_f1_mean": 0.6595777176422337,
+  "cv_f1_std": 0.030861329540999464,
+  "cv_auc_mean": 0.7261121227887617,
+  "cv_auc_std": 0.058803677085218026,
+  "confusion_matrix": [
+    [
+      24,
+      15
+    ],
+    [
+      19,
+      21
+    ]
+  ],
+  "n_features_selected": 14,
+  "n_features_total": 27,
+  "train_size": 314,
+  "test_size": 79,
+  "top_features": [
+    {
+      "name": "sci_transit_depth_min",
+      "importance": 0.11090859770774841
+    },
+    {
+      "name": "sci_skewness",
+      "importance": 0.07892343401908875
+    },
+    {
+      "name": "sci_kurtosis",
+      "importance": 0.07846550643444061
+    },
+    {
+      "name": "flux__root_mean_square",
+      "importance": 0.07648345082998276
+    },
+    {
+      "name": "sci_below_above_ratio",
+      "importance": 0.07358676195144653
+    },
+    {
+      "name": "flux__minimum",
+      "importance": 0.0725037008523941
+    },
+    {
+      "name": "sci_snr_approx",
+      "importance": 0.06934163719415665
+    },
+    {
+      "name": "sci_transit_depth_p5",
+      "importance": 0.06858273595571518
+    },
+    {
+      "name": "sci_low_cluster_std_gap",
+      "importance": 0.06557631492614746
+    },
+    {
+      "name": "flux__mean",
+      "importance": 0.06504904478788376
+    },
+    {
+      "name": "sci_low_cluster_mean_gap",
+      "importance": 0.06504551321268082
+    },
+    {
+      "name": "sci_transit_depth_p1",
+      "importance": 0.06257131695747375
+    },
+    {
+      "name": "flux__median",
+      "importance": 0.05863215774297714
+    },
+    {
+      "name": "sci_mad",
+      "importance": 0.05432989448308945
+    }
+  ]
+}

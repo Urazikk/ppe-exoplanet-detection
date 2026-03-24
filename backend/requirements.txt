@@ -1,11 +1,9 @@
-
-
+# Astronomie
 lightkurve>=2.4.0
 astropy>=5.0
-astroquery
+astroquery>=0.4.6
 
-
-
+# Data / ML
 numpy
 pandas
 scipy
@@ -13,13 +11,12 @@ xgboost
 scikit-learn
 tsfresh
 
-
-
+# API
 flask
 flask-cors
 python-dotenv
 requests
+PyJWT>=2.0.0
 
-
-
+# Visualisation (optionnel, pour les scripts de test)
 matplotlib

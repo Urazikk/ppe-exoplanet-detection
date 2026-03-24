@@ -23,14 +23,16 @@ Améliorations par rapport à V1 :
 import os
 import sys
 import json
+import time
 import hashlib
 import datetime
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from functools import wraps
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, Response, stream_with_context
 from flask_cors import CORS
 
 # JWT
@@ -64,6 +66,7 @@ FEATURES_PATH = "models/selected_features.json"
 METRICS_PATH = "models/model_metrics.json"
 CATALOG_PATH = "data/catalog/kepler_koi_catalog.csv"
 USERS_PATH = "data/users.json"
+RESULTS_CACHE_PATH = "data/results_cache.json"
 
 
 # =============================================================================
@@ -74,6 +77,25 @@ model = None
 selected_features = []
 model_metrics = {}
 catalog_df = None
+results_cache = {}
+
+# Cache in-memory avec TTL (clé → {"result": ..., "ts": float})
+_analysis_cache = {}
+CACHE_TTL = 600  # 10 minutes
+
+
+def load_results_cache():
+    global results_cache
+    if os.path.exists(RESULTS_CACHE_PATH):
+        with open(RESULTS_CACHE_PATH, "r") as f:
+            results_cache = json.load(f)
+        print(f"[OK] Cache résultats chargé ({len(results_cache)} entrées).")
+
+
+def save_results_cache():
+    os.makedirs(os.path.dirname(RESULTS_CACHE_PATH), exist_ok=True)
+    with open(RESULTS_CACHE_PATH, "w") as f:
+        json.dump(results_cache, f)
 
 
 def load_resources():
@@ -110,6 +132,8 @@ def load_resources():
     else:
         print("[!] Catalogue NASA introuvable. Les métadonnées stellaires seront limitées.")
 
+
+load_results_cache()
 
 load_resources()
 
@@ -248,8 +272,10 @@ def get_status():
         "status": "online",
         "ai_loaded": model is not None,
         "features_count": len(selected_features),
+        "features_sync": len(selected_features) > 0,
         "catalog_loaded": catalog_df is not None,
-        "catalog_size": len(catalog_df) if catalog_df is not None else 0
+        "catalog_size": len(catalog_df) if catalog_df is not None else 0,
+        "dataset_ready": catalog_df is not None
     })
 
 
@@ -257,110 +283,284 @@ def get_status():
 # Routes : API protégée (nécessite JWT)
 # =============================================================================
 
+def run_full_analysis(target_id, mission, username):
+    """
+    Pipeline complète d'analyse. Appelée dans un thread séparé avec timeout global.
+    Retourne un dict JSON-serializable ou lève une exception.
+    """
+    t0 = time.time()
+
+    def log(msg):
+        print(f"[{time.time()-t0:.1f}s] {msg}")
+
+    log(f"Début acquisition {target_id}")
+    lc_raw = fetch_lightcurve(target_id, mission=mission)
+    if lc_raw is None:
+        raise ValueError(f"Cible '{target_id}' introuvable dans les archives NASA.")
+    log(f"Acquisition OK ({len(lc_raw)} points)")
+
+    log("Prétraitement...")
+    lc_clean = clean_and_flatten(lc_raw, quality="fast")
+    if lc_clean is None:
+        raise ValueError("Échec du prétraitement de la courbe.")
+    log(f"Prétraitement OK ({len(lc_clean)} points après nettoyage)")
+
+    log("BLS - recherche de période...")
+    period = get_period_hint(lc_clean)
+    lc_folded = fold_lightcurve(lc_clean, period=period)
+    log(f"BLS OK - période = {period:.4f} j")
+
+    log("Extraction features + prédiction XGBoost...")
+    score = 0.5
+    feature_importances = []
+
+    if model and selected_features:
+        features_df = run_feature_extraction(lc_clean, target_id)
+        if features_df is not None:
+            available = [f for f in selected_features if f in features_df.columns]
+            input_data = pd.DataFrame(columns=selected_features)
+            for col in available:
+                input_data[col] = features_df[col].values
+            for col in [f for f in selected_features if f not in features_df.columns]:
+                input_data[col] = 0
+            input_data = input_data.fillna(0)
+            score = float(model.predict_proba(input_data)[0][1])
+            if hasattr(model, 'feature_importances_'):
+                imp = model.feature_importances_
+                top_idx = np.argsort(imp)[::-1][:5]
+                feature_importances = [
+                    {"name": selected_features[i], "weight": float(imp[i])}
+                    for i in top_idx
+                ]
+    log(f"Prédiction OK - score = {score:.4f}")
+
+    characterization = compute_characterization(lc_clean, lc_folded, period, score)
+    metadata = get_real_metadata(target_id)
+
+    step = max(1, len(lc_folded) // 800)
+    chart_data = [
+        {"time": round(float(t), 5), "flux": round(float(f), 6)}
+        for t, f in zip(lc_folded.time.value[::step], lc_folded.flux.value[::step])
+    ]
+
+    log(f"Pipeline terminée en {time.time()-t0:.1f}s")
+
+    return {
+        "target": target_id,
+        "mission": mission,
+        "score": round(score, 4),
+        "verdict": classify_score(score),
+        "period_days": round(period, 4),
+        "points_count": len(lc_raw),
+        "characterization": characterization,
+        "metadata": metadata,
+        "feature_importances": feature_importances,
+        "data": chart_data,
+        "analyzed_by": username,
+    }
+
+
 @app.route('/api/analyze', methods=['GET'])
 @token_required
 def analyze_target():
     """
     Analyse complète d'une cible stellaire.
-    
+
     Paramètres :
         id (str) : identifiant de la cible (ex: "Kepler-10", "KIC 11446443")
-    
-    Retourne :
-        - score : probabilité de présence d'une exoplanète (0 à 1)
-        - period : période orbitale détectée (jours)
-        - characterization : estimation du rayon, SNR, type de transit
-        - metadata : données stellaires réelles du catalogue NASA
-        - data : points de la courbe repliée pour visualisation
     """
     target_id = request.args.get('id', '').strip()
-    
     if not target_id:
         return jsonify({"error": "Paramètre 'id' requis (ex: ?id=Kepler-10)"}), 400
-    
-    print(f"[Analyse] {target_id} (par {g.current_user})")
-    
+
+    username = g.current_user
+    cache_key = target_id.lower()
+
+    # Cache in-memory avec TTL
+    cached = _analysis_cache.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < CACHE_TTL:
+        age = int(time.time() - cached["ts"])
+        print(f"[Cache hit] {target_id} ({age}s ago)")
+        result = dict(cached["result"])
+        result["analyzed_by"] = username
+        return jsonify(result)
+
+    print(f"[Cache miss] {target_id} — lancement analyse (par {username})")
+    if any(x in target_id.upper() for x in ["TIC", "TOI", "WASP"]):
+        mission = "TESS"
+    elif any(x in target_id for x in ["Kepler-", "KIC", "KOI"]):
+        mission = "Kepler"
+    else:
+        mission = "Kepler"  # défaut
+
     try:
-        # 1. Détection de la mission
-        mission = "TESS" if any(x in target_id for x in ["TIC", "TOI", "WASP"]) else "Kepler"
-        
-        # 2. Acquisition
-        lc_raw = fetch_lightcurve(target_id, mission=mission)
-        if lc_raw is None:
-            return jsonify({"error": f"Cible '{target_id}' introuvable dans les archives NASA."}), 404
-        
-        # 3. Prétraitement
-        lc_clean = clean_and_flatten(lc_raw, quality="fast")
-        if lc_clean is None:
-            return jsonify({"error": "Échec du prétraitement de la courbe."}), 500
-        
-        # 4. Détection de période (BLS)
-        period = get_period_hint(lc_clean)
-        lc_folded = fold_lightcurve(lc_clean, period=period)
-        
-        # 5. Prédiction
-        score = 0.5
-        feature_importances = []
-        
-        if model and selected_features:
-            features_df = run_feature_extraction(lc_clean, target_id)
-            
-            if features_df is not None:
-                # Alignement avec les features du modèle
-                available = [f for f in selected_features if f in features_df.columns]
-                missing = [f for f in selected_features if f not in features_df.columns]
-                
-                input_data = pd.DataFrame(columns=selected_features)
-                for col in available:
-                    input_data[col] = features_df[col].values
-                for col in missing:
-                    input_data[col] = 0
-                
-                input_data = input_data.fillna(0)
-                score = float(model.predict_proba(input_data)[0][1])
-                
-                # Top features qui ont pesé dans la décision
-                if hasattr(model, 'feature_importances_'):
-                    imp = model.feature_importances_
-                    top_idx = np.argsort(imp)[::-1][:5]
-                    feature_importances = [
-                        {"name": selected_features[i], "weight": float(imp[i])}
-                        for i in top_idx
-                    ]
-        
-        # 6. Caractérisation
-        characterization = compute_characterization(lc_clean, lc_folded, period, score)
-        
-        # 7. Métadonnées stellaires réelles
-        metadata = get_real_metadata(target_id)
-        
-        # 8. Données pour le graphique (downsampled)
-        step = max(1, len(lc_folded) // 800)
-        chart_data = [
-            {"time": round(float(t), 5), "flux": round(float(f), 6)}
-            for t, f in zip(
-                lc_folded.time.value[::step],
-                lc_folded.flux.value[::step]
-            )
-        ]
-        
-        return jsonify({
-            "target": target_id,
-            "mission": mission,
-            "score": round(score, 4),
-            "verdict": classify_score(score),
-            "period_days": round(period, 4),
-            "points_count": len(lc_raw),
-            "characterization": characterization,
-            "metadata": metadata,
-            "feature_importances": feature_importances,
-            "data": chart_data,
-            "analyzed_by": g.current_user
-        })
-    
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(run_full_analysis, target_id, mission, username)
+            try:
+                result = future.result(timeout=90)
+            except FuturesTimeout:
+                return jsonify({"error": "Analyse trop longue (>90s). Réessayez."}), 504
+
+        # Mise en cache
+        _analysis_cache[cache_key] = {"result": result, "ts": time.time()}
+        return jsonify(result)
+
+    except ValueError as e:
+        print(f"[Erreur métier] {target_id} : {e}")
+        return jsonify({"error": str(e)}), 404
     except Exception as e:
-        print(f"[Erreur] Analyse de {target_id} : {str(e)}")
+        print(f"[Erreur] Analyse de {target_id} : {e}")
         return jsonify({"error": f"Erreur lors de l'analyse : {str(e)}"}), 500
+
+
+@app.route('/api/analyze/stream', methods=['GET'])
+@token_required
+def analyze_stream():
+    """Analyse SSE : envoie la progression étape par étape."""
+    target_id = request.args.get('id', '').strip()
+    if not target_id:
+        return jsonify({"error": "Paramètre 'id' requis"}), 400
+
+    username = g.current_user
+
+    def generate():
+        def evt(name, data):
+            return f"event: {name}\ndata: {json.dumps(data)}\n\n"
+
+        # Résultat en cache → réponse instantanée
+        cache_key = target_id.lower()
+        if cache_key in results_cache:
+            print(f"[Cache] Résultat servi pour {target_id}")
+            cached = results_cache[cache_key]
+            cached["analyzed_by"] = username
+            yield evt("progress", {"step": "acquisition", "message": "Chargement depuis le cache...", "percent": 50})
+            yield evt("progress", {"step": "done", "message": "Résultat disponible.", "percent": 100})
+            yield evt("result", cached)
+            return
+
+        try:
+            mission = "TESS" if any(x in target_id for x in ["TIC", "TOI", "WASP"]) else "Kepler"
+
+            yield evt("progress", {"step": "acquisition", "message": "Téléchargement de la courbe de lumière...", "percent": 10})
+            lc_raw = fetch_lightcurve(target_id, mission=mission)
+            if lc_raw is None:
+                yield evt("error", {"error": f"Cible '{target_id}' introuvable."})
+                return
+
+            yield evt("progress", {"step": "preprocessing", "message": "Nettoyage et normalisation...", "percent": 30})
+            lc_clean = clean_and_flatten(lc_raw, quality="fast")
+            if lc_clean is None:
+                yield evt("error", {"error": "Échec du prétraitement."})
+                return
+
+            yield evt("progress", {"step": "bls", "message": "Recherche de période (BLS)...", "percent": 50})
+            period = get_period_hint(lc_clean)
+            lc_folded = fold_lightcurve(lc_clean, period=period)
+
+            yield evt("progress", {"step": "prediction", "message": "Prédiction par le modèle IA...", "percent": 70})
+            score = 0.5
+            top_features = []
+            if model and selected_features:
+                features_df = run_feature_extraction(lc_clean, target_id)
+                if features_df is not None:
+                    available = [f for f in selected_features if f in features_df.columns]
+                    input_data = pd.DataFrame(columns=selected_features)
+                    for col in available:
+                        input_data[col] = features_df[col].values
+                    for col in [f for f in selected_features if f not in features_df.columns]:
+                        input_data[col] = 0
+                    input_data = input_data.fillna(0)
+                    score = float(model.predict_proba(input_data)[0][1])
+                    if hasattr(model, 'feature_importances_'):
+                        imp = model.feature_importances_
+                        top_idx = np.argsort(imp)[::-1][:5]
+                        top_features = [
+                            {"name": selected_features[i], "importance": float(imp[i])}
+                            for i in top_idx
+                        ]
+
+            yield evt("progress", {"step": "formatting", "message": "Formatage des résultats...", "percent": 90})
+            characterization = compute_characterization(lc_clean, lc_folded, period, score)
+            step = max(1, len(lc_folded) // 800)
+            chart_data = [
+                {"time": round(float(t), 5), "flux": round(float(f), 6)}
+                for t, f in zip(lc_folded.time.value[::step], lc_folded.flux.value[::step])
+            ]
+
+            result = {
+                "target": target_id,
+                "mission": mission,
+                "score": round(score, 4),
+                "verdict": classify_score(score),
+                "period": round(period, 4),
+                "points_count": len(lc_raw),
+                "characterization": characterization,
+                "top_features": top_features,
+                "data": chart_data,
+                "analyzed_by": username,
+            }
+            # Sauvegarde dans le cache pour les prochaines fois
+            results_cache[cache_key] = result
+            save_results_cache()
+            print(f"[Cache] Résultat sauvegardé pour {target_id}")
+            yield evt("result", result)
+
+        except Exception as e:
+            print(f"[SSE Erreur] {target_id}: {e}")
+            yield evt("error", {"error": str(e)})
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route('/api/metadata', methods=['GET'])
+@token_required
+def get_metadata():
+    """Retourne les métadonnées stellaires d'une cible."""
+    target_id = request.args.get('id', '').strip()
+    if not target_id:
+        return jsonify({"error": "Paramètre 'id' requis"}), 400
+    meta = get_real_metadata(target_id)
+    # Adapter les champs pour le frontend
+    return jsonify({
+        "star_type": None,
+        "distance": None,
+        "estimated_radius": f"{meta.get('star_radius_solar', '—')} R☉" if meta.get('star_radius_solar') else None,
+        "nb_observations": None,
+        "temperature_k": meta.get('star_temperature_k'),
+        "kepler_magnitude": meta.get('kepler_magnitude'),
+        "known_disposition": meta.get('known_disposition'),
+        "source": meta.get('source'),
+        "note": meta.get('note'),
+    })
+
+
+@app.route('/api/validate', methods=['GET'])
+@token_required
+def validate_target():
+    """Valide la prédiction IA contre le catalogue NASA."""
+    target_id = request.args.get('id', '').strip()
+    if not target_id:
+        return jsonify({"error": "Paramètre 'id' requis"}), 400
+
+    meta = get_real_metadata(target_id)
+    disposition = meta.get('known_disposition', '')
+    nasa_confirmed = disposition in ('CONFIRMED', 'CANDIDATE')
+
+    return jsonify({
+        "target": target_id,
+        "nasa_confirmed": nasa_confirmed,
+        "known_disposition": disposition,
+        "planet_name": target_id if nasa_confirmed else None,
+        "known_period": meta.get('catalog_period'),
+    })
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+@token_required
+def logout():
+    """Déconnexion (côté client, le token est simplement ignoré)."""
+    return jsonify({"message": "Déconnecté."})
 
 
 @app.route('/api/metrics', methods=['GET'])
@@ -528,6 +728,17 @@ def get_real_metadata(target_id):
 
 
 # =============================================================================
+# Gestionnaire d'erreurs global (garantit les headers CORS sur les 500)
+# =============================================================================
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Capture toutes les exceptions non gérées et retourne du JSON avec CORS."""
+    print(f"[Exception non gérée] {type(e).__name__}: {e}")
+    return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
 # Lancement
 # =============================================================================
 
@@ -535,5 +746,5 @@ if __name__ == "__main__":
     print("\n" + "=" * 50)
     print("  Exoplanet Detection API v2")
     print("=" * 50)
-    
-    app.run(debug=True, host='0.0.0.0', port=5001)
+
+    app.run(debug=True, host='0.0.0.0', port=5001, threaded=True)

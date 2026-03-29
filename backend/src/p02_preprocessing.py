@@ -4,15 +4,39 @@ import lightkurve as lk
 import time
 
 def clean_and_flatten(lc, quality="auto"):
-    if lc is None: return None
-    
+    if lc is None:
+        return None
+
     lc = lc.remove_nans().remove_outliers(sigma=7)
-    
+
+    if len(lc) == 0:
+        print("   [Preprocessing] Courbe vide après remove_nans/remove_outliers.")
+        return None
+
     # Binning agressif : on reduit a ~3000-5000 points
-    lc = lc.bin(time_bin_size=0.05)
-    
-    lc_flat = lc.flatten(window_length=101)
-    
+    try:
+        lc = lc.bin(time_bin_size=0.05)
+    except Exception as e:
+        print(f"   [Preprocessing] Erreur binning : {e} — on continue sans binning.")
+
+    if len(lc) == 0:
+        print("   [Preprocessing] Courbe vide après binning.")
+        return None
+
+    # window_length doit être impair et < len(lc)
+    win = min(101, len(lc) - 1)
+    if win % 2 == 0:
+        win -= 1
+    if win < 3:
+        print("   [Preprocessing] Pas assez de points pour flatten.")
+        return None
+
+    lc_flat = lc.flatten(window_length=win)
+
+    if len(lc_flat) == 0:
+        print("   [Preprocessing] Courbe vide après flatten.")
+        return None
+
     return lc_flat
 
 

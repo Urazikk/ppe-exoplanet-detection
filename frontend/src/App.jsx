@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Search, Orbit, Activity, Database, Telescope, Star, ChevronRight,
   Loader2, AlertTriangle, CheckCircle2, Sparkles, RotateCcw, LogIn,
@@ -157,117 +158,251 @@ function ProgressPanel({ progress }) {
   );
 }
 
-/* ─── LightCurveCanvas ───────────────────────────────────────── */
-function LightCurveCanvas({ data, score, isLoading, title="Courbe de Lumière Repliée" }) {
+/* \u2500\u2500\u2500 LightCurveCanvas \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+function LightCurveCanvas({ data, score, isLoading }) {
   const canvasRef = useRef(null);
   const [tooltip, setTooltip] = useState(null);
-  const animRef  = useRef(0);
+  const animRef   = useRef(0);
 
-  const draw = useCallback((progress=1) => {
+  // Zoom / pan state
+  const [viewport, setViewport] = useState(null); // { tMin, tMax, fMin, fMax }
+  const dragRef   = useRef(null);
+  const isZoomed  = viewport !== null;
+
+  // Full data ranges (memoised)
+  const dataRanges = useMemo(() => {
+    if (!data || data.length === 0) return null;
+    const ts = data.map(d => d.time), fs = data.map(d => d.flux);
+    const tMin = Math.min(...ts), tMax = Math.max(...ts);
+    const fMin = Math.min(...fs), fMax = Math.max(...fs);
+    const fPad = (fMax - fMin) * 0.1 || 0.001;
+    return { tMin, tMax, fMin: fMin - fPad, fMax: fMax + fPad };
+  }, [data]);
+
+  // Reset zoom when new data arrives
+  useEffect(() => { setViewport(null); }, [data]);
+
+  const draw = useCallback((progress = 1) => {
     const canvas = canvasRef.current;
-    if (!canvas || !data || data.length===0) return;
+    if (!canvas || !data || data.length === 0 || !dataRanges) return;
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     canvas.width  = rect.width  * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
-    const W=rect.width, H=rect.height;
-    const p={top:30, right:24, bottom:46, left:68};
-    const pW=W-p.left-p.right, pH=H-p.top-p.bottom;
+    const W = rect.width, H = rect.height;
+    const p = { top: 30, right: 24, bottom: 46, left: 68 };
+    const pW = W - p.left - p.right, pH = H - p.top - p.bottom;
 
-    ctx.fillStyle="#07090f"; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = "#07090f"; ctx.fillRect(0, 0, W, H);
 
-    const ts=data.map(d=>d.time), fs=data.map(d=>d.flux);
-    const tMin=Math.min(...ts), tMax=Math.max(...ts);
-    const fMin=Math.min(...fs), fMax=Math.max(...fs);
-    const fPad=(fMax-fMin)*0.1||0.001;
-    const toX=t=>p.left+((t-tMin)/(tMax-tMin))*pW;
-    const toY=f=>p.top+pH-((f-(fMin-fPad))/((fMax+fPad)-(fMin-fPad)))*pH;
+    const vp = viewport || dataRanges;
+    const { tMin, tMax, fMin, fMax } = vp;
+    const tRange = tMax - tMin || 1, fRange = fMax - fMin || 0.001;
+    const toX = t => p.left + ((t - tMin) / tRange) * pW;
+    const toY = f => p.top + pH - ((f - fMin) / fRange) * pH;
 
-    // grid
-    ctx.strokeStyle="rgba(99,140,255,0.05)"; ctx.lineWidth=1;
-    for(let i=0;i<=5;i++){const y=p.top+(pH/5)*i; ctx.beginPath(); ctx.moveTo(p.left,y); ctx.lineTo(W-p.right,y); ctx.stroke();}
-    for(let i=0;i<=6;i++){const x=p.left+(pW/6)*i; ctx.beginPath(); ctx.moveTo(x,p.top); ctx.lineTo(x,H-p.bottom); ctx.stroke();}
+    // Grid
+    ctx.strokeStyle = "rgba(99,140,255,0.05)"; ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) { const y = p.top + (pH / 5) * i; ctx.beginPath(); ctx.moveTo(p.left, y); ctx.lineTo(W - p.right, y); ctx.stroke(); }
+    for (let i = 0; i <= 6; i++) { const x = p.left + (pW / 6) * i; ctx.beginPath(); ctx.moveTo(x, p.top); ctx.lineTo(x, H - p.bottom); ctx.stroke(); }
 
-    // labels
-    ctx.fillStyle="rgba(160,180,220,0.45)"; ctx.font="10px 'DM Mono',monospace"; ctx.textAlign="center";
-    for(let i=0;i<=6;i++) ctx.fillText((tMin+((tMax-tMin)/6)*i).toFixed(2), p.left+(pW/6)*i, H-p.bottom+16);
-    ctx.textAlign="right";
-    for(let i=0;i<=5;i++) ctx.fillText(((fMin-fPad)+(((fMax+fPad)-(fMin-fPad))/5)*(5-i)).toFixed(5), p.left-6, p.top+(pH/5)*i+4);
+    // Axis labels
+    ctx.fillStyle = "rgba(160,180,220,0.45)"; ctx.font = "10px 'DM Mono',monospace"; ctx.textAlign = "center";
+    for (let i = 0; i <= 6; i++) ctx.fillText((tMin + (tRange / 6) * i).toFixed(3), p.left + (pW / 6) * i, H - p.bottom + 16);
+    ctx.textAlign = "right";
+    for (let i = 0; i <= 5; i++) ctx.fillText((fMin + (fRange / 5) * (5 - i)).toFixed(5), p.left - 6, p.top + (pH / 5) * i + 4);
+    ctx.fillStyle = "rgba(160,180,220,0.5)"; ctx.font = "11px 'DM Mono',monospace"; ctx.textAlign = "center";
+    ctx.fillText("Phase Orbitale", W / 2, H - 4);
+    ctx.save(); ctx.translate(12, H / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("Flux Relatif", 0, 0); ctx.restore();
 
-    ctx.fillStyle="rgba(160,180,220,0.5)"; ctx.font="11px 'DM Mono',monospace"; ctx.textAlign="center";
-    ctx.fillText("Phase Orbitale", W/2, H-4);
-    ctx.save(); ctx.translate(12,H/2); ctx.rotate(-Math.PI/2); ctx.fillText("Flux Relatif",0,0); ctx.restore();
-
-    // glow at transit minimum
-    const tc=data.reduce((m,d)=>d.flux<m.flux?d:m, data[0]);
-    const cx=toX(tc.time);
-    const grd=ctx.createRadialGradient(cx,toY(tc.flux),0,cx,toY(tc.flux),90);
-    grd.addColorStop(0,"rgba(99,140,255,0.07)"); grd.addColorStop(1,"rgba(99,140,255,0)");
-    ctx.fillStyle=grd; ctx.fillRect(p.left,p.top,pW,pH);
-
-    // points
-    const vis=Math.floor(data.length*progress);
-    const pc=score>0.7?"rgba(74,222,160,0.65)":score>0.4?"rgba(251,191,36,0.65)":"rgba(248,113,113,0.65)";
-    const gc=score>0.7?"rgba(74,222,160,0.14)":score>0.4?"rgba(251,191,36,0.14)":"rgba(248,113,113,0.14)";
-    for(let i=0;i<vis;i++){
-      const x=toX(data[i].time), y=toY(data[i].flux);
-      ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fillStyle=gc; ctx.fill();
-      ctx.beginPath(); ctx.arc(x,y,1.4,0,Math.PI*2); ctx.fillStyle=pc; ctx.fill();
+    // Glow at the global transit minimum
+    const tc = data.reduce((m, d) => d.flux < m.flux ? d : m, data[0]);
+    const cxFull = toX(tc.time);
+    if (cxFull >= p.left && cxFull <= W - p.right) {
+      const grd = ctx.createRadialGradient(cxFull, toY(tc.flux), 0, cxFull, toY(tc.flux), 90);
+      grd.addColorStop(0, "rgba(99,140,255,0.07)"); grd.addColorStop(1, "rgba(99,140,255,0)");
+      ctx.fillStyle = grd; ctx.fillRect(p.left, p.top, pW, pH);
     }
 
-    if(progress>=1){
-      ctx.setLineDash([3,4]); ctx.strokeStyle="rgba(99,140,255,0.35)"; ctx.lineWidth=1;
-      ctx.beginPath(); ctx.moveTo(cx,p.top); ctx.lineTo(cx,H-p.bottom); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle="rgba(99,140,255,0.9)"; ctx.font="9px 'DM Mono',monospace"; ctx.textAlign="center";
-      ctx.fillText("▼ Transit", cx, p.top-8);
+    // Clip to plot area
+    ctx.save();
+    ctx.beginPath(); ctx.rect(p.left, p.top, pW, pH); ctx.clip();
+
+    const vis = Math.floor(data.length * progress);
+    const pc = score > 0.7 ? "rgba(74,222,160,0.65)" : score > 0.4 ? "rgba(251,191,36,0.65)" : "rgba(248,113,113,0.65)";
+    const gc = score > 0.7 ? "rgba(74,222,160,0.14)" : score > 0.4 ? "rgba(251,191,36,0.14)" : "rgba(248,113,113,0.14)";
+    for (let i = 0; i < vis; i++) {
+      const x = toX(data[i].time), y = toY(data[i].flux);
+      ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = gc; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, 1.4, 0, Math.PI * 2); ctx.fillStyle = pc; ctx.fill();
     }
-  }, [data, score]);
+    ctx.restore();
 
-  useEffect(()=>{
-    if(!data||data.length===0) return;
-    let start=null;
-    const animate=(ts)=>{ if(!start) start=ts; const pr=Math.min((ts-start)/1100,1); draw(1-(1-pr)**3); if(pr<1) animRef.current=requestAnimationFrame(animate); };
-    animRef.current=requestAnimationFrame(animate);
-    return ()=>cancelAnimationFrame(animRef.current);
-  },[data,draw]);
+    if (progress >= 1 && cxFull >= p.left && cxFull <= W - p.right) {
+      ctx.setLineDash([3, 4]); ctx.strokeStyle = "rgba(99,140,255,0.35)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cxFull, p.top); ctx.lineTo(cxFull, H - p.bottom); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(99,140,255,0.9)"; ctx.font = "9px 'DM Mono',monospace"; ctx.textAlign = "center";
+      ctx.fillText("\u25bc Transit", cxFull, p.top - 8);
+    }
+  }, [data, score, viewport, dataRanges]);
 
-  const handleMouse=(e)=>{
-    if(!data||!data.length) return;
-    const rect=canvasRef.current.getBoundingClientRect();
-    const mx=e.clientX-rect.left;
-    const ts=data.map(d=>d.time); const tMin=Math.min(...ts),tMax=Math.max(...ts);
-    const tAt=tMin+((mx-68)/(rect.width-92))*(tMax-tMin);
-    const c=data.reduce((b,d)=>Math.abs(d.time-tAt)<Math.abs(b.time-tAt)?d:b);
-    setTooltip({x:e.clientX-rect.left, y:e.clientY-rect.top, time:c.time, flux:c.flux});
-  };
+  // Initial animation on new data
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+    let start = null;
+    const animate = ts => { if (!start) start = ts; const pr = Math.min((ts - start) / 1100, 1); draw(1 - (1 - pr) ** 3); if (pr < 1) animRef.current = requestAnimationFrame(animate); };
+    animRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  // Redraw when viewport changes
+  useEffect(() => { draw(1); }, [draw]);
+
+  /* pixel -> data coords */
+  const pixelToData = useCallback((px, py) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !dataRanges) return null;
+    const rect   = canvas.getBoundingClientRect();
+    const p      = { top: 30, right: 24, bottom: 46, left: 68 };
+    const pW     = rect.width  - p.left - p.right;
+    const pH     = rect.height - p.top  - p.bottom;
+    const vp     = viewport || dataRanges;
+    return {
+      t: vp.tMin + ((px - p.left) / pW) * (vp.tMax - vp.tMin),
+      f: vp.fMin + ((pH - (py - p.top)) / pH) * (vp.fMax - vp.fMin),
+    };
+  }, [viewport, dataRanges]);
+
+  /* Mouse wheel -> zoom */
+  const handleWheel = useCallback((e) => {
+    e.preventDefault();
+    if (!dataRanges) return;
+    const canvas = canvasRef.current;
+    const rect   = canvas.getBoundingClientRect();
+    const pivot  = pixelToData(e.clientX - rect.left, e.clientY - rect.top);
+    if (!pivot) return;
+    const factor = e.deltaY < 0 ? 0.75 : 1 / 0.75;
+    const vp = viewport || dataRanges;
+    const nTMin = pivot.t - (pivot.t - vp.tMin) * factor;
+    const nTMax = pivot.t + (vp.tMax - pivot.t) * factor;
+    const nFMin = pivot.f - (pivot.f - vp.fMin) * factor;
+    const nFMax = pivot.f + (vp.fMax - pivot.f) * factor;
+    const dr = dataRanges;
+    if ((nTMax - nTMin) >= (dr.tMax - dr.tMin) * 1.05 && (nFMax - nFMin) >= (dr.fMax - dr.fMin) * 1.05) {
+      setViewport(null); return;
+    }
+    setViewport({ tMin: nTMin, tMax: nTMax, fMin: nFMin, fMax: nFMax });
+  }, [viewport, dataRanges, pixelToData]);
+
+  /* Mouse drag -> pan */
+  const handleMouseDown = useCallback((e) => {
+    if (!data || !data.length || e.button !== 0) return;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, vpSnap: viewport || dataRanges };
+  }, [viewport, dataRanges, data]);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!data || !data.length) return;
+    if (dragRef.current) {
+      const canvas = canvasRef.current;
+      const rect   = canvas.getBoundingClientRect();
+      const p      = { top: 30, right: 24, bottom: 46, left: 68 };
+      const pW     = rect.width  - p.left - p.right;
+      const pH     = rect.height - p.top  - p.bottom;
+      const snap   = dragRef.current.vpSnap;
+      const dt     = -((e.clientX - dragRef.current.startX) / pW) * (snap.tMax - snap.tMin);
+      const df     =  ((e.clientY - dragRef.current.startY) / pH) * (snap.fMax - snap.fMin);
+      setViewport({ tMin: snap.tMin + dt, tMax: snap.tMax + dt, fMin: snap.fMin + df, fMax: snap.fMax + df });
+      return;
+    }
+    const rect = canvasRef.current.getBoundingClientRect();
+    const pos  = pixelToData(e.clientX - rect.left, e.clientY - rect.top);
+    if (!pos) return;
+    const c = data.reduce((b, d) => Math.abs(d.time - pos.t) < Math.abs(b.time - pos.t) ? d : b);
+    setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, time: c.time, flux: c.flux });
+  }, [data, viewport, dataRanges, pixelToData]);
+
+  const handleMouseUp    = useCallback(() => { dragRef.current = null; }, []);
+  const handleMouseLeave = useCallback(() => { dragRef.current = null; setTooltip(null); }, []);
+
+  // Attach non-passive wheel listener
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
+
+  const resetZoom = () => setViewport(null);
+
+  const zoomLevel = useMemo(() => {
+    if (!viewport || !dataRanges) return 1;
+    const fullT = dataRanges.tMax - dataRanges.tMin;
+    const curT  = viewport.tMax  - viewport.tMin;
+    return Math.max(1, Math.round(fullT / curT));
+  }, [viewport, dataRanges]);
 
   return (
-    <div style={{position:"relative",width:"100%",height:"100%"}}>
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {isLoading && (
-        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
-          background:"rgba(7,9,15,0.75)",zIndex:10,borderRadius:12,gap:10}}>
-          <Loader2 size={28} style={{color:"#638cff",animation:"spin 1s linear infinite"}}/>
-          <span style={{color:"#638cff",fontFamily:"'DM Mono',monospace",fontSize:13}}>Analyse en cours…</span>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(7,9,15,0.75)", zIndex: 10, borderRadius: 12, gap: 10 }}>
+          <Loader2 size={28} style={{ color: "#638cff", animation: "spin 1s linear infinite" }} />
+          <span style={{ color: "#638cff", fontFamily: "'DM Mono',monospace", fontSize: 13 }}>Analyse en cours…</span>
         </div>
       )}
-      {(!data||data.length===0)&&!isLoading && (
-        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
-          color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace",fontSize:13,gap:8}}>
-          <Telescope size={20} style={{opacity:.4}}/> Entrez un identifiant stellaire pour commencer
+      {(!data || data.length === 0) && !isLoading && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+          color: "rgba(160,180,220,0.3)", fontFamily: "'DM Mono',monospace", fontSize: 13, gap: 8 }}>
+          <Telescope size={20} style={{ opacity: .4 }} /> Entrez un identifiant stellaire pour commencer
         </div>
       )}
-      <canvas ref={canvasRef}
-        style={{width:"100%",height:"100%",borderRadius:10,cursor:"crosshair"}}
-        onMouseMove={handleMouse} onMouseLeave={()=>setTooltip(null)}/>
-      {tooltip&&(
-        <div style={{position:"absolute",left:tooltip.x+12,top:tooltip.y-42,
-          background:"rgba(12,16,28,0.96)",border:"1px solid rgba(99,140,255,0.3)",
-          borderRadius:8,padding:"6px 10px",pointerEvents:"none",
-          fontFamily:"'DM Mono',monospace",fontSize:10,color:"#a0b4dc",zIndex:20}}>
-          <div>Phase: <span style={{color:"#fff"}}>{tooltip.time.toFixed(4)}</span></div>
-          <div>Flux:  <span style={{color:"#fff"}}>{tooltip.flux.toFixed(6)}</span></div>
+
+      {/* Zoom controls overlay */}
+      {data && data.length > 0 && (
+        <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 6, zIndex: 15, pointerEvents: "none" }}>
+          {isZoomed && (
+            <>
+              <div style={{ padding: "2px 8px", borderRadius: 5, fontSize: 10, fontFamily: "'DM Mono',monospace",
+                color: "#638cff", background: "rgba(99,140,255,0.12)", border: "1px solid rgba(99,140,255,0.25)",
+                backdropFilter: "blur(6px)" }}>
+                ×{zoomLevel}
+              </div>
+              <button onClick={resetZoom} style={{ pointerEvents: "all", display: "flex", alignItems: "center", gap: 4,
+                padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(99,140,255,0.25)",
+                background: "rgba(9,12,22,0.82)", backdropFilter: "blur(8px)",
+                color: "#638cff", fontSize: 10, fontFamily: "'DM Mono',monospace", cursor: "pointer" }}>
+                <RotateCcw size={10} /> Reset
+              </button>
+            </>
+          )}
+          {!isZoomed && (
+            <div style={{ padding: "2px 8px", borderRadius: 5, fontSize: 9, fontFamily: "'DM Mono',monospace",
+              color: "rgba(160,180,220,0.3)", background: "rgba(9,12,22,0.6)", border: "1px solid rgba(99,140,255,0.08)",
+              backdropFilter: "blur(4px)" }}>
+              Molette pour zoomer · Glisser pour naviguer
+            </div>
+          )}
+        </div>
+      )}
+
+      <canvas
+        ref={canvasRef}
+        style={{ width: "100%", height: "100%", borderRadius: 10, cursor: isZoomed ? "grab" : "crosshair" }}
+        onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+      />
+      {tooltip && (
+        <div style={{ position: "absolute", left: tooltip.x + 12, top: tooltip.y - 42,
+          background: "rgba(12,16,28,0.96)", border: "1px solid rgba(99,140,255,0.3)",
+          borderRadius: 8, padding: "6px 10px", pointerEvents: "none",
+          fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#a0b4dc", zIndex: 20 }}>
+          <div>Phase: <span style={{ color: "#fff" }}>{tooltip.time.toFixed(4)}</span></div>
+          <div>Flux:  <span style={{ color: "#fff" }}>{tooltip.flux.toFixed(6)}</span></div>
         </div>
       )}
     </div>
@@ -311,6 +446,242 @@ function ScoreGauge({ score, size=160 }) {
 }
 
 /* ─── Characterization Panel ─────────────────────────────────── */
+function getScoreTone(score=0.5) {
+  if (score > 0.7) return { primary:"#4ade80", secondary:"#22d3ee", glow:"rgba(74,222,128,0.3)" };
+  if (score > 0.4) return { primary:"#fbbf24", secondary:"#f97316", glow:"rgba(251,191,36,0.28)" };
+  return { primary:"#f87171", secondary:"#fb7185", glow:"rgba(248,113,113,0.28)" };
+}
+
+function PlanetPreviewPanel({ data }) {
+  const hasData = Boolean(data);
+  const score = data?.score ?? 0.5;
+  const c = data?.characterization || {};
+  const m = data?.metadata || {};
+  const tone = getScoreTone(score);
+  const orbitSize = Math.max(118, Math.min(176, 108 + (data?.period_days || 8) * 2.2));
+  const planetSize = Math.max(26, Math.min(58, 20 + (c.planet_radius_earth || 2.6) * 3));
+  const starSize = m?.star_radius_solar ? Math.max(46, Math.min(72, 42 + m.star_radius_solar * 10)) : 54;
+
+  const summary = !hasData
+    ? "L'apercu s'active apres une analyse pour transformer les chiffres en scene orbitale."
+    : "Representation visuelle du systeme etoile-planete pour contextualiser la courbe de lumiere.";
+
+  return (
+    <Card style={{padding:14, overflow:"hidden"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:10}}>
+        <div>
+          <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:4,
+            textTransform:"uppercase",letterSpacing:1.5}}>Apercu orbital</h3>
+          <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif"}}>
+            {hasData ? data.target : "Planete analysee"}
+          </div>
+        </div>
+        {hasData && (
+          <div style={{padding:"4px 10px",borderRadius:999,fontSize:10,
+            color:tone.primary,background:`${tone.primary}16`,border:`1px solid ${tone.primary}33`,
+            fontFamily:"'DM Mono',monospace"}}>
+            {(score*100).toFixed(1)}% de confiance IA
+          </div>
+        )}
+      </div>
+
+      <div style={{
+        position:"relative",
+        height:220,
+        borderRadius:14,
+        overflow:"hidden",
+        background:`radial-gradient(circle at 32% 38%, ${tone.glow}, transparent 35%),
+          radial-gradient(circle at 70% 18%, rgba(99,140,255,0.12), transparent 24%),
+          linear-gradient(180deg, rgba(8,11,20,0.96), rgba(5,8,16,0.88))`,
+        border:"1px solid rgba(99,140,255,0.08)",
+      }}>
+        <div style={{position:"absolute", inset:0, opacity:0.32}}>
+          {Array.from({ length: 28 }, (_, i) => (
+            <div key={i} style={{
+              position:"absolute",
+              left:`${8 + ((i * 17) % 84)}%`,
+              top:`${6 + ((i * 29) % 82)}%`,
+              width: i % 5 === 0 ? 2 : 1,
+              height: i % 5 === 0 ? 2 : 1,
+              borderRadius:"50%",
+              background:"#fff",
+              boxShadow:"0 0 8px rgba(255,255,255,0.35)",
+            }}/>
+          ))}
+        </div>
+
+        <div style={{
+          position:"absolute",
+          left:"32%",
+          top:"50%",
+          width:starSize,
+          height:starSize,
+          transform:"translate(-50%, -50%)",
+          borderRadius:"50%",
+          background:"radial-gradient(circle at 30% 30%, #fff7c2 0%, #ffd36b 28%, #ff9f43 64%, rgba(255,159,67,0.08) 100%)",
+          boxShadow:"0 0 34px rgba(255,193,92,0.42), 0 0 90px rgba(255,164,73,0.18)",
+        }}/>
+
+        <div style={{
+          position:"absolute",
+          left:"32%",
+          top:"50%",
+          width:orbitSize,
+          height:orbitSize * 0.62,
+          transform:"translate(-50%, -50%)",
+          borderRadius:"50%",
+          border:"1px solid rgba(160,180,220,0.16)",
+          boxShadow:"inset 0 0 40px rgba(99,140,255,0.03)",
+        }}/>
+
+        <div style={{
+          position:"absolute",
+          left:"32%",
+          top:"50%",
+          width:orbitSize,
+          height:orbitSize * 0.62,
+          transform:"translate(-50%, -50%)",
+          animation:`spin ${Math.max(9, Math.min(22, (data?.period_days || 8) * 1.4))}s linear infinite`,
+        }}>
+          <div style={{
+            position:"absolute",
+            left:"100%",
+            top:"50%",
+            width:planetSize,
+            height:planetSize,
+            marginLeft:-planetSize/2,
+            marginTop:-planetSize/2,
+            borderRadius:"50%",
+            background:`radial-gradient(circle at 30% 28%, rgba(255,255,255,0.9), ${tone.secondary} 32%, ${tone.primary} 72%, rgba(7,9,15,0.92) 100%)`,
+            boxShadow:`0 0 18px ${tone.glow}, inset -12px -10px 18px rgba(3,5,11,0.55)`,
+          }}>
+            <div style={{
+              position:"absolute",
+              inset:"18% 10%",
+              borderRadius:"50%",
+              border:"1px solid rgba(255,255,255,0.22)",
+              transform:"rotate(-18deg)",
+              opacity:0.72,
+            }}/>
+          </div>
+          <div style={{
+            position:"absolute",
+            left:"100%",
+            top:"50%",
+            width:10,
+            height:10,
+            marginLeft:planetSize * 0.48,
+            marginTop:-5,
+            borderRadius:"50%",
+            background:"rgba(160,180,220,0.55)",
+            boxShadow:"0 0 10px rgba(160,180,220,0.35)",
+          }}/>
+        </div>
+      </div>
+
+      <p style={{marginTop:10,fontSize:11,color:"rgba(160,180,220,0.58)",lineHeight:1.55}}>
+        {summary}
+      </p>
+    </Card>
+  );
+}
+
+function SignalInsightsPanel({ data }) {
+  if (!data) return null;
+
+  const c = data.characterization || {};
+  const m = data.metadata || {};
+  const depthText = c.transit_depth_ppm
+    ? c.transit_depth_ppm > 5000
+      ? "Le creux photometrique est tres marque, donc le transit est visuellement plus facile a reperer."
+      : c.transit_depth_ppm > 1000
+        ? "Le transit est net mais pas gigantesque, ce qui correspond a un signal exploitable."
+        : "Le transit est subtil, donc la decision depend davantage du bruit et de la stabilite du signal."
+    : "La profondeur de transit sera interpretable apres l'analyse complete.";
+  const snrText = c.snr
+    ? c.snr > 10
+      ? "Le signal se detache bien du bruit, ce qui rend la detection plus solide."
+      : c.snr > 5
+        ? "Le signal est present mais demande encore une lecture prudente."
+        : "Le signal est proche du bruit, donc il faut rester prudent dans l'interpretation."
+    : "Le niveau de confiance du signal sera estime apres calcul du SNR.";
+  const nasaText = m.known_disposition
+    ? `Le catalogue NASA reference cette cible comme ${m.known_disposition.toLowerCase()}.`
+    : "Aucune correspondance directe n'a ete trouvee dans le catalogue pour comparer le resultat.";
+
+  const cards = [
+    {
+      label:"Rythme orbital",
+      value:data.period_days ? `${data.period_days} j` : "n/d",
+      text:data.period_days
+        ? `La baisse de luminosite se repete environ tous les ${data.period_days} jours.`
+        : "La periode sera visible des que le repliement de la courbe est disponible.",
+      icon:Orbit,
+      color:"#638cff",
+    },
+    {
+      label:"Profondeur du transit",
+      value:c.transit_depth_ppm ? `${c.transit_depth_ppm.toLocaleString()} ppm` : "n/d",
+      text:depthText,
+      icon:TrendingUp,
+      color:"#22d3ee",
+    },
+    {
+      label:"Qualite du signal",
+      value:c.snr ? `SNR ${c.snr.toFixed(1)}` : "n/d",
+      text:snrText,
+      icon:Sparkles,
+      color:"#fbbf24",
+    },
+    {
+      label:"Comparaison catalogue",
+      value:m.known_disposition || "Non renseigne",
+      text:nasaText,
+      icon:BookOpen,
+      color:"#4ade80",
+    },
+  ];
+
+  return (
+    <Card style={{padding:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        <div>
+          <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:4,
+            textTransform:"uppercase",letterSpacing:1.5}}>Lecture des donnees</h3>
+          <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif"}}>
+            Ce que racontent les chiffres
+          </div>
+        </div>
+        <div style={{fontSize:10,color:"rgba(160,180,220,0.45)",fontFamily:"'DM Mono',monospace"}}>
+          Interprete en langage simple
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10}}>
+        {cards.map((item)=>(
+          <div key={item.label} style={{padding:"12px 12px 10px",borderRadius:12,
+            background:"rgba(99,140,255,0.04)",border:"1px solid rgba(99,140,255,0.08)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <div style={{width:28,height:28,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",
+                background:`${item.color}16`,border:`1px solid ${item.color}30`}}>
+                <item.icon size={14} style={{color:item.color}}/>
+              </div>
+              <div style={{fontSize:10,color:"rgba(160,180,220,0.5)",textTransform:"uppercase",letterSpacing:1}}>
+                {item.label}
+              </div>
+            </div>
+            <div style={{fontSize:18,fontWeight:700,color:"#e0e8f5",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
+              {item.value}
+            </div>
+            <div style={{fontSize:11,color:"rgba(160,180,220,0.56)",lineHeight:1.55}}>
+              {item.text}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function CharacterizationPanel({ data }) {
   if (!data) return null;
   const c = data.characterization;
@@ -403,6 +774,66 @@ function StatusDots({ status }) {
 }
 
 /* ─── Metrics Tab ────────────────────────────────────────────── */
+function MetricStatCard({ stat }) {
+  const [open, setOpen] = useState(false);
+  const [tipPos, setTipPos] = useState({ left: 0, top: 0 });
+  const wrapRef = useRef(null);
+  const TIP_W = 272;
+
+  const showTip = () => {
+    if (!wrapRef.current) return;
+    const r = wrapRef.current.getBoundingClientRect();
+    const centerX = r.left + r.width / 2;
+    const spaceAbove = r.top;
+    const left = Math.max(8, Math.min(window.innerWidth - TIP_W - 8, centerX - TIP_W / 2));
+    const top = spaceAbove > 130 ? r.top - 8 : r.bottom + 8;
+    const above = spaceAbove > 130;
+    setTipPos({ left, top, above });
+    setOpen(true);
+  };
+  const hideTip = () => setOpen(false);
+
+  return (
+    <div ref={wrapRef} style={{position:"relative"}}
+      onMouseEnter={showTip} onMouseLeave={hideTip}
+      onFocus={showTip}     onBlur={hideTip} tabIndex={0}>
+      <Card style={{padding:"14px 16px",textAlign:"center",cursor:"help"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:2}}>
+          <div style={{fontSize:11,color:"#e0e8f5"}}>{stat.label}</div>
+          <Info size={11} style={{color:"rgba(99,140,255,0.6)"}}/>
+        </div>
+        <div style={{fontSize:22,fontWeight:700,fontFamily:"'DM Mono',monospace",
+          color:"#638cff",marginBottom:2}}>
+          {stat.val}
+        </div>
+        <div style={{fontSize:10,color:"rgba(160,180,220,0.4)"}}>{stat.sub}</div>
+      </Card>
+      {open && (
+        <div style={{
+          position:"fixed",
+          left:tipPos.left,
+          ...(tipPos.above ? {bottom: window.innerHeight - tipPos.top + 6} : {top: tipPos.top}),
+          width:TIP_W,
+          padding:"10px 13px",
+          borderRadius:10,
+          background:"rgba(8,12,22,0.97)",
+          border:"1px solid rgba(99,140,255,0.28)",
+          color:"rgba(224,232,245,0.88)",
+          fontSize:10.5,
+          lineHeight:1.62,
+          textAlign:"left",
+          zIndex:9999,
+          boxShadow:"0 16px 36px rgba(0,0,0,0.5)",
+          pointerEvents:"none",
+          backdropFilter:"blur(8px)",
+        }}>
+          {stat.hint}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MetricsTab() {
   const [metrics,setMetrics]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -459,10 +890,7 @@ function MetricsTab() {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         {/* Confusion Matrix */}
         <Card>
-          <h3 style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginBottom:14,
-            textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
-            Matrice de confusion
-          </h3>
+          <ConfusionMatrixHeader />
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,maxWidth:260,margin:"0 auto"}}>
             {[{v:tn,l:"Vrais Négatifs",c:"#4ade80"},{v:fp,l:"Faux Positifs",c:"#f87171"},
               {v:fn,l:"Faux Négatifs",c:"#f87171"},{v:tp,l:"Vrais Positifs",c:"#4ade80"}]
@@ -489,22 +917,55 @@ function MetricsTab() {
             textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
             Importance des features (modèle)
           </h3>
-          {(metrics.top_features||[]).slice(0,8).map((f,i)=>{
-            const mx2=metrics.top_features[0]?.importance||1;
-            return (
-              <div key={i} style={{marginBottom:5}}>
-                <div style={{display:"flex",justifyContent:"space-between",
-                  fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:2}}>
-                  <span style={{color:"rgba(160,180,220,0.7)"}}>{f.name.replace("sci_","").replace("flux__","")}</span>
-                  <span style={{color:"#638cff"}}>{(f.importance*100).toFixed(1)}%</span>
-                </div>
-                <div style={{height:4,borderRadius:2,background:"rgba(99,140,255,0.08)"}}>
-                  <div style={{height:"100%",width:`${(f.importance/mx2)*100}%`,
-                    background:"linear-gradient(90deg,#638cff,#8b5cf6)",borderRadius:2}}/>
-                </div>
-              </div>
-            );
-          })}
+          {(() => {
+            const FEAT_HINTS = {
+              "agg_autocorrelation": "Mesure dans quelle mesure le flux d'une observation ressemble au flux d'observations precedentes. Un signal transit periodique produit une forte autocorrelation.",
+              "absolute_sum_of_changes": "Somme de toutes les variations absolues consecutives du flux. Un transit cree des changements brusques qui augmentent cette valeur.",
+              "mean": "Valeur moyenne du flux sur toute la courbe repliee. Un transit abaisse legerement la moyenne par rapport a la ligne de base.",
+              "variance": "Dispersion statistique du flux. Une faible variance indique un signal propre ; une forte variance peut refleter du bruit ou un transit repete.",
+              "skewness": "Mesure l'asymetrie de la distribution du flux. Les transits creent une queue vers les valeurs basses (flux reduit).",
+              "kurtosis": "Decrit la forme des queues de la distribution. Un kurtosis eleve signale des evenements rares et extremes comme un transit profond.",
+              "median": "Valeur centrale du flux, plus robuste au bruit que la moyenne. Comparee a la moyenne, elle permet de detecter les transits asymetriques.",
+              "maximum": "Valeur maximale atteinte par le flux. Aide a calibrer l'amplitude du signal et a detecter les flares stellaires.",
+              "minimum": "Valeur minimale atteinte : correspond au creux du transit. Plus ce minimum est bas, plus le transit est profond.",
+              "standard_deviation": "Racine carree de la variance. Quantifie directement l'amplitude typique des fluctuations du flux autour de sa moyenne.",
+              "sum_values": "Somme totale de toutes les valeurs de flux. Proportionnelle a la moyenne.", 
+              "count_above_mean": "Nombre de points dont le flux depasse la moyenne. Un transit symetrique reduit ce compteur.",
+              "count_below_mean": "Nombre de points dont le flux est en dessous de la moyenne, incluant les points en transit.",
+              "ratio_beyond_r_sigma": "Fraction de points dont le flux s'ecarte de plus de N fois l'ecart-type. Les transits profonds augmentent ce ratio.",
+              "number_peaks": "Compte le nombre de maxima locaux dans la courbe. Un signal bruite aura plus de pics qu'un transit propre.",
+              "energy_ratio_by_chunks": "Compare l'energie du signal dans differentes parties de la courbe. Un transit concentre l'energie dans une zone precise.",
+              "linear_trend": "Pente d'une regression lineaire sur le flux. Une tendance residuelle peut indiquer un artefact instrumental non corrige.",
+              "spkt_welch_density": "Estimation de la densite spectrale de puissance. Detecte les composantes periodiques dominantes dans le signal de flux.",
+              "cwt_coefficients": "Transformee en ondelettes continues : analyse le signal a differentes echelles temporelles pour detecter des structures de transit.",
+              "fft_aggregated": "Statistiques agregees de la transformee de Fourier rapide. Capture les composantes frequentielles d'un transit periodique.",
+              "fourier_entropy": "Mesure le desordre du spectre de frequences. Un transit propre et periodique produit une faible entropie spectrale.",
+              "permutation_entropy": "Quantifie la complexite temporelle du signal. Un signal de transit regulier a une entropie plus faible qu'un signal chaotique.",
+              "sample_entropy": "Indice de la regularite et de la previsibilite du signal. Les transits repetes avec la meme forme ont une faible entropie.",
+              "approximate_entropy": "Similaire a l'entropie d'echantillon, mesure la regularite du flux. Un transit periodique augmente la regularite globale.",
+              "ar_coefficient": "Coefficient du modele autoregressif ajuste sur le flux. Decrit la dependance temporelle du signal photometrique.",
+              "partial_autocorrelation": "Correlation du flux avec ses valeurs passees en eliminant les effets intermediaires. Identifie l'ordre du signal.",
+              "change_quantiles": "Statistiques sur les variations du flux dans certains quantiles. Sensible aux changements abrupts comme les bords d'un transit.",
+              "binned_entropy": "Entropie de la distribution du flux apres discretisation. Un signal bimodal (baseline + transit) a une entropie caracteristique.",
+              "number_cwt_peaks": "Nombre de pics significatifs dans la transformee en ondelettes. Un seul creux de transit produit generalement un ou deux pics dominants.",
+              "longest_strike_below_mean": "Duree maximale consecutive ou le flux reste sous sa moyenne, correspondant typiquement a la duree du transit.",
+              "mean_abs_change": "Moyenne des variations absolues point a point. Elevee pour du bruit, faible pour un signal lisse.",
+              "mean_second_derivative_central": "Courbure moyenne du signal. Un transit cree des courbures distinctes a ses bords d'entree et de sortie.",
+              "symmetry_looking": "Teste si la distribution du flux est approximativement symetrique. Un transit ideal est symetrique autour de son minimum.",
+              "time_reversal_asymmetry_statistic": "Mesure si le signal se comporte pareil dans les deux sens du temps. Les transits planetaires ont une tres faible asymetrie.",
+            };
+            const getHint = (name) => {
+              const clean = name.replace("sci_","").replace("flux__","").toLowerCase();
+              for (const [k,v] of Object.entries(FEAT_HINTS)) {
+                if (clean.includes(k)) return v;
+              }
+              return `Feature TSFRESH extraite du profil de flux replie. Nom : ${name.replace("sci_","").replace("flux__","")}`;
+            };
+            const mx2 = metrics.top_features[0]?.importance || 1;
+            return (metrics.top_features||[]).slice(0,8).map((f,i) => (
+              <FeatureBar key={i} f={f} mx2={mx2} hint={getHint(f.name)} />
+            ));
+          })()}
         </Card>
       </div>
 
@@ -547,7 +1008,435 @@ function MetricsTab() {
   );
 }
 
+
+
+/* --- FeatureImportanceHeader with explanation tooltip --- */
+function FeatureImportanceHeader() {
+  const [show, setShow] = useState(false);
+  const [tipPos, setTipPos] = useState({ left: 0, top: 0 });
+  const iconRef = useRef(null);
+  const TIP_W = 400;
+
+  const onEnter = () => {
+    setShow(true);
+  };
+
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:14,position:"relative"}}>
+      <h3 style={{fontSize:11,color:"rgba(160,180,220,0.5)",margin:0,
+        textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
+        Importance des features
+      </h3>
+      <div
+        ref={iconRef}
+        onMouseEnter={onEnter}
+        onMouseLeave={() => setShow(false)}
+        style={{
+          display:"flex",alignItems:"center",justifyContent:"center",
+          width:17,height:17,borderRadius:"50%",cursor:"help",flexShrink:0,
+          background:"rgba(99,140,255,0.12)",border:"1px solid rgba(99,140,255,0.3)",
+          color:"#638cff",fontSize:10,fontWeight:700,fontFamily:"'DM Mono',monospace",
+          transition:"background .2s",
+          userSelect:"none",
+        }}
+        onMouseEnter2={e => { e.currentTarget.style.background = "rgba(99,140,255,0.22)"; onEnter(); }}
+      >
+        <Info size={10} />
+      </div>
+      {show && createPortal(
+        <div style={{
+          position:"fixed",
+          top:"50%",
+          left:"50%",
+          transform:"translate(-50%, -50%)",
+          width:TIP_W,
+          maxWidth:"calc(100vw - 32px)",
+          padding:"18px 20px",
+          borderRadius:14,
+          background:"rgba(7,10,20,0.98)",
+          border:"1px solid rgba(99,140,255,0.32)",
+          zIndex:2147483647,
+          boxShadow:"0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,140,255,0.1)",
+          pointerEvents:"none",
+          backdropFilter:"blur(14px)",
+          fontFamily:"'DM Mono',monospace",
+          animation:"fadeIn .18s ease-out",
+        }}>
+          <div style={{fontSize:11,fontWeight:700,color:"#638cff",marginBottom:10,
+            textTransform:"uppercase",letterSpacing:1.2}}>
+            Qu'est-ce que l'importance des features ?
+          </div>
+          <div style={{fontSize:10.5,color:"rgba(224,232,245,0.82)",lineHeight:1.65,marginBottom:12}}>
+            Chaque feature est une variable numerique calculee sur la courbe de lumiere 
+            (periode, rayon, profondeur du transit…). Le modele XGBoost assigne a chacune un 
+            score d'importance qui mesure combien elle contribue aux bonnes predictions.
+          </div>
+          <div style={{fontSize:10,color:"rgba(160,180,220,0.55)",marginBottom:8,
+            textTransform:"uppercase",letterSpacing:1}}>Pourquoi certaines sont plus utiles ?</div>
+          <div style={{display:"flex",flexDirection:"column",gap:7}}>
+            {[
+              { icon:"📐", label:"Taille physique", text:"Le rayon de la planete (koi_prad) est le signal le plus fort : une grande planete occulte plus de lumiere, rendant le transit facilement distinguable du bruit." },
+              { icon:"⏱", label:"Geometrie temporelle", text:"Le rapport duree/periode (duty_cycle) revele si le transit est trop court ou trop long par rapport a l'orbite — un faux positif comme une etoile binaire a souvent un duty_cycle anormal." },
+              { icon:"📡", label:"Qualite du signal", text:"Le SNR proxy et la temperature de l'etoile (koi_steff) permettent de savoir si le signal emerge suffisamment du bruit photometrique, indispensable pour valider une detection." },
+              { icon:"🔗", label:"Coherence physique", text:"Le ratio rayon planete / rayon etoile (ratio_prad_srad) verifie que la geometrie est coherente : une planete plus grande que son etoile est physiquement impossible et trahit un faux positif." },
+            ].map((r,i) => (
+              <div key={i} style={{display:"flex",gap:9,padding:"7px 9px",borderRadius:8,
+                background:"rgba(99,140,255,0.04)",border:"1px solid rgba(99,140,255,0.08)"}}>
+                <span style={{fontSize:14,flexShrink:0}}>{r.icon}</span>
+                <div>
+                  <div style={{fontSize:9.5,fontWeight:600,color:"#638cff",marginBottom:2,
+                    textTransform:"uppercase",letterSpacing:0.8}}>{r.label}</div>
+                  <div style={{fontSize:10,color:"rgba(200,215,240,0.75)",lineHeight:1.55}}>{r.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:10,fontSize:9.5,color:"rgba(160,180,220,0.38)",lineHeight:1.5}}>
+            Le modele apprend seul quelles variables separent le mieux planetes confirmeees 
+            et faux positifs sur le catalogue KOI de la mission Kepler.
+          </div>
+        </div>
+      , document.body)}
+    </div>
+  );
+}
+
+
+/* --- ConfusionMatrixHeader with explanation tooltip --- */
+function ConfusionMatrixHeader() {
+  const [show, setShow] = useState(false);
+  const iconRef = useRef(null);
+  const TIP_W = 420;
+
+  const onEnter = () => setShow(true);
+  const onLeave = () => setShow(false);
+
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:14}}>
+      <h3 style={{fontSize:11,color:"rgba(160,180,220,0.5)",margin:0,
+        textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
+        Matrice de confusion
+      </h3>
+      <div
+        ref={iconRef}
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
+        style={{
+          display:"flex",alignItems:"center",justifyContent:"center",
+          width:17,height:17,borderRadius:"50%",cursor:"help",flexShrink:0,
+          background:"rgba(99,140,255,0.12)",border:"1px solid rgba(99,140,255,0.3)",
+          color:"#638cff",transition:"background .2s",userSelect:"none",
+        }}
+      >
+        <Info size={10} />
+      </div>
+      {show && createPortal(
+        <div style={{
+          position:"fixed",
+          top:"50%",
+          left:"50%",
+          transform:"translate(-50%, -50%)",
+          width:TIP_W,
+          maxWidth:"calc(100vw - 32px)",
+          padding:"18px 20px",
+          borderRadius:14,
+          background:"rgba(7,10,20,0.98)",
+          border:"1px solid rgba(99,140,255,0.32)",
+          zIndex:2147483647,
+          boxShadow:"0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,140,255,0.1)",
+          pointerEvents:"none",
+          backdropFilter:"blur(14px)",
+          fontFamily:"'DM Mono',monospace",
+          animation:"fadeIn .18s ease-out",
+        }}>
+          <div style={{fontSize:11,fontWeight:700,color:"#638cff",marginBottom:10,
+            textTransform:"uppercase",letterSpacing:1.2}}>
+            Qu'est-ce que la matrice de confusion ?
+          </div>
+          <div style={{fontSize:10.5,color:"rgba(224,232,245,0.82)",lineHeight:1.65,marginBottom:14}}>
+            La matrice de confusion compare les predictions du modele aux vraies etiquettes du jeu de test.
+            Elle se divise en 4 cellules selon que la prediction est correcte ou non.
+          </div>
+
+          {/* Visual 2x2 grid explanation */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+            {[
+              { label:"Vrai Negatif (TN)", color:"#4ade80",
+                text:"L'etoile n'a pas d'exoplanete et le modele le dit correctement. Pas de transit — bonne detection.", icon:"✅" },
+              { label:"Faux Positif (FP)", color:"#f87171",
+                text:"Le modele croit detecter une exoplanete, mais c'est une erreur (binaire a eclipse, bruit stellaire…). Alarme injustifiee.", icon:"⚠️" },
+              { label:"Faux Negatif (FN)", color:"#f87171",
+                text:"Une vraie exoplanete existe, mais le modele l'a ratee. C'est la pire erreur pour la recherche : on passe a cote d'une decouverte.", icon:"❌" },
+              { label:"Vrai Positif (TP)", color:"#4ade80",
+                text:"Une vraie exoplanete est correctement detectee. C'est le resultat ideal que l'on cherche a maximiser.", icon:"🌍" },
+            ].map((cell, i) => (
+              <div key={i} style={{
+                padding:"9px 11px",borderRadius:9,
+                background:`rgba(${cell.color==="#4ade80"?"74,222,128":"248,113,113"},0.06)`,
+                border:`1px solid ${cell.color}30`,
+              }}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                  <span style={{fontSize:13}}>{cell.icon}</span>
+                  <span style={{fontSize:9.5,fontWeight:700,color:cell.color,
+                    textTransform:"uppercase",letterSpacing:0.8}}>{cell.label}</span>
+                </div>
+                <div style={{fontSize:10,color:"rgba(200,215,240,0.75)",lineHeight:1.55}}>{cell.text}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{padding:"9px 11px",borderRadius:9,
+            background:"rgba(99,140,255,0.05)",border:"1px solid rgba(99,140,255,0.12)",
+            marginBottom:10}}>
+            <div style={{fontSize:9.5,fontWeight:700,color:"#638cff",marginBottom:5,
+              textTransform:"uppercase",letterSpacing:0.8}}>Ce que le modele optimise</div>
+            <div style={{fontSize:10,color:"rgba(200,215,240,0.72)",lineHeight:1.6}}>
+              Un modele parfait aurait <span style={{color:"#4ade80"}}>0 FP</span> et <span style={{color:"#4ade80"}}>0 FN</span>.
+              En pratique, on cherche un equilibre : trop de FP = beaucoup de fausses alertes a verifier,
+              trop de FN = on rate des exoplanetes reelles. Le F1-Score mesure cet equilibre.
+            </div>
+          </div>
+
+          <div style={{fontSize:9.5,color:"rgba(160,180,220,0.38)",lineHeight:1.5}}>
+            Les valeurs affichees sont calculees sur le jeu de test (donnees que le modele n'a jamais vues pendant l'entrainement).
+          </div>
+        </div>
+      , document.body)}
+    </div>
+  );
+}
+
+/* --- FeatureBar (with hover tooltip) --- */
+function FeatureBar({ f, mx2, hint }) {
+  const [showHint, setShowHint] = useState(false);
+  const [tipPos, setTipPos]     = useState({ left: 0, top: 0 });
+  const rowRef = useRef(null);
+  const TIP_W  = 260;
+
+  const onEnter = () => {
+    if (!rowRef.current) return;
+    const r = rowRef.current.getBoundingClientRect();
+    const left = Math.max(8, Math.min(window.innerWidth - TIP_W - 8, r.left));
+    const spaceBelow = window.innerHeight - r.bottom;
+    const top = spaceBelow > 80 ? r.bottom + 6 : r.top - 80;
+    setTipPos({ left, top });
+    setShowHint(true);
+  };
+
+  const displayName = f.name.replace("sci_","").replace("flux__","");
+
+  return (
+    <div ref={rowRef} style={{marginBottom:6,cursor:"help"}}
+      onMouseEnter={onEnter} onMouseLeave={()=>setShowHint(false)}>
+      <div style={{display:"flex",justifyContent:"space-between",
+        fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:3}}>
+        <span style={{color:"rgba(160,180,220,0.8)",maxWidth:"78%",overflow:"hidden",
+          textOverflow:"ellipsis",whiteSpace:"nowrap",borderBottom:"1px dashed rgba(99,140,255,0.3)"}}
+        >{displayName}</span>
+        <span style={{color:"#638cff",fontWeight:600}}>{(f.importance*100).toFixed(1)}%</span>
+      </div>
+      <div style={{height:5,borderRadius:3,background:"rgba(99,140,255,0.08)"}}>
+        <div style={{height:"100%",width:`${(f.importance/mx2)*100}%`,
+          background:"linear-gradient(90deg,#638cff,#8b5cf6)",borderRadius:3,
+          transition:"width .4s cubic-bezier(.22,1,.36,1)"}}/>
+      </div>
+      {showHint && (
+        <div style={{
+          position:"fixed",left:tipPos.left,top:tipPos.top,
+          width:TIP_W,
+          padding:"9px 12px",
+          borderRadius:9,
+          background:"rgba(8,12,22,0.97)",
+          border:"1px solid rgba(99,140,255,0.28)",
+          color:"rgba(224,232,245,0.88)",
+          fontSize:10.5,lineHeight:1.62,
+          zIndex:9999,
+          boxShadow:"0 14px 32px rgba(0,0,0,0.5)",
+          pointerEvents:"none",
+          backdropFilter:"blur(8px)",
+        }}>
+          <div style={{fontWeight:600,color:"#638cff",marginBottom:4,fontSize:10}}>
+            {displayName}
+          </div>
+          {hint}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Catalog Tab ────────────────────────────────────────────── */
+function EnhancedMetricsTab() {
+  const [metrics,setMetrics]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState(null);
+
+  useEffect(()=>{
+    authFetch(`${API_BASE}/api/metrics`)
+      .then(r=>r.json()).then(setMetrics).catch(e=>setErr(e.message)).finally(()=>setLoading(false));
+  },[]);
+
+  if(loading) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,gap:10,
+      color:"rgba(160,180,220,0.5)",fontFamily:"'DM Mono',monospace"}}>
+      <Loader2 size={20} style={{animation:"spin 1s linear infinite"}}/> Chargement des metriques...
+    </div>
+  );
+  if(err) return (
+    <div style={{padding:24,color:"#f87171",fontFamily:"'DM Mono',monospace",fontSize:13}}>
+      <AlertTriangle size={16} style={{marginRight:8}}/>{err}
+    </div>
+  );
+  if(!metrics) return null;
+
+  const cm=metrics.confusion_matrix||[[0,0],[0,0]];
+  const [tn,fp]=[cm[0][0],cm[0][1]];
+  const [fn,tp]=[cm[1][0],cm[1][1]];
+  const cmMax=Math.max(tn,fp,fn,tp)||1;
+
+  const statCards=[
+    {
+      label:"Precision",
+      val:`${(metrics.test_precision*100).toFixed(1)}%`,
+      sub:"test set",
+      hint:"Parmi toutes les detections positives du modele, c'est la part qui correspond reellement a des exoplanetes. Plus elle est haute, moins le modele genere de faux positifs.",
+    },
+    {
+      label:"Recall",
+      val:`${(metrics.test_recall*100).toFixed(1)}%`,
+      sub:"test set",
+      hint:"Parmi toutes les vraies exoplanetes presentes dans le jeu de test, c'est la part retrouvee par le modele. Plus il est haut, moins on manque de vraies cibles interessantes.",
+    },
+    {
+      label:"F1-Score",
+      val:`${(metrics.test_f1*100).toFixed(1)}%`,
+      sub:"test set",
+      hint:"Le F1-Score combine precision et recall en une seule mesure. Il est utile quand on veut un bon compromis entre peu de faux positifs et peu de faux negatifs.",
+    },
+    {
+      label:"AUC-ROC",
+      val:(metrics.test_auc_roc).toFixed(3),
+      sub:"test set",
+      hint:"Cette mesure indique a quel point le modele separe bien les classes positives et negatives, quel que soit le seuil choisi. Plus on se rapproche de 1, meilleure est la separation.",
+    },
+    {
+      label:"CV Accuracy",
+      val:`${(metrics.cv_accuracy_mean*100).toFixed(1)} +/- ${(metrics.cv_accuracy_std*100).toFixed(1)}%`,
+      sub:"5-fold",
+      hint:"Accuracy moyenne obtenue sur plusieurs decoupages du dataset. L'ecart type montre si la performance reste stable d'un fold a l'autre.",
+    },
+    {
+      label:"CV F1",
+      val:`${(metrics.cv_f1_mean*100).toFixed(1)} +/- ${(metrics.cv_f1_std*100).toFixed(1)}%`,
+      sub:"5-fold",
+      hint:"Version cross-validation du F1-Score. Elle aide a voir si l'equilibre precision et recall reste coherent quand on change d'echantillon d'entrainement et de validation.",
+    },
+    {
+      label:"Features select.",
+      val:metrics.n_features_selected,
+      sub:`/ ${metrics.n_features_total} total`,
+      hint:"Nombre de variables finalement retenues par le modele. Moins de features peut rendre le systeme plus lisible et parfois plus robuste si les variables ecartent le bruit inutile.",
+    },
+    {
+      label:"Dataset train",
+      val:metrics.train_size,
+      sub:`test: ${metrics.test_size}`,
+      hint:"Taille des donnees utilisees pour entrainer et evaluer le modele. Ce contexte aide a juger si les scores reposent sur un volume de donnees plutot limite ou deja representatif.",
+    },
+  ];
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:18,animation:"fadeIn .5s ease-out"}}>
+      <div style={{fontSize:11,color:"rgba(160,180,220,0.46)",fontFamily:"'DM Mono',monospace"}}>
+        Survolez une carte pour voir ce que chaque metrique signifie.
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:10}}>
+        {statCards.map((s,i)=>(
+          <MetricStatCard key={i} stat={s}/>
+        ))}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        <Card>
+          <ConfusionMatrixHeader />
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,maxWidth:260,margin:"0 auto"}}>
+            {[{v:tn,l:"Vrais Negatifs",c:"#4ade80"},{v:fp,l:"Faux Positifs",c:"#f87171"},
+              {v:fn,l:"Faux Negatifs",c:"#f87171"},{v:tp,l:"Vrais Positifs",c:"#4ade80"}]
+            .map((cell,i)=>(
+              <div key={i} style={{
+                padding:"14px 10px",borderRadius:10,textAlign:"center",
+                background:`rgba(${cell.c==="#4ade80"?"74,222,160":"248,113,113"},${0.05+(cell.v/cmMax)*0.15})`,
+                border:`1px solid ${cell.c}25`,
+              }}>
+                <div style={{fontSize:28,fontWeight:700,fontFamily:"'DM Mono',monospace",color:cell.c}}>{cell.v}</div>
+                <div style={{fontSize:9,color:"rgba(160,180,220,0.5)",marginTop:2}}>{cell.l}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:10,fontSize:10,
+            fontFamily:"'DM Mono',monospace",color:"rgba(160,180,220,0.4)",textAlign:"center"}}>
+            <div>Predit : Negatif</div><div>Predit : Positif</div>
+          </div>
+        </Card>
+
+        <Card>
+          <FeatureImportanceHeader />
+          {(metrics.top_features||[]).slice(0,8).map((f,i)=>{
+            const mx2=metrics.top_features[0]?.importance||1;
+            return (
+              <div key={i} style={{marginBottom:5}}>
+                <div style={{display:"flex",justifyContent:"space-between",
+                  fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:2}}>
+                  <span style={{color:"rgba(160,180,220,0.7)"}}>{f.name.replace("sci_","").replace("flux__","")}</span>
+                  <span style={{color:"#638cff"}}>{(f.importance*100).toFixed(1)}%</span>
+                </div>
+                <div style={{height:4,borderRadius:2,background:"rgba(99,140,255,0.08)"}}>
+                  <div style={{height:"100%",width:`${(f.importance/mx2)*100}%`,
+                    background:"linear-gradient(90deg,#638cff,#8b5cf6)",borderRadius:2}}/>
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      </div>
+
+      <Card>
+        <h3 style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginBottom:14,
+          textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
+          Performance cross-validation (5 folds)
+        </h3>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[
+            {label:"Accuracy", val:metrics.cv_accuracy_mean, std:metrics.cv_accuracy_std, col:"#638cff"},
+            {label:"F1-Score", val:metrics.cv_f1_mean,       std:metrics.cv_f1_std,       col:"#8b5cf6"},
+            {label:"AUC-ROC",  val:metrics.cv_auc_mean,      std:metrics.cv_auc_std,      col:"#22d3ee"},
+          ].map((row,i)=>(
+            <div key={i}>
+              <div style={{display:"flex",justifyContent:"space-between",
+                fontSize:11,fontFamily:"'DM Mono',monospace",marginBottom:4}}>
+                <span style={{color:"rgba(160,180,220,0.7)"}}>{row.label}</span>
+                <span style={{color:row.col}}>{(row.val*100).toFixed(1)}% +/- {(row.std*100).toFixed(1)}%</span>
+              </div>
+              <div style={{position:"relative",height:8,borderRadius:4,background:"rgba(99,140,255,0.08)"}}>
+                <div style={{
+                  position:"absolute",height:"100%",
+                  left:`${Math.max(0,(row.val-row.std)*100)}%`,
+                  width:`${Math.min(100,row.std*200)}%`,
+                  background:`${row.col}20`,borderRadius:4,
+                }}/>
+                <div style={{height:"100%",width:`${row.val*100}%`,
+                  background:`linear-gradient(90deg,${row.col},${row.col}90)`,
+                  borderRadius:4,boxShadow:`0 0 8px ${row.col}40`}}/>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function CatalogTab({ onAnalyze }) {
   const [query,setQuery]=useState("");
   const [results,setResults]=useState(null);
@@ -1170,7 +2059,7 @@ export default function ExoPlanetDashboard() {
             )}
 
             {/* main grid */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:14,
+            <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 320px",gap:14,
               animation:"fadeIn .6s ease-out"}}>
               {/* light curve */}
               <Card glow style={{padding:14}}>
@@ -1202,6 +2091,8 @@ export default function ExoPlanetDashboard() {
 
               {/* right column */}
               <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                <PlanetPreviewPanel data={aData}/>
+
                 {/* score gauge */}
                 <Card style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"16px 14px"}}>
                   <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:8,
@@ -1229,11 +2120,13 @@ export default function ExoPlanetDashboard() {
                 )}
               </div>
             </div>
+
+            {aData && <SignalInsightsPanel data={aData}/>}
           </>
         )}
 
         {/* ─ Metrics tab ─ */}
-        {activeTab==="metrics"&&<MetricsTab/>}
+        {activeTab==="metrics"&&<EnhancedMetricsTab/>}
 
         {/* ─ Catalog tab ─ */}
         {activeTab==="catalog"&&<CatalogTab onAnalyze={analyzeFromCatalog}/>}
@@ -1255,3 +2148,4 @@ export default function ExoPlanetDashboard() {
     </div>
   );
 }
+

@@ -1,94 +1,65 @@
 {
-  "test_accuracy": 0.8983628922237381,
-  "test_precision": 0.8278688524590164,
-  "test_recall": 0.9198542805100182,
-  "test_f1": 0.8714408973252804,
-  "test_auc_roc": 0.9644580311580686,
+  "test_accuracy": 0.8806275579809004,
+  "test_precision": 0.7958860759493671,
+  "test_recall": 0.9162112932604736,
+  "test_f1": 0.8518204911092294,
+  "test_auc_roc": 0.9552989176315418,
+  "cv_accuracy_mean": 0.9162346521145974,
+  "cv_accuracy_std": 0.0029068589021367676,
+  "cv_f1_mean": 0.9187883695699426,
+  "cv_f1_std": 0.002644307488970804,
+  "cv_auc_mean": 0.9664612526964074,
+  "cv_auc_std": 0.0035135747701577793,
   "confusion_matrix": [
     [
-      812,
-      105
+      788,
+      129
     ],
     [
-      44,
-      505
+      46,
+      503
     ]
   ],
-  "n_features": 17,
+  "n_features_selected": 9,
+  "n_features_total": 17,
+  "train_size": 7330,
+  "test_size": 1466,
   "top_features": [
     {
       "name": "koi_prad",
-      "importance": 0.19321981072425842
-    },
-    {
-      "name": "log_koi_prad",
-      "importance": 0.15855054557323456
+      "importance": 0.3149290084838867
     },
     {
       "name": "duty_cycle",
-      "importance": 0.1250852346420288
+      "importance": 0.18068955838680267
+    },
+    {
+      "name": "log_koi_prad",
+      "importance": 0.10863368958234787
     },
     {
       "name": "log_koi_period",
-      "importance": 0.07508920133113861
-    },
-    {
-      "name": "koi_period",
-      "importance": 0.06419476866722107
+      "importance": 0.09666848182678223
     },
     {
       "name": "ratio_prad_srad",
-      "importance": 0.06253612786531448
+      "importance": 0.07081905752420425
+    },
+    {
+      "name": "koi_period",
+      "importance": 0.06847324222326279
     },
     {
       "name": "snr_proxy",
-      "importance": 0.03890902176499367
-    },
-    {
-      "name": "koi_depth",
-      "importance": 0.03836099058389664
-    },
-    {
-      "name": "koi_duration",
-      "importance": 0.03603071719408035
+      "importance": 0.06365058571100235
     },
     {
       "name": "koi_steff",
-      "importance": 0.03584951162338257
+      "importance": 0.04959439858794212
     },
     {
-      "name": "log_snr_proxy",
-      "importance": 0.028387244790792465
-    },
-    {
-      "name": "log_koi_depth",
-      "importance": 0.026803504675626755
-    },
-    {
-      "name": "orbital_speed_proxy",
-      "importance": 0.026646684855222702
-    },
-    {
-      "name": "stellar_density_proxy",
-      "importance": 0.025866171345114708
-    },
-    {
-      "name": "koi_srad",
-      "importance": 0.02478952333331108
-    },
-    {
-      "name": "depth_per_srad",
-      "importance": 0.023020990192890167
-    },
-    {
-      "name": "koi_kepmag",
-      "importance": 0.016659952700138092
+      "name": "koi_depth",
+      "importance": 0.046542003750801086
     }
-  ],
-  "cv_accuracy_mean": 0.9313778990450204,
-  "cv_accuracy_std": 0.003701135052182976,
-  "cv_auc_mean": 0.9766989460048503,
-  "cv_auc_std": 0.0028654343947318683,
-  "cv_f1_mean": 0.9327848126048991,
-  "cv_f1_std": 0.0038438752976708095
+  ]
 }

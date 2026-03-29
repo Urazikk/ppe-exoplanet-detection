@@ -1,1 +1,0 @@
-["flux__median", "flux__mean", "flux__root_mean_square", "flux__minimum", "sci_skewness", "sci_kurtosis", "sci_mad", "sci_transit_depth_p1", "sci_transit_depth_p5", "sci_transit_depth_min", "sci_below_above_ratio", "sci_low_cluster_mean_gap", "sci_low_cluster_std_gap", "sci_snr_approx"]

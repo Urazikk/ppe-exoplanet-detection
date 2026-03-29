@@ -7,6 +7,9 @@ __pycache__/
 # Données Astronomiques (très lourdes)
 backend/data/raw/*
 backend/data/processed/*
+backend/data/kaggle/*.csv
+backend/data/cache/*.parquet
+!backend/data/raw/.gitkeep
 !backend/data/raw/.gitkeep
 
 # Dépendances Node / React

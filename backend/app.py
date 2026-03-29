@@ -34,6 +34,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeou
 
 from flask import Flask, request, jsonify, g, Response, stream_with_context
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 
 # JWT
 try:
@@ -82,6 +83,46 @@ results_cache = {}
 # Cache in-memory avec TTL (clé → {"result": ..., "ts": float})
 _analysis_cache = {}
 CACHE_TTL = 600  # 10 minutes
+
+
+def is_finite_number(value):
+    """Retourne True pour les nombres finis utilisables en JSON."""
+    if isinstance(value, (bool, np.bool_)):
+        return True
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return np.isfinite(value)
+    return False
+
+
+def json_safe(value):
+    """Convertit recursivement les NaN/inf en None pour produire un JSON valide."""
+    if isinstance(value, dict):
+        return {k: json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(v) for v in value]
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value) if np.isfinite(value) else None
+    if isinstance(value, float):
+        return value if np.isfinite(value) else None
+    return value
+
+
+def build_chart_data(lc_folded):
+    """Construit les points de courbe en ignorant les valeurs invalides."""
+    step = max(1, len(lc_folded) // 800)
+    chart_data = []
+    for t, f in zip(lc_folded.time.value[::step], lc_folded.flux.value[::step]):
+        t_val = float(t)
+        f_val = float(f)
+        if not (np.isfinite(t_val) and np.isfinite(f_val)):
+            continue
+        chart_data.append({
+            "time": round(t_val, 5),
+            "flux": round(f_val, 6)
+        })
+    return chart_data
 
 
 def load_results_cache():
@@ -261,6 +302,16 @@ def login():
     })
 
 
+@app.route('/', methods=['GET'])
+def root():
+    """Point d'entree simple pour verifier que l'API repond."""
+    return jsonify({
+        "name": "Exoplanet Detection API v2",
+        "status": "online",
+        "docs_hint": "Utilisez /api/status pour verifier l'etat du systeme."
+    })
+
+
 # =============================================================================
 # Routes : API publique
 # =============================================================================
@@ -337,27 +388,26 @@ def run_full_analysis(target_id, mission, username):
     characterization = compute_characterization(lc_clean, lc_folded, period, score)
     metadata = get_real_metadata(target_id)
 
-    step = max(1, len(lc_folded) // 800)
-    chart_data = [
-        {"time": round(float(t), 5), "flux": round(float(f), 6)}
-        for t, f in zip(lc_folded.time.value[::step], lc_folded.flux.value[::step])
-    ]
+    if not is_finite_number(score):
+        score = 0.5
+
+    chart_data = build_chart_data(lc_folded)
 
     log(f"Pipeline terminée en {time.time()-t0:.1f}s")
 
-    return {
+    return json_safe({
         "target": target_id,
         "mission": mission,
-        "score": round(score, 4),
+        "score": round(float(score), 4),
         "verdict": classify_score(score),
-        "period_days": round(period, 4),
+        "period_days": round(float(period), 4) if is_finite_number(period) else None,
         "points_count": len(lc_raw),
         "characterization": characterization,
         "metadata": metadata,
         "feature_importances": feature_importances,
         "data": chart_data,
         "analyzed_by": username,
-    }
+    })
 
 
 @app.route('/api/analyze', methods=['GET'])
@@ -481,24 +531,23 @@ def analyze_stream():
 
             yield evt("progress", {"step": "formatting", "message": "Formatage des résultats...", "percent": 90})
             characterization = compute_characterization(lc_clean, lc_folded, period, score)
-            step = max(1, len(lc_folded) // 800)
-            chart_data = [
-                {"time": round(float(t), 5), "flux": round(float(f), 6)}
-                for t, f in zip(lc_folded.time.value[::step], lc_folded.flux.value[::step])
-            ]
+            if not is_finite_number(score):
+                score = 0.5
 
-            result = {
+            chart_data = build_chart_data(lc_folded)
+
+            result = json_safe({
                 "target": target_id,
                 "mission": mission,
-                "score": round(score, 4),
+                "score": round(float(score), 4),
                 "verdict": classify_score(score),
-                "period": round(period, 4),
+                "period": round(float(period), 4) if is_finite_number(period) else None,
                 "points_count": len(lc_raw),
                 "characterization": characterization,
                 "top_features": top_features,
                 "data": chart_data,
                 "analyzed_by": username,
-            }
+            })
             # Sauvegarde dans le cache pour les prochaines fois
             results_cache[cache_key] = result
             save_results_cache()
@@ -731,6 +780,11 @@ def get_real_metadata(target_id):
 # Gestionnaire d'erreurs global (garantit les headers CORS sur les 500)
 # =============================================================================
 
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    """Conserve les vrais codes HTTP (404, 401, etc.)."""
+    return jsonify({"error": e.description}), e.code
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Capture toutes les exceptions non gérées et retourne du JSON avec CORS."""
@@ -747,4 +801,7 @@ if __name__ == "__main__":
     print("  Exoplanet Detection API v2")
     print("=" * 50)
 
-    app.run(debug=True, host='0.0.0.0', port=5001, threaded=True)
+    # Le reloader de Flask peut boucler sous Windows quand des libs Python
+    # modifient des fichiers dans site-packages. On le coupe pour garder
+    # un demarrage stable du backend.
+    app.run(debug=True, host='0.0.0.0', port=5001, threaded=True, use_reloader=False)

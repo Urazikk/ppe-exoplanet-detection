@@ -36,16 +36,25 @@ def load_kepler_catalog():
         from io import StringIO
         
         url = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
-        query = """
-        SELECT kepid, koi_disposition, koi_period, koi_depth, koi_duration,
-               koi_prad, koi_steff, koi_srad, koi_kepmag
-        FROM koi
-        WHERE koi_disposition IN ('CONFIRMED', 'FALSE POSITIVE')
-        AND koi_period IS NOT NULL
-        AND koi_depth IS NOT NULL
-        """
+        # Le service TAP attend une requete ADQL valide sur une seule ligne.
+        # La table KOI publique actuelle s'appelle "cumulative".
+        query = (
+            "SELECT kepid,koi_disposition,koi_period,koi_depth,koi_duration,"
+            "koi_prad,koi_steff,koi_srad,koi_kepmag "
+            "FROM cumulative "
+            "WHERE koi_disposition IN ('CONFIRMED', 'FALSE POSITIVE') "
+            "AND koi_period IS NOT NULL "
+            "AND koi_depth IS NOT NULL"
+        )
         response = requests.get(url, params={"query": query, "format": "csv"}, timeout=120)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            details = response.text.strip().replace("\n", " ")
+            raise RuntimeError(
+                f"Catalogue NASA inaccessible ({response.status_code}). "
+                f"Requete TAP refusee: {details[:300]}"
+            ) from exc
         df = pd.read_csv(StringIO(response.text))
         os.makedirs("data/catalog", exist_ok=True)
         df.to_csv(catalog_cache, index=False)

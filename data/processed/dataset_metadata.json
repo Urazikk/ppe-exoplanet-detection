@@ -1,0 +1,10 @@
+{
+  "total_samples": 400,
+  "train_samples": 320,
+  "test_samples": 80,
+  "n_features": 36,
+  "unique_stars": 400,
+  "source": "NASA Kepler KOI Catalog",
+  "method": "Features on FOLDED light curves (period from catalog)",
+  "generated_at": "2026-03-28 16:04:38"
+}

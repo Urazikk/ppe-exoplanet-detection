@@ -1,65 +1,106 @@
 {
-  "test_accuracy": 0.8806275579809004,
-  "test_precision": 0.7958860759493671,
-  "test_recall": 0.9162112932604736,
-  "test_f1": 0.8518204911092294,
-  "test_auc_roc": 0.9552989176315418,
-  "cv_accuracy_mean": 0.9162346521145974,
-  "cv_accuracy_std": 0.0029068589021367676,
-  "cv_f1_mean": 0.9187883695699426,
-  "cv_f1_std": 0.002644307488970804,
-  "cv_auc_mean": 0.9664612526964074,
-  "cv_auc_std": 0.0035135747701577793,
-  "confusion_matrix": [
-    [
-      788,
-      129
+    "test_precision": 0.9203539823008849,
+    "test_recall": 0.906318082788671,
+    "test_f1": 0.9132821075740944,
+    "test_auc_roc": 0.9864056623202072,
+    "cv_accuracy_mean": 0.946856146036334,
+    "cv_accuracy_std": 0.0030218288633489343,
+    "cv_f1_mean": 0.9164170293655008,
+    "cv_f1_std": 0.004774455523917269,
+    "n_features_selected": 35,
+    "n_features_total": 35,
+    "train_size": 5852,
+    "test_size": 1464,
+    "confusion_matrix": [
+        [
+            969,
+            36
+        ],
+        [
+            43,
+            416
+        ]
     ],
-    [
-      46,
-      503
+    "top_features": [
+        {
+            "name": "koi_steff_err1",
+            "importance": 0.17025122046470642
+        },
+        {
+            "name": "koi_prad",
+            "importance": 0.12277819216251373
+        },
+        {
+            "name": "koi_duration_err1",
+            "importance": 0.08280511945486069
+        },
+        {
+            "name": "koi_period_err2",
+            "importance": 0.05024639517068863
+        },
+        {
+            "name": "koi_teq",
+            "importance": 0.04441829398274422
+        },
+        {
+            "name": "koi_insol",
+            "importance": 0.04196062311530113
+        },
+        {
+            "name": "koi_model_snr",
+            "importance": 0.03798019140958786
+        },
+        {
+            "name": "koi_period",
+            "importance": 0.037869296967983246
+        },
+        {
+            "name": "koi_duration_err2",
+            "importance": 0.03528976812958717
+        },
+        {
+            "name": "koi_steff_err2",
+            "importance": 0.03278842940926552
+        },
+        {
+            "name": "koi_prad_err2",
+            "importance": 0.03180694207549095
+        },
+        {
+            "name": "koi_period_err1",
+            "importance": 0.02514340542256832
+        },
+        {
+            "name": "koi_impact",
+            "importance": 0.022483469918370247
+        },
+        {
+            "name": "koi_time0bk_err2",
+            "importance": 0.020050114020705223
+        },
+        {
+            "name": "koi_depth_err2",
+            "importance": 0.016245823353528976
+        },
+        {
+            "name": "glat",
+            "importance": 0.015644608065485954
+        },
+        {
+            "name": "koi_impact_err2",
+            "importance": 0.01549717877060175
+        },
+        {
+            "name": "koi_insol_err2",
+            "importance": 0.014448415488004684
+        },
+        {
+            "name": "koi_depth",
+            "importance": 0.014446212910115719
+        },
+        {
+            "name": "koi_duration",
+            "importance": 0.01411786861717701
+        }
     ]
-  ],
-  "n_features_selected": 9,
-  "n_features_total": 17,
-  "train_size": 7330,
-  "test_size": 1466,
-  "top_features": [
-    {
-      "name": "koi_prad",
-      "importance": 0.3149290084838867
-    },
-    {
-      "name": "duty_cycle",
-      "importance": 0.18068955838680267
-    },
-    {
-      "name": "log_koi_prad",
-      "importance": 0.10863368958234787
-    },
-    {
-      "name": "log_koi_period",
-      "importance": 0.09666848182678223
-    },
-    {
-      "name": "ratio_prad_srad",
-      "importance": 0.07081905752420425
-    },
-    {
-      "name": "koi_period",
-      "importance": 0.06847324222326279
-    },
-    {
-      "name": "snr_proxy",
-      "importance": 0.06365058571100235
-    },
-    {
-      "name": "koi_steff",
-      "importance": 0.04959439858794212
-    },
-    {
-      "name": "koi_depth",
-      "importance": 0.046542003750801086
-    }
-  ]
 }

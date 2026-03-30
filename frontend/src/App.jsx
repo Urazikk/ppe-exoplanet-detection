@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
+import OrbitalViewer3D from "./OrbitalViewer3D";
 import {
   Search, Orbit, Activity, Database, Telescope, Star, ChevronRight,
   Loader2, AlertTriangle, CheckCircle2, Sparkles, RotateCcw, LogIn,
@@ -231,8 +232,8 @@ function LightCurveCanvas({ data, score, isLoading }) {
     ctx.beginPath(); ctx.rect(p.left, p.top, pW, pH); ctx.clip();
 
     const vis = Math.floor(data.length * progress);
-    const pc = score > 0.7 ? "rgba(74,222,160,0.65)" : score > 0.4 ? "rgba(251,191,36,0.65)" : "rgba(248,113,113,0.65)";
-    const gc = score > 0.7 ? "rgba(74,222,160,0.14)" : score > 0.4 ? "rgba(251,191,36,0.14)" : "rgba(248,113,113,0.14)";
+    const pc = score >= 0.70 ? "rgba(74,222,160,0.65)" : score >= 0.35 ? "rgba(251,191,36,0.65)" : "rgba(248,113,113,0.65)";
+    const gc = score >= 0.70 ? "rgba(74,222,160,0.14)" : score >= 0.35 ? "rgba(251,191,36,0.14)" : "rgba(248,113,113,0.14)";
     for (let i = 0; i < vis; i++) {
       const x = toX(data[i].time), y = toY(data[i].flux);
       ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = gc; ctx.fill();
@@ -420,8 +421,8 @@ function ScoreGauge({ score, size=160 }) {
   },[score]);
 
   const r=size/2-16, c=Math.PI*r, off=c*(1-a);
-  const col=a>0.7?"#4ade80":a>0.4?"#fbbf24":"#f87171";
-  const verdict=a>0.85?"Exoplanète très probable":a>0.65?"Candidat prometteur":a>0.4?"Signal ambigu":a>0.2?"Faux positif probable":"Faux positif";
+  const col=a>=0.70?"#4ade80":a>=0.35?"#fbbf24":"#f87171";
+  const verdict=a>=0.85?"Exoplanète très probable":a>=0.70?"Exoplanète probable":a>=0.55?"Candidat à confirmer":a>=0.35?"Indéterminé":a>=0.15?"Probable faux positif":"Faux positif très probable";
 
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
@@ -447,8 +448,8 @@ function ScoreGauge({ score, size=160 }) {
 
 /* ─── Characterization Panel ─────────────────────────────────── */
 function getScoreTone(score=0.5) {
-  if (score > 0.7) return { primary:"#4ade80", secondary:"#22d3ee", glow:"rgba(74,222,128,0.3)" };
-  if (score > 0.4) return { primary:"#fbbf24", secondary:"#f97316", glow:"rgba(251,191,36,0.28)" };
+  if (score >= 0.70) return { primary:"#4ade80", secondary:"#22d3ee", glow:"rgba(74,222,128,0.3)" };
+  if (score >= 0.35) return { primary:"#fbbf24", secondary:"#f97316", glow:"rgba(251,191,36,0.28)" };
   return { primary:"#f87171", secondary:"#fb7185", glow:"rgba(248,113,113,0.28)" };
 }
 
@@ -1720,7 +1721,7 @@ function HistoryTab({ history }) {
           </thead>
           <tbody>
             {history.map((row,i)=>{
-              const col=row.score>0.65?"#4ade80":row.score>0.4?"#fbbf24":"#f87171";
+              const col=row.score>=0.70?"#4ade80":row.score>=0.35?"#fbbf24":"#f87171";
               return (
                 <tr key={i} style={{borderBottom:"1px solid rgba(99,140,255,0.05)",
                   animation:"slideIn .3s ease-out"}}>
@@ -2040,13 +2041,13 @@ export default function ExoPlanetDashboard() {
               <div style={{
                 display:"flex",alignItems:"center",gap:12,padding:"10px 16px",
                 borderRadius:10,animation:"fadeIn .4s ease-out",
-                background:aData.score>0.65?"rgba(74,222,160,0.08)":
-                           aData.score>0.4 ?"rgba(251,191,36,0.08)":"rgba(248,113,113,0.08)",
-                border:`1px solid ${aData.score>0.65?"rgba(74,222,160,0.2)":
-                                    aData.score>0.4 ?"rgba(251,191,36,0.2)":"rgba(248,113,113,0.2)"}`,
+                background:aData.score>=0.70?"rgba(74,222,160,0.08)":
+                           aData.score>=0.35 ?"rgba(251,191,36,0.08)":"rgba(248,113,113,0.08)",
+                border:`1px solid ${aData.score>=0.70?"rgba(74,222,160,0.2)":
+                                    aData.score>=0.35 ?"rgba(251,191,36,0.2)":"rgba(248,113,113,0.2)"}`,
               }}>
-                {aData.score>0.65?<CheckCircle2 size={16} style={{color:"#4ade80"}}/>
-                  :aData.score>0.4?<Info size={16} style={{color:"#fbbf24"}}/>
+                {aData.score>=0.70?<CheckCircle2 size={16} style={{color:"#4ade80"}}/>
+                  :aData.score>=0.35?<Info size={16} style={{color:"#fbbf24"}}/>
                   :<AlertTriangle size={16} style={{color:"#f87171"}}/>}
                 <div>
                   <span style={{fontSize:13,fontWeight:600,color:"#e0e8f5"}}>{aData.target}</span>
@@ -2058,10 +2059,10 @@ export default function ExoPlanetDashboard() {
               </div>
             )}
 
-            {/* main grid */}
-            <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 320px",gap:14,
-              animation:"fadeIn .6s ease-out"}}>
-              {/* light curve */}
+            {/* ── Analysis content ── */}
+            <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .6s ease-out"}}>
+
+              {/* Light curve — full width */}
               <Card glow style={{padding:14}}>
                 <div style={{display:"flex",justifyContent:"space-between",
                   alignItems:"center",marginBottom:10}}>
@@ -2089,10 +2090,8 @@ export default function ExoPlanetDashboard() {
                 </div>
               </Card>
 
-              {/* right column */}
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                <PlanetPreviewPanel data={aData}/>
-
+              {/* Score + Features + Characterization — 3-column grid */}
+              <div style={{display:"grid",gridTemplateColumns:"280px 1fr 1fr",gap:14}}>
                 {/* score gauge */}
                 <Card style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"16px 14px"}}>
                   <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:8,
@@ -2104,21 +2103,28 @@ export default function ExoPlanetDashboard() {
                 </Card>
 
                 {/* feature importance */}
-                {aData?.feature_importances?.length>0&&(
+                {aData?.feature_importances?.length>0?(
                   <Card style={{padding:14}}>
                     <FeatureBars features={aData.feature_importances}/>
                   </Card>
-                )}
+                ):<div/>}
 
                 {/* characterization & metadata */}
-                {aData&&(
-                  <Card style={{padding:14,flex:1}}>
+                {aData?(
+                  <Card style={{padding:14}}>
                     <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:10,
                       textTransform:"uppercase",letterSpacing:1.5}}>Caractéristiques</h3>
                     <CharacterizationPanel data={aData}/>
                   </Card>
-                )}
+                ):<div/>}
               </div>
+
+              {/* 3D Orbital viewer — full width below statistics */}
+              <Card glow style={{padding:0,overflow:"hidden"}}>
+                <div style={{height:380,borderRadius:14}}>
+                  <OrbitalViewer3D data={aData}/>
+                </div>
+              </Card>
             </div>
 
             {aData && <SignalInsightsPanel data={aData}/>}

@@ -1,36 +1,36 @@
 {
   "total_tested": 18,
-  "correct": 6,
-  "accuracy": 0.3333,
-  "precision": 0,
-  "recall": 0.0,
-  "f1_score": 0,
+  "correct": 15,
+  "accuracy": 0.8333,
+  "precision": 0.9091,
+  "recall": 0.8333,
+  "f1_score": 0.8696,
   "confusion_matrix": {
-    "true_positives": 0,
-    "true_negatives": 6,
-    "false_positives": 0,
-    "false_negatives": 12
+    "true_positives": 10,
+    "true_negatives": 5,
+    "false_positives": 1,
+    "false_negatives": 2
   },
   "details": [
     {
       "target": "Kepler-10",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.9882,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-10 b"
     },
     {
       "target": "Kepler-22",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.9902,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-22 b"
     },
     {
       "target": "Kepler-90",
-      "prediction_score": 0.0001,
+      "prediction_score": 0.1048,
       "predicted": "Pas de planete",
       "reality_nasa": "Planete confirmee",
       "correct": false,
@@ -38,39 +38,39 @@
     },
     {
       "target": "Kepler-62",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.9887,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-62 e/f"
     },
     {
       "target": "Kepler-186",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.5483,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-186 f"
     },
     {
       "target": "Kepler-452",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.9713,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-452 b"
     },
     {
       "target": "Kepler-442",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.948,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-442 b"
     },
     {
       "target": "Kepler-296",
-      "prediction_score": 0.0001,
+      "prediction_score": 0.1105,
       "predicted": "Pas de planete",
       "reality_nasa": "Planete confirmee",
       "correct": false,
@@ -78,39 +78,39 @@
     },
     {
       "target": "Kepler-11",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.9874,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-11 b-g"
     },
     {
       "target": "Kepler-20",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.9765,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-20 b-f"
     },
     {
       "target": "Kepler-37",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.9547,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-37 b"
     },
     {
       "target": "Kepler-18",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.9871,
+      "predicted": "Planete",
       "reality_nasa": "Planete confirmee",
-      "correct": false,
+      "correct": true,
       "details": "Kepler-18 b-d"
     },
     {
       "target": "KIC 8462852",
-      "prediction_score": 0.0001,
+      "prediction_score": 0.0559,
       "predicted": "Pas de planete",
       "reality_nasa": "Pas de planete",
       "correct": true,
@@ -118,7 +118,7 @@
     },
     {
       "target": "KIC 11442793",
-      "prediction_score": 0.0001,
+      "prediction_score": 0.1048,
       "predicted": "Pas de planete",
       "reality_nasa": "Pas de planete",
       "correct": true,
@@ -126,7 +126,7 @@
     },
     {
       "target": "KIC 9832227",
-      "prediction_score": 0.0001,
+      "prediction_score": 0.0076,
       "predicted": "Pas de planete",
       "reality_nasa": "Pas de planete",
       "correct": true,
@@ -134,7 +134,7 @@
     },
     {
       "target": "KIC 3427720",
-      "prediction_score": 0.0001,
+      "prediction_score": 0.0253,
       "predicted": "Pas de planete",
       "reality_nasa": "Pas de planete",
       "correct": true,
@@ -142,15 +142,15 @@
     },
     {
       "target": "KIC 10001167",
-      "prediction_score": 0.0001,
-      "predicted": "Pas de planete",
+      "prediction_score": 0.6654,
+      "predicted": "Planete",
       "reality_nasa": "Pas de planete",
-      "correct": true,
+      "correct": false,
       "details": "Bruit stellaire"
     },
     {
       "target": "KIC 11853905",
-      "prediction_score": 0.0001,
+      "prediction_score": 0.0675,
       "predicted": "Pas de planete",
       "reality_nasa": "Pas de planete",
       "correct": true,

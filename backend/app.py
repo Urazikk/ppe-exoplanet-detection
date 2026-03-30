@@ -54,7 +54,15 @@ from src.p04_features import run_feature_extraction
 # =============================================================================
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    return response
+
 
 # Clé secrète JWT (en production, utiliser une variable d'environnement)
 JWT_SECRET = os.environ.get("JWT_SECRET", "exoplanet-detection-secret-key-change-in-prod")
@@ -350,6 +358,11 @@ def run_full_analysis(target_id, mission, username):
         raise ValueError(f"Cible '{target_id}' introuvable dans les archives NASA.")
     log(f"Acquisition OK ({len(lc_raw)} points)")
 
+    # Résolution du KIC depuis les métadonnées lightkurve (fonctionne pour Kepler-X aussi)
+    resolved_kepid = _extract_kepid_from_lc(lc_raw)
+    if resolved_kepid:
+        log(f"KIC résolu : {resolved_kepid}")
+
     log("Prétraitement...")
     lc_clean = clean_and_flatten(lc_raw, quality="fast")
     if lc_clean is None:
@@ -367,22 +380,15 @@ def run_full_analysis(target_id, mission, username):
 
     if model and selected_features:
         features_df = run_feature_extraction(lc_clean, target_id)
-        if features_df is not None:
-            available = [f for f in selected_features if f in features_df.columns]
-            input_data = pd.DataFrame(columns=selected_features)
-            for col in available:
-                input_data[col] = features_df[col].values
-            for col in [f for f in selected_features if f not in features_df.columns]:
-                input_data[col] = 0
-            input_data = input_data.fillna(0)
-            score = float(model.predict_proba(input_data)[0][1])
-            if hasattr(model, 'feature_importances_'):
-                imp = model.feature_importances_
-                top_idx = np.argsort(imp)[::-1][:5]
-                feature_importances = [
-                    {"name": selected_features[i], "weight": float(imp[i])}
-                    for i in top_idx
-                ]
+        input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid)
+        score = float(model.predict_proba(input_data)[0][1])
+        if hasattr(model, 'feature_importances_'):
+            imp = model.feature_importances_
+            top_idx = np.argsort(imp)[::-1][:5]
+            feature_importances = [
+                {"name": selected_features[i], "weight": float(imp[i])}
+                for i in top_idx
+            ]
     log(f"Prédiction OK - score = {score:.4f}")
 
     characterization = compute_characterization(lc_clean, lc_folded, period, score)
@@ -497,6 +503,8 @@ def analyze_stream():
                 yield evt("error", {"error": f"Cible '{target_id}' introuvable."})
                 return
 
+            resolved_kepid = _extract_kepid_from_lc(lc_raw)
+
             yield evt("progress", {"step": "preprocessing", "message": "Nettoyage et normalisation...", "percent": 30})
             lc_clean = clean_and_flatten(lc_raw, quality="fast")
             if lc_clean is None:
@@ -512,22 +520,15 @@ def analyze_stream():
             top_features = []
             if model and selected_features:
                 features_df = run_feature_extraction(lc_clean, target_id)
-                if features_df is not None:
-                    available = [f for f in selected_features if f in features_df.columns]
-                    input_data = pd.DataFrame(columns=selected_features)
-                    for col in available:
-                        input_data[col] = features_df[col].values
-                    for col in [f for f in selected_features if f not in features_df.columns]:
-                        input_data[col] = 0
-                    input_data = input_data.fillna(0)
-                    score = float(model.predict_proba(input_data)[0][1])
-                    if hasattr(model, 'feature_importances_'):
-                        imp = model.feature_importances_
-                        top_idx = np.argsort(imp)[::-1][:5]
-                        top_features = [
-                            {"name": selected_features[i], "importance": float(imp[i])}
-                            for i in top_idx
-                        ]
+                input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid)
+                score = float(model.predict_proba(input_data)[0][1])
+                if hasattr(model, 'feature_importances_'):
+                    imp = model.feature_importances_
+                    top_idx = np.argsort(imp)[::-1][:5]
+                    top_features = [
+                        {"name": selected_features[i], "importance": float(imp[i])}
+                        for i in top_idx
+                    ]
 
             yield evt("progress", {"step": "formatting", "message": "Formatage des résultats...", "percent": 90})
             characterization = compute_characterization(lc_clean, lc_folded, period, score)
@@ -668,18 +669,151 @@ def search_catalog():
 # Fonctions utilitaires
 # =============================================================================
 
+
+def _extract_kepid_from_lc(lc):
+    """
+    Extrait le KIC (Kepler Input Catalogue) ID depuis les métadonnées d'une
+    LightCurve lightkurve. Fonctionne que la cible ait été recherchée par
+    'Kepler-10', 'KIC 11904151' ou n'importe quel autre alias.
+    Retourne un int ou None.
+    """
+    if lc is None:
+        return None
+    # Essai 1 : attribut direct targetid
+    try:
+        v = lc.targetid
+        if v is not None:
+            return int(v)
+    except Exception:
+        pass
+    # Essai 2 : clés connues dans lc.meta
+    try:
+        meta = lc.meta or {}
+        for key in ('KEPLERID', 'keplerid', 'TARGETID', 'targetid', 'kepid'):
+            v = meta.get(key)
+            if v is not None:
+                return int(v)
+    except Exception:
+        pass
+    return None
+
+
+def get_catalog_features_dict(target_id, kepid=None):
+    """
+    Retourne un dict des features physiques du catalogue KOI pour une cible.
+    Accepte soit un kepid entier (prioritaire), soit un target_id string.
+    Retourne {} si la cible est introuvable (les features seront mis à 0).
+    """
+    if catalog_df is None:
+        return {}
+
+    # Résolution du kepid : soit passé directement, soit extrait du target_id
+    if kepid is None:
+        if "KIC" in target_id:
+            try:
+                kepid = int(target_id.replace("KIC", "").strip())
+            except ValueError:
+                pass
+
+    if kepid is None:
+        return {}
+
+    match = catalog_df[catalog_df['kepid'] == kepid]
+    if len(match) == 0:
+        return {}
+
+    row = match.iloc[0]
+    feats = {}
+    
+    # Collecte dynamique de TOUTES les colonnes numériques dispo
+    for col in catalog_df.columns:
+        v = row.get(col)
+        if pd.notna(v) and isinstance(v, (int, float, np.number)):
+            feats[col] = float(v)
+
+    # Récupération Glon/Glat dynamiquement pour coller à l'entraînement astropy
+    if 'ra' in row and 'dec' in row and pd.notna(row['ra']) and pd.notna(row['dec']):
+        try:
+            from astropy.coordinates import SkyCoord
+            import astropy.units as u
+            coords = SkyCoord(ra=row['ra']*u.deg, dec=row['dec']*u.deg, frame='icrs')
+            feats['glon'] = float(coords.galactic.l.degree)
+            feats['glat'] = float(coords.galactic.b.degree)
+        except Exception:
+            pass
+
+    eps = 1e-9
+    period   = feats.get('koi_period')
+    depth    = feats.get('koi_depth')
+    duration = feats.get('koi_duration')
+    prad     = feats.get('koi_prad')
+    srad     = feats.get('koi_srad')
+    kepmag   = feats.get('koi_kepmag')
+
+    # Features dérivées
+    if period  is not None: feats['log_koi_period']  = float(np.log1p(max(period, 0)))
+    if depth   is not None: feats['log_koi_depth']   = float(np.log1p(max(depth, 0)))
+    if prad    is not None: feats['log_koi_prad']    = float(np.log1p(max(prad, 0)))
+    if period  is not None and duration is not None:
+        feats['duty_cycle'] = duration / (period * 24 + eps)
+    if prad is not None and srad is not None:
+        feats['ratio_prad_srad'] = prad / (srad * 109.076 + eps)
+    if depth is not None and srad is not None:
+        feats['depth_per_srad'] = depth / (srad + eps)
+    if depth is not None and kepmag is not None:
+        snr_p = depth / (10 ** (kepmag / 2.5 + eps))
+        feats['snr_proxy']     = snr_p
+        feats['log_snr_proxy'] = float(np.log1p(max(snr_p, 0)))
+
+    return feats
+
+
+def build_input_vector(features_df, target_id, selected_features_list, resolved_kepid=None):
+    """
+    Construit le DataFrame d'entrée pour le modèle en combinant :
+    - Features TSFRESH / scientifiques extraites de la courbe de lumière
+    - Features physiques du catalogue KOI (si disponibles)
+    Les features manquantes sont mises à 0.
+    resolved_kepid : KIC ID entier extrait depuis lightkurve (prioritaire sur target_id string).
+    """
+    # On force la création d'1 et 1 seule ligne (index=[0])
+    input_data = pd.DataFrame(index=[0], columns=selected_features_list)
+
+    # 1. Injecter les features de la courbe de lumière
+    if features_df is not None and not features_df.empty:
+        for col in selected_features_list:
+            if col in features_df.columns:
+                input_data.loc[0, col] = features_df[col].iloc[0]
+
+    # 2. Enrichir avec les features du catalogue KOI
+    #    On utilise le kepid résolu depuis lightkurve (fonctionne pour Kepler-X)
+    #    et on tombe en arrière sur la recherche par string si nécessaire.
+    cat_feats = get_catalog_features_dict(target_id, kepid=resolved_kepid)
+    for col, val in cat_feats.items():
+        if col in selected_features_list:
+            input_data.loc[0, col] = val
+
+    # 3. Remplir les manquants par 0
+    input_data = input_data.fillna(0)
+    
+    # 4. Forcer le type float pour éviter l'erreur XGBoost 'object'
+    return input_data.astype(float)
+
+
 def classify_score(score):
     """Traduit le score en verdict lisible."""
     if score >= 0.85:
         return "Exoplanète très probable"
-    elif score >= 0.65:
-        return "Candidat prometteur"
-    elif score >= 0.4:
-        return "Signal ambigu"
-    elif score >= 0.2:
-        return "Probablement un faux positif"
+    elif score >= 0.70:
+        return "Exoplanète probable"
+    elif score >= 0.55:
+        return "Candidat à confirmer"
+    elif score >= 0.35:
+        return "Indéterminé"
+    elif score >= 0.15:
+        return "Probable faux positif"
     else:
-        return "Faux positif"
+        return "Faux positif très probable"
 
 
 def compute_characterization(lc_clean, lc_folded, period, score):

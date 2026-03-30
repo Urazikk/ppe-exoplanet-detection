@@ -2508,78 +2508,242 @@ function HistoryTab({ history, onClear, onAnalyze }) {
 }
 
 /* ─── Documentation Tab ──────────────────────────────────────── */
-const PIPELINE_STEPS=[
-  { icon:Database,   title:"1 · Acquisition",
-    desc:"Téléchargement des courbes de lumière depuis NASA MAST (Kepler ou TESS). Le flux photométrique est extrait en SAP ou PDCSAP selon la mission." },
-  { icon:Activity,   title:"2 · Prétraitement",
-    desc:"Nettoyage des NaN et outliers (σ=5), binning adaptatif selon le volume de points, puis flattening (Savitzky-Golay) pour retirer les tendances stellaires lentes." },
-  { icon:Orbit,      title:"3 · BLS (Box Least Squares)",
-    desc:"Algorithme de détection de transit périodique. Scan de 500 périodes candidates avec 3 durées de transit types. Retourne la période orbitale la plus probable." },
-  { icon:Sparkles,   title:"4 · Extraction de features",
-    desc:"TSFRESH extrait ~800 features statistiques de la courbe repliée (moyenne, variance, autocorrélation, entropie…). Une sélection par test de pertinence réduit à ~50 features." },
-  { icon:Zap,        title:"5 · XGBoost",
-    desc:"Classifieur gradient boosting entraîné sur le catalogue KOI (Kepler Objects of Interest). Sortie : probabilité [0,1] qu'un transit planétaire soit réel." },
+const PIPELINE_STEPS = [
+  { 
+    id: "acq",
+    icon: Database,   
+    title: "1 · Acquisition de Données",
+    short: "Téléchargement NASA MAST",
+    desc: "Les données fondamentales proviennent directement des archives de la NASA (Kepler ou TESS). Le flux photométrique brut (lumière reçue) est extrait sous forme de séries temporelles appelées courbes de lumière.",
+    details: [
+       "Utilisation de l'API Lightkurve pour cibler un KIC (Kepler Input Catalog).",
+       "Extraction automatique du flux PDCSAP (Pre-search Data Conditioning SAP) qui corrige déjà les interférences instrumentales et thermiques du télescope spatial."
+    ],
+    tech: "NASA MAST API · Lightkurve"
+  },
+  {
+    id: "pre",
+    icon: Activity,
+    title: "2 · Prétraitement du Signal",
+    short: "Nettoyage & Flattening",
+    desc: "La courbe de lumière reçue contient des variations stellaires naturelles (rotation, taches) et du bruit. Il est crucial d'aplanir cette courbe pour n'observer que les chutes rapides de flux.",
+    details: [
+        "Retrait drastique des valeurs aberrantes (Outliers > 5σ) et des NaNs.",
+        "Application d'un filtre Savitzky-Golay (Flattening) qui capture la ligne de base lente de l'étoile et la divise pour centrer le flux sur 1.0.",
+        "Binning adaptatif pour réduire la résolution si l'étoile a plus de 20 000 points afin d'éviter la saturation de la RAM."
+    ],
+    tech: "NumPy · SciPy · Pandas"
+  },
+  {
+    id: "bls",
+    icon: Orbit,
+    title: "3 · Détection BLS",
+    short: "Box Least Squares",
+    desc: "Un algorithme astrophysique classique (BLS) balaie la courbe aplatie à la recherche de signaux périodiques creux ressemblant à une boîte (la forme typique d'un transit planétaire).",
+    details: [
+        "Scan systématique des périodes candidates (ex: de 0.5 à 50 jours).",
+        "Calcul du SNR (Signal-To-Noise Ratio) de la meilleure période trouvée.",
+        "Cette phase produit la période orbitale (T0, durée, profondeur) permettant de « replier » mathématiquement la courbe (Phase Folding)."
+    ],
+    tech: "Astropy BLS"
+  },
+  {
+    id: "feat",
+    icon: Sparkles,
+    title: "4 · Feature Engineering",
+    short: "Extraction TSFRESH",
+    desc: "L'intelligence artificielle classique ne comprend pas bien les séries temporelles géantes. Nous convertissons la forme de la courbe en des centaines de variables statistiques intelligentes.",
+    details: [
+        "L'algorithme analyse la courbe repliée et calcule près de 800 statistiques structurées : asymétrie, pics d'autocorrélation, transformées de Fourier...",
+        "Un test d'hypothèse drastique (Benjamini-Yekutieli) filtre ces variables pour ne garder que la quarantaine de caractéristiques véritablement corrélées au signal cible."
+    ],
+    tech: "TSFRESH (Time Series Feature Extraction)"
+  },
+  {
+    id: "ml",
+    icon: Zap,
+    title: "5 · Classification XGBoost",
+    short: "Inférence du Modèle",
+    desc: "Un modèle d'arbres de décision sur-boostés prend la décision finale. Entraîné sur des milliers d'exemples confirmés par la NASA, il évalue les statistiques et tranche avec précision.",
+    details: [
+        "Prise en compte des variables TSFRESH complétée de métadonnées de l'étoile elles-mêmes modélisées (Rayon stellaire, Température effective Teq, Distance galactique...).",
+        "Évaluation par Gradient Boosting pour obtenir une probabilité continue de 0 à 100%.",
+        "Verdict final : Planète probable, Signal candidat, ou Faux positif éclipsant."
+    ],
+    tech: "XGBoost Classifier · Scikit-Learn"
+  }
 ];
 
 const GLOSSARY=[
-  { term:"Transit",         def:"Diminution périodique du flux stellaire provoquée par le passage d'une planète devant son étoile." },
-  { term:"Phase folding",   def:"Repliement de la courbe de lumière sur la période orbitale pour superposer tous les transits." },
-  { term:"SNR",             def:"Signal-to-Noise Ratio. Rapport amplitude du transit / bruit photométrique. Un SNR > 7 est typiquement requis." },
-  { term:"BLS",             def:"Box Least Squares. Algorithme cherchant le modèle boîte (créneau) qui minimise les résidus sur toutes les périodes testées." },
-  { term:"XGBoost",         def:"eXtreme Gradient Boosting. Ensemble de decision trees entraîné séquentiellement pour corriger les erreurs des arbres précédents." },
-  { term:"PDCSAP",          def:"Pre-search Data Conditioning SAP. Flux Kepler corrigé des systematics instrumentaux par le pipeline officiel NASA." },
-  { term:"KOI",             def:"Kepler Object of Interest. Étoile présentant un signal transit candidat dans les données Kepler." },
-  { term:"ppm",             def:"Parts per million. Unité de profondeur de transit. Jupiter devant le Soleil ≈ 10 000 ppm ; Terre ≈ 84 ppm." },
+  { term:"Transit",         def:"Diminution temporaire du flux lumineux d'une étoile provoquée par le passage d'une planète devant son disque stellaire." },
+  { term:"Phase folding",   def:"Repliement d'une courbe temporelle sur sa période. Tous les transits se superposent en une seule grande chute visible." },
+  { term:"SNR",             def:"Signal-to-Noise Ratio (Rapport Signal/Bruit). Amplitude du transit divisée par le bruit moyen." },
+  { term:"BLS",             def:"Box Least Squares. L'algorithme roi pour trouver un signal en forme de \"boîte\" caché dans le bruit." },
+  { term:"XGBoost",         def:"eXtreme Gradient Boosting. Intelligence Artificielle générant un consensus à partir de centaines d'arbres de décision." },
+  { term:"PDCSAP",          def:"Pre-search Data Conditioning SAP. Flux lumineux brut corrigé intelligemment par les algorithmes du télescope original." },
+  { term:"KOI / KIC",       def:"Kepler Object of Interest (ciblé) et Kepler Input Catalog (inventaire de toutes les étoiles suivies)." },
+  { term:"ppm",             def:"Parts per million (10^-6). Le passage de Jupiter devant le Soleil provoque une baisse de 10 000 ppm (1%). La Terre : 84 ppm." },
 ];
 
-function DocTab() {
+function GlossaryFlipCard({ item }) {
+  const [flipped, setFlipped] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:20,animation:"fadeIn .5s ease-out"}}>
-      {/* Pipeline */}
-      <Card>
-        <h3 style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginBottom:16,
-          textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
-          Pipeline de détection
-        </h3>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {PIPELINE_STEPS.map((s,i)=>(
-            <div key={i} style={{display:"flex",gap:14,padding:"12px 14px",borderRadius:10,
-              background:"rgba(99,140,255,0.03)",border:"1px solid rgba(99,140,255,0.07)"}}>
-              <div style={{width:34,height:34,borderRadius:9,flexShrink:0,display:"flex",
-                alignItems:"center",justifyContent:"center",
-                background:"linear-gradient(135deg,rgba(99,140,255,0.15),rgba(139,92,246,0.15))",
-                border:"1px solid rgba(99,140,255,0.15)"}}>
-                <s.icon size={16} style={{color:"#638cff"}}/>
-              </div>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,color:"#e0e8f5",marginBottom:4,
-                  fontFamily:"'Space Grotesk',sans-serif"}}>{s.title}</div>
-                <div style={{fontSize:11,color:"rgba(160,180,220,0.55)",lineHeight:1.6,
-                  fontFamily:"'DM Mono',monospace"}}>{s.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+    <div 
+      style={{ perspective: 1000, height: 160, cursor: "pointer" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => setFlipped(!flipped)}
+    >
+      <div style={{
+        position: "relative",
+        width: "100%", height: "100%",
+        transition: "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        transformStyle: "preserve-3d",
+        transform: flipped ? "rotateX(180deg)" : "rotateX(0deg)"
+      }}>
+        {/* Front */}
+        <Card style={{
+          position: "absolute", width: "100%", height: "100%", padding: "18px 20px", display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", backfaceVisibility: "hidden",
+          background: hovered ? "rgba(99,140,255,0.08)" : "rgba(15,18,30,0.5)",
+          border: hovered ? "1px solid rgba(99,140,255,0.3)" : "1px solid rgba(99,140,255,0.06)",
+          transition: "all 0.3s"
+        }}>
+          <div style={{fontSize: 20, fontWeight: 700, color: hovered ? "#8b5cf6" : "#e0e8f5", fontFamily: "'Space Grotesk',sans-serif", textAlign:"center", transition: "color 0.3s"}}>
+            {item.term}
+          </div>
+          <div style={{
+            fontSize: 12, color: "#638cff", fontFamily: "'DM Mono',monospace", marginTop: 16,
+            opacity: hovered ? 1 : 0, transition: "all 0.3s", transform: hovered ? "translateY(0)" : "translateY(10px)"
+          }}>
+            Qu'est-ce que c'est ? (Cliquez)
+          </div>
+        </Card>
+
+        {/* Back */}
+        <Card style={{
+          position: "absolute", width: "100%", height: "100%", padding: "20px 24px", display: "flex", flexDirection: "column",
+          justifyContent: "center", alignItems: "center", backfaceVisibility: "hidden",
+          transform: "rotateX(180deg)",
+          background: "linear-gradient(135deg, rgba(30,15,40,0.95), rgba(40,20,60,0.95))",
+          border: "1px solid rgba(139,92,246,0.4)",
+          boxShadow: "0 0 20px rgba(139,92,246,0.15)"
+        }}>
+          <div style={{fontSize: 13, color: "rgba(230,230,255,0.9)", lineHeight: 1.6, fontFamily: "'DM Mono',monospace", textAlign: "center"}}>
+            {item.def}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function DocTab() {
+  const [activeStep, setActiveStep] = useState(PIPELINE_STEPS[0]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn .5s ease-out" }}>
+      {/* Introduction Hero */}
+      <Card glow style={{ padding: "28px 32px", background: "linear-gradient(135deg, rgba(8,11,22,0.8), rgba(20,25,45,0.8))", border: "1px solid rgba(99,140,255,0.15)" }}>
+         <h2 style={{ fontSize: 24, fontFamily: "'Space Grotesk',sans-serif", color: "#e0e8f5", marginBottom: 12 }}>
+            Comprendre ExoPlanet AI
+         </h2>
+         <p style={{ color: "rgba(160,180,220,0.7)", fontSize: 13, lineHeight: 1.6, maxWidth: 850, fontFamily: "'DM Mono',monospace" }}>
+            Découvrez comment notre architecture convertit les ondes lumineuses brutes captées dans l'espace en prédictions intelligentes. Explorez ci-dessous la séquence logicielle qui permet de dénicher l'empreinte d'autres mondes, étape par étape.
+         </p>
       </Card>
 
-      {/* Glossary */}
-      <Card>
-        <h3 style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginBottom:16,
-          textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
-          Glossaire
-        </h3>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:8}}>
-          {GLOSSARY.map((g,i)=>(
-            <div key={i} style={{padding:"10px 14px",borderRadius:9,
-              background:"rgba(15,18,30,0.6)",border:"1px solid rgba(99,140,255,0.07)"}}>
-              <div style={{fontSize:12,fontWeight:600,color:"#638cff",marginBottom:4,
-                fontFamily:"'DM Mono',monospace"}}>{g.term}</div>
-              <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",lineHeight:1.55,
-                fontFamily:"'DM Mono',monospace"}}>{g.def}</div>
-            </div>
-          ))}
+      {/* Interactive Master-Detail */}
+      <h3 style={{fontSize: 14, color: "#e0e8f5", marginTop: 8, fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: 1.5}}>
+        Architecture du Pipeline
+      </h3>
+      
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        {/* Left: Master Menu */}
+        <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: 12 }}>
+           {PIPELINE_STEPS.map((s, i) => (
+              <button key={s.id} onClick={() => setActiveStep(s)} 
+                style={{
+                  display: "flex", alignItems: "center", gap: 16, padding: "16px 20px",
+                  borderRadius: 12, border: "none", cursor: "pointer", textAlign: "left",
+                  background: activeStep.id === s.id ? "rgba(99,140,255,0.12)" : "rgba(15,18,30,0.5)",
+                  border: `1px solid ${activeStep.id === s.id ? "rgba(99,140,255,0.4)" : "rgba(99,140,255,0.05)"}`,
+                  boxShadow: activeStep.id === s.id ? "0 4px 20px rgba(99,140,255,0.15)" : "none",
+                  transition: "all 0.3s cubic-bezier(0.25, 1, 0.5, 1)",
+                  transform: activeStep.id === s.id ? "translateX(6px)" : "none"
+              }}>
+                <div style={{ 
+                  width: 42, height: 42, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: activeStep.id === s.id ? "linear-gradient(135deg,#638cff,#8b5cf6)" : "rgba(99,140,255,0.05)",
+                  color: activeStep.id === s.id ? "#fff" : "rgba(160,180,220,0.5)",
+                  transition: "all 0.3s"
+                }}>
+                  <s.icon size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "'Space Grotesk',sans-serif", color: activeStep.id === s.id ? "#fff" : "#e0e8f5", transition: "color 0.3s" }}>
+                    {s.title}
+                  </div>
+                  <div style={{ fontSize: 11, fontFamily: "'DM Mono',monospace", color: activeStep.id === s.id ? "rgba(255,255,255,0.7)" : "rgba(160,180,220,0.4)", marginTop: 4 }}>
+                    {s.short}
+                  </div>
+                </div>
+              </button>
+           ))}
         </div>
-      </Card>
+
+        {/* Right: Detailed View */}
+        <Card style={{ flex: "2 1 500px", minHeight: 460, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", padding: "32px" }}>
+            {/* Background glowing icon */}
+            <activeStep.icon size={300} style={{ position: "absolute", bottom: -40, right: -40, opacity: 0.03, color: "#638cff", transform: "rotate(-15deg)", transition: "all 0.5s ease-out" }} />
+            
+            <div key={activeStep.id} style={{ animation: "slideIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                     <div style={{ padding: "6px 14px", borderRadius: 6, background: "rgba(99,140,255,0.15)", border: "1px solid rgba(99,140,255,0.3)", color: "#638cff", fontSize: 10, fontFamily: "'DM Mono',monospace", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>
+                        Détails Techniques
+                     </div>
+                     <span style={{ fontSize: 11, color: "rgba(160,180,220,0.4)", fontFamily: "'DM Mono',monospace" }}>{activeStep.tech}</span>
+                </div>
+                
+                <h3 style={{ fontSize: 26, fontWeight: 700, color: "#e0e8f5", fontFamily: "'Space Grotesk',sans-serif", marginBottom: 16 }}>
+                  {activeStep.title}
+                </h3>
+                
+                <p style={{ fontSize: 13, color: "rgba(160,180,220,0.8)", lineHeight: 1.8, fontFamily: "'DM Mono',monospace", marginBottom: 32 }}>
+                  {activeStep.desc}
+                </p>
+
+                <div style={{ flex: 1 }}>
+                   <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(160,180,220,0.4)", marginBottom: 16, fontFamily: "'DM Mono',monospace" }}>
+                      Dans le code backend :
+                   </div>
+                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {activeStep.details.map((det, idx) => (
+                         <div key={idx} style={{ 
+                            padding: "16px 20px", borderRadius: 10, background: "rgba(0,0,0,0.25)", 
+                            borderLeft: "3px solid #8b5cf6", fontSize: 12, color: "rgba(160,180,220,0.9)", lineHeight: 1.7,
+                            fontFamily: "'DM Mono',monospace", boxShadow: "inset 0 0 10px rgba(0,0,0,0.2)"
+                         }}>
+                            {det}
+                         </div>
+                      ))}
+                   </div>
+                </div>
+            </div>
+        </Card>
+      </div>
+
+      {/* Dynamic Glossary Grid */}
+      <h3 style={{fontSize: 14, color: "#e0e8f5", marginTop: 20, fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: 1.5}}>
+        Glossaire & Astrométrie
+      </h3>
+      <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap: 14}}>
+        {GLOSSARY.map((g,i)=>(
+          <GlossaryFlipCard key={i} item={g} />
+        ))}
+      </div>
     </div>
   );
 }

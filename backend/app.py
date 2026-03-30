@@ -69,14 +69,17 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "exoplanet-detection-secret-key-change
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
-# Chemins
-MODEL_PATH = "../models/exoplanet_model.json"
-FEATURES_PATH = "../models/selected_features.json"
-METRICS_PATH = "../models/model_metrics.json"
-CATALOG_PATH = "../data/catalog/exoplanet_binary_full.csv"
-USERS_PATH = "data/users.json"
-RESULTS_CACHE_PATH = "data/results_cache.json"
-HISTORY_PATH = "data/history.json"
+# Chemins (Fixé avec des chemins absolus via pathlib)
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+MODEL_PATH = str(BASE_DIR / "models" / "exoplanet_model.json")
+FEATURES_PATH = str(BASE_DIR / "models" / "selected_features.json")
+METRICS_PATH = str(BASE_DIR / "models" / "model_metrics.json")
+CATALOG_PATH = str(BASE_DIR / "data" / "catalog" / "exoplanet_binary_full.csv")
+USERS_PATH = str(BASE_DIR / "data" / "users.json")
+RESULTS_CACHE_PATH = str(BASE_DIR / "data" / "results_cache.json")
+HISTORY_PATH = str(BASE_DIR / "data" / "history.json")
 
 
 # =============================================================================

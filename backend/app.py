@@ -45,7 +45,7 @@ except ImportError:
 
 # Modules du projet
 from src.p01_acquisition import fetch_lightcurve
-from src.p02_preprocessing import clean_and_flatten, fold_lightcurve, get_period_hint
+from src.p02_preprocessing import clean_and_flatten, clean_only, fold_lightcurve, get_period_hint, compute_transit_score
 from src.p04_features import run_feature_extraction
 
 
@@ -79,6 +79,7 @@ selected_features = []
 model_metrics = {}
 catalog_df = None
 results_cache = {}
+optimal_threshold = 0.5  # seuil de décision (chargé depuis model_metrics.json)
 
 # Cache in-memory avec TTL (clé → {"result": ..., "ts": float})
 _analysis_cache = {}
@@ -141,30 +142,31 @@ def save_results_cache():
 
 def load_resources():
     """Charge le modèle, les features, les métriques et le catalogue au démarrage."""
-    global model, selected_features, model_metrics, catalog_df
+    global model, selected_features, model_metrics, catalog_df, optimal_threshold
     
     # Modèle XGBoost
     if os.path.exists(MODEL_PATH):
         try:
             model = xgb.XGBClassifier()
             model.load_model(MODEL_PATH)
-            print("[OK] Modèle XGBoost chargé.")
+            print("[OK] Modèle XGBoost v2 chargé.")
         except Exception as e:
             print(f"[!] Erreur chargement modèle : {e}")
     else:
-        print("[!] Modèle introuvable. Lancez 02_train_model_v2.py d'abord.")
+        print("[!] Modèle introuvable. Lancez 03_kaggle_tsfresh_train.py d'abord.")
     
     # Features sélectionnées
     if os.path.exists(FEATURES_PATH):
         with open(FEATURES_PATH, "r") as f:
             selected_features = json.load(f)
-        print(f"[OK] {len(selected_features)} features chargées.")
+        print(f"[OK] {len(selected_features)} features TSFRESH chargées.")
     
-    # Métriques
+    # Métriques + seuil optimal
     if os.path.exists(METRICS_PATH):
         with open(METRICS_PATH, "r") as f:
             model_metrics = json.load(f)
-        print("[OK] Métriques du modèle chargées.")
+        optimal_threshold = model_metrics.get("optimal_threshold", 0.5)
+        print(f"[OK] Métriques chargées — seuil optimal = {optimal_threshold:.4f}")
     
     # Catalogue Kepler
     if os.path.exists(CATALOG_PATH):
@@ -351,42 +353,78 @@ def run_full_analysis(target_id, mission, username):
     log(f"Acquisition OK ({len(lc_raw)} points)")
 
     log("Prétraitement...")
-    lc_clean = clean_and_flatten(lc_raw, quality="fast")
-    if lc_clean is None:
-        raise ValueError("Échec du prétraitement de la courbe.")
-    log(f"Prétraitement OK ({len(lc_clean)} points après nettoyage)")
+    lc_cleaned = clean_only(lc_raw)
+    if lc_cleaned is None:
+        raise ValueError("Échec du nettoyage de la courbe.")
+    log(f"Nettoyage OK ({len(lc_cleaned)} points)")
 
-    log("BLS - recherche de période...")
-    period = get_period_hint(lc_clean)
-    lc_folded = fold_lightcurve(lc_clean, period=period)
-    log(f"BLS OK - période = {period:.4f} j")
+    lc_flat = clean_and_flatten(lc_raw, quality="fast")
+    if lc_flat is None:
+        lc_flat = lc_cleaned
+    log(f"Aplatissement OK ({len(lc_flat)} points)")
 
-    log("Extraction features + prédiction XGBoost...")
-    score = 0.5
-    feature_importances = []
+    log("BLS - recherche de période + détection transit...")
+    period, bls_stats = get_period_hint(lc_flat)
+    lc_folded = fold_lightcurve(lc_flat, period=period)
+    bls_score = compute_transit_score(bls_stats)
+    log(f"BLS OK - période = {period:.4f} j, SNR={bls_stats.get('bls_snr',0):.1f}, BLS={bls_score:.3f}")
+
+    # Récupération de la vraie taille de l'étoile pour l'IA
+    metadata = get_real_metadata(target_id)
+    default_srad, default_steff = 1.0, 5500.0  # valeurs par défaut soleil
+    star_radius = metadata.get("star_radius_solar") or default_srad
+    star_temp = metadata.get("star_temperature_k") or default_steff
+
+    # Scoring ML Physics-Informed (XGBoost sur variables BLS + Stellaires)
+    score = bls_score  # fallback
+    feature_importances = [
+        {"name": "BLS SNR",            "weight": round(bls_stats.get("bls_snr", 0), 2)},
+        {"name": "Transit depth (ppm)", "weight": round(bls_stats.get("bls_depth_ppm", 0), 1)},
+        {"name": "Période (jours)",     "weight": round(period, 2)},
+        {"name": "Transit fraction",    "weight": round(bls_stats.get("bls_transit_fraction", 0), 4)},
+        {"name": "BLS power",           "weight": round(bls_stats.get("bls_power", 0), 4)},
+    ]
 
     if model and selected_features:
-        features_df = run_feature_extraction(lc_clean, target_id)
-        if features_df is not None:
-            available = [f for f in selected_features if f in features_df.columns]
-            input_data = pd.DataFrame(columns=selected_features)
-            for col in available:
-                input_data[col] = features_df[col].values
-            for col in [f for f in selected_features if f not in features_df.columns]:
-                input_data[col] = 0
+        log("Prédiction ML (Physics-Informed XGBoost)...")
+        try:
+            # Créer le vecteur d'entrée avec EXACTEMENT les selected_features
+            input_dict = {}
+            for col in selected_features:
+                if col == "period":
+                    input_dict[col] = [period]
+                elif col == "bls_score":
+                    input_dict[col] = [bls_score]
+                elif col == "bls_duration_days":
+                    input_dict[col] = [bls_stats.get("bls_duration_days", 0)]
+                elif col == "star_radius_solar":
+                    input_dict[col] = [star_radius]
+                elif col == "star_temperature_k":
+                    input_dict[col] = [star_temp]
+                else:
+                    input_dict[col] = [bls_stats.get(col, 0)]
+            
+            input_data = pd.DataFrame(input_dict)
             input_data = input_data.fillna(0)
+
             score = float(model.predict_proba(input_data)[0][1])
+            log(f"ML score = {score:.4f}")
+
             if hasattr(model, 'feature_importances_'):
                 imp = model.feature_importances_
-                top_idx = np.argsort(imp)[::-1][:5]
+                top_idx = np.argsort(imp)[::-1]
                 feature_importances = [
                     {"name": selected_features[i], "weight": float(imp[i])}
-                    for i in top_idx
+                    for i in top_idx if imp[i] > 0
                 ]
-    log(f"Prédiction OK - score = {score:.4f}")
+        except Exception as e:
+            log(f"[!] Erreur ML, fallback BLS : {e}")
+            score = bls_score
 
-    characterization = compute_characterization(lc_clean, lc_folded, period, score)
-    metadata = get_real_metadata(target_id)
+    log(f"Score final = {score:.4f}")
+
+    characterization = compute_characterization(lc_cleaned, lc_folded, period, score)
+    # metadata is already fetched above
 
     if not is_finite_number(score):
         score = 0.5
@@ -497,40 +535,71 @@ def analyze_stream():
                 yield evt("error", {"error": f"Cible '{target_id}' introuvable."})
                 return
 
-            yield evt("progress", {"step": "preprocessing", "message": "Nettoyage et normalisation...", "percent": 30})
-            lc_clean = clean_and_flatten(lc_raw, quality="fast")
-            if lc_clean is None:
-                yield evt("error", {"error": "Échec du prétraitement."})
+            yield evt("progress", {"step": "preprocessing", "message": "Nettoyage du signal...", "percent": 30})
+            lc_cleaned = clean_only(lc_raw)
+            if lc_cleaned is None:
+                yield evt("error", {"error": "Échec du nettoyage."})
                 return
+            lc_flat = clean_and_flatten(lc_raw, quality="fast")
+            if lc_flat is None:
+                lc_flat = lc_cleaned
 
-            yield evt("progress", {"step": "bls", "message": "Recherche de période (BLS)...", "percent": 50})
-            period = get_period_hint(lc_clean)
-            lc_folded = fold_lightcurve(lc_clean, period=period)
+            yield evt("progress", {"step": "bls", "message": "Détection de transit (BLS)...", "percent": 50})
+            period, bls_stats = get_period_hint(lc_flat)
+            lc_folded = fold_lightcurve(lc_flat, period=period)
+            bls_score = compute_transit_score(bls_stats)
 
-            yield evt("progress", {"step": "prediction", "message": "Prédiction par le modèle IA...", "percent": 70})
-            score = 0.5
-            top_features = []
+            yield evt("progress", {"step": "prediction", "message": "Classification ML + BLS...", "percent": 70})
+            
+            # Récupération métadonnées stellaires
+            metadata_sse = get_real_metadata(target_id)
+            star_radius = metadata_sse.get("star_radius_solar") or 1.0
+            star_temp = metadata_sse.get("star_temperature_k") or 5500.0
+            
+            score = bls_score
+            top_features = [
+                {"name": "BLS SNR",            "importance": round(bls_stats.get("bls_snr", 0), 2)},
+                {"name": "Transit depth (ppm)", "importance": round(bls_stats.get("bls_depth_ppm", 0), 1)},
+                {"name": "Période (jours)",     "importance": round(period, 2)},
+                {"name": "Transit fraction",    "importance": round(bls_stats.get("bls_transit_fraction", 0), 4)},
+                {"name": "BLS power",           "importance": round(bls_stats.get("bls_power", 0), 4)},
+            ]
+
             if model and selected_features:
-                features_df = run_feature_extraction(lc_clean, target_id)
-                if features_df is not None:
-                    available = [f for f in selected_features if f in features_df.columns]
-                    input_data = pd.DataFrame(columns=selected_features)
-                    for col in available:
-                        input_data[col] = features_df[col].values
-                    for col in [f for f in selected_features if f not in features_df.columns]:
-                        input_data[col] = 0
-                    input_data = input_data.fillna(0)
+                try:
+                    input_dict = {}
+                    for col in selected_features:
+                        if col == "period":
+                            input_dict[col] = [period]
+                        elif col == "bls_score":
+                            input_dict[col] = [bls_score]
+                        elif col == "bls_duration_days":
+                            input_dict[col] = [bls_stats.get("bls_duration_days", 0)]
+                        elif col == "star_radius_solar":
+                            input_dict[col] = [star_radius]
+                        elif col == "star_temperature_k":
+                            input_dict[col] = [star_temp]
+                        else:
+                            input_dict[col] = [bls_stats.get(col, 0)]
+                    
+                    input_data = pd.DataFrame(input_dict).fillna(0)
                     score = float(model.predict_proba(input_data)[0][1])
+
                     if hasattr(model, 'feature_importances_'):
                         imp = model.feature_importances_
-                        top_idx = np.argsort(imp)[::-1][:5]
+                        top_idx = np.argsort(imp)[::-1]
                         top_features = [
                             {"name": selected_features[i], "importance": float(imp[i])}
-                            for i in top_idx
+                            for i in top_idx if imp[i] > 0
                         ]
+                except Exception as e:
+                    print(f"[!] ML error, BLS fallback: {e}")
+                    score = bls_score
+
+            print(f"[Score] {score:.4f}")
 
             yield evt("progress", {"step": "formatting", "message": "Formatage des résultats...", "percent": 90})
-            characterization = compute_characterization(lc_clean, lc_folded, period, score)
+            characterization = compute_characterization(lc_cleaned, lc_folded, period, score)
             if not is_finite_number(score):
                 score = 0.5
 
@@ -619,7 +688,37 @@ def get_metrics():
     if not model_metrics:
         return jsonify({"error": "Aucune métrique disponible. Entraînez le modèle d'abord."}), 404
     
-    return jsonify(model_metrics)
+    # Mapper les noms du modèle v2 vers ceux attendus par le frontend
+    m = model_metrics
+    mapped = {
+        # Holdout → test_*
+        "test_accuracy":    m.get("holdout_accuracy",  m.get("test_accuracy", 0)),
+        "test_precision":   m.get("holdout_precision", m.get("test_precision", 0)),
+        "test_recall":      m.get("holdout_recall",    m.get("test_recall", 0)),
+        "test_f1":          m.get("holdout_f1",        m.get("test_f1", 0)),
+        "test_auc_roc":     m.get("holdout_auc_roc",   m.get("test_auc_roc", 0)),
+        # CV → cv_*  (supporte cv5_, cv10_, et cv_ brut)
+        "cv_accuracy_mean": m.get("cv5_accuracy_mean", m.get("cv10_accuracy_mean", m.get("cv_accuracy_mean", 0))),
+        "cv_accuracy_std":  m.get("cv5_accuracy_std",  m.get("cv10_accuracy_std",  m.get("cv_accuracy_std", 0))),
+        "cv_f1_mean":       m.get("cv5_f1_mean",       m.get("cv10_f1_mean",       m.get("cv_f1_mean", 0))),
+        "cv_f1_std":        m.get("cv5_f1_std",         m.get("cv10_f1_std",         m.get("cv_f1_std", 0))),
+        "cv_auc_mean":      m.get("cv5_roc_auc_mean",  m.get("cv10_roc_auc_mean",  m.get("cv_auc_mean", 0))),
+        "cv_auc_std":       m.get("cv5_roc_auc_std",   m.get("cv10_roc_auc_std",   m.get("cv_auc_std", 0))),
+        # Infos modèle
+        "n_features_selected": m.get("n_features", len(selected_features)),
+        "n_features_total":    m.get("n_features", len(selected_features)),
+        "train_size":          m.get("train_size", m.get("holdout_size", 0)),
+        "test_size":           m.get("holdout_size", m.get("test_size", 0)),
+        "confusion_matrix":    m.get("confusion_matrix", [[0,0],[0,0]]),
+        "top_features":        m.get("top_features", []),
+        "optimal_threshold":       m.get("optimal_threshold", 0.5),
+        "accuracy_realistic":      m.get("accuracy_realistic_distribution", None),
+        "realistic_planet_rate":   m.get("realistic_planet_rate", 0.007),
+        "threshold_strategy":      m.get("threshold_strategy", ""),
+        "source":                  m.get("source", "XGBoost v2 + TSFRESH"),
+    }
+    
+    return jsonify(mapped)
 
 
 @app.route('/api/catalog/search', methods=['GET'])
@@ -669,14 +768,16 @@ def search_catalog():
 # =============================================================================
 
 def classify_score(score):
-    """Traduit le score en verdict lisible."""
-    if score >= 0.85:
+    """Traduit la probabilité brute du modèle en verdict lisible."""
+    if score >= 0.95:
         return "Exoplanète très probable"
-    elif score >= 0.65:
+    elif score >= 0.80:
         return "Candidat prometteur"
-    elif score >= 0.4:
+    elif score >= 0.50:
+        return "Signal intéressant"
+    elif score >= 0.30:
         return "Signal ambigu"
-    elif score >= 0.2:
+    elif score >= 0.10:
         return "Probablement un faux positif"
     else:
         return "Faux positif"

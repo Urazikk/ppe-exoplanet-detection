@@ -1,0 +1,64 @@
+{
+  "source": "Physics-Informed ML (XGBoost sur m\u00e9triques BLS)",
+  "training_date": "2026-03-30 14:15",
+  "n_features": 9,
+  "n_stars_total": 1477,
+  "train_size": 1181,
+  "holdout_size": 296,
+  "optimal_threshold": 0.5000000000000001,
+  "holdout_accuracy": 0.75,
+  "holdout_precision": 0.7425149700598802,
+  "holdout_recall": 0.8,
+  "holdout_f1": 0.7701863354037267,
+  "holdout_auc_roc": 0.8032029283916723,
+  "confusion_matrix": [
+    [
+      98,
+      43
+    ],
+    [
+      31,
+      124
+    ]
+  ],
+  "cv5_accuracy_mean": 0.7095500848896436,
+  "cv5_auc_mean": 0.7955914824496839,
+  "top_features": [
+    {
+      "name": "bls_depth_ppm",
+      "importance": 0.16366899013519287
+    },
+    {
+      "name": "bls_duration_days",
+      "importance": 0.16262832283973694
+    },
+    {
+      "name": "star_temperature_k",
+      "importance": 0.12190131843090057
+    },
+    {
+      "name": "bls_power",
+      "importance": 0.11458105593919754
+    },
+    {
+      "name": "star_radius_solar",
+      "importance": 0.10569107532501221
+    },
+    {
+      "name": "bls_transit_fraction",
+      "importance": 0.08888735622167587
+    },
+    {
+      "name": "bls_score",
+      "importance": 0.08709360659122467
+    },
+    {
+      "name": "period",
+      "importance": 0.08004357665777206
+    },
+    {
+      "name": "bls_snr",
+      "importance": 0.07550467550754547
+    }
+  ]
+}

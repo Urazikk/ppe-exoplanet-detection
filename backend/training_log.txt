@@ -1,0 +1,22 @@
+/Users/simon/Desktop/Cours/ING4/S2/EXOPLANET_DETECTiON/projet-exoplanetes/backend/venv/lib/python3.13/site-packages/lightkurve/prf/__init__.py:7: UserWarning: Warning: the tpfmodel submodule is not available without oktopus installed, which requires a current version of autograd. See #1452 for details.
+  warnings.warn(
+======================================================================
+  ENTRAÎNEMENT FINAL — Données Lightkurve réelles
+  Peut prendre 1-3 heures. Tout est caché pour reprendre après arrêt.
+======================================================================
+
+======================================================================
+[1/6] SÉLECTION DES CIBLES
+======================================================================
+   Catalogue KOI : 41788 entrées
+   Planètes confirmées sélectionnées : 120
+   Faux positifs sélectionnés         : 120
+   Total : 240 cibles
+
+======================================================================
+[2/6] TÉLÉCHARGEMENT ET PREPROCESSING
+      240 cibles, 3 workers parallèles
+======================================================================
+   → 0/240 déjà en cache
+Downloading URL https://mast.stsci.edu/api/v0.1/Download/file?uri=mast:KEPLER/url/missions/kepler/lightcurves/0093/009391208/kplr009391208-2009166043257_llc.fits to /Users/simon/.lightkurve/cache/mastDownload/Kepler/kplr009391208_lc_Q011111111111111111/kplr009391208-2009166043257_llc.fits ... [Done]
+Downloading URL https://mast.stsci.edu/api/v0.1/Download/file?uri=mast:KEPLER/url/missions/kepler/lightcurves/0093/009391208/kplr009391208-2009259160929_llc.fits to /Users/simon/.lightkurve/cache/mastDownload/Kepler/kplr009391208_lc_Q011111111111111111/kplr009391208-2009259160929_llc.fits ... [Done]

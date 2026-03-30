@@ -1,0 +1,1 @@
+{"status": "error", "kepid": 6934587, "error": "LightkurveError: Error in reading Data product /Users/simon/.lightkurve/cache/mastDownload/Kepler/kplr006934587_lc_Q111111111111111111/kplr006934587-2009166043257_llc.fits of type KeplerLightCurve .\nThis file may be c"}

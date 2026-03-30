@@ -1,0 +1,11 @@
+[
+  "bls_snr",
+  "bls_depth_ppm",
+  "bls_transit_fraction",
+  "bls_power",
+  "bls_duration_days",
+  "bls_score",
+  "period",
+  "star_radius_solar",
+  "star_temperature_k"
+]

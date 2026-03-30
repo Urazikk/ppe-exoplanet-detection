@@ -1,0 +1,19 @@
+/Users/simon/Desktop/Cours/ING4/S2/EXOPLANET_DETECTiON/projet-exoplanetes/backend/venv/lib/python3.13/site-packages/lightkurve/prf/__init__.py:7: UserWarning: Warning: the tpfmodel submodule is not available without oktopus installed, which requires a current version of autograd. See #1452 for details.
+  warnings.warn(
+[OK] Modèle XGBoost v2 chargé.
+[OK] 9 features TSFRESH chargées.
+[OK] Métriques chargées — seuil optimal = 0.5000
+[OK] Catalogue NASA chargé (41788 entrées).
+
+==================================================
+  Exoplanet Detection API v2
+==================================================
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.1.162:5001
+[33mPress CTRL+C to quit[0m
+/opt/anaconda3/lib/python3.13/multiprocessing/resource_tracker.py:301: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/loky-62838-iotxi49b'}
+  warnings.warn(

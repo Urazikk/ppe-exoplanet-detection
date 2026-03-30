@@ -89,7 +89,7 @@ def get_period_hint(lc_flat, progress_cb=None):
     min_period = 0.5
 
     periods = np.linspace(min_period, max_period, 500)
-    durations = [0.02, 0.05, 0.08, 0.12, 0.15]
+    durations = np.array([0.02, 0.05, 0.08, 0.12, 0.15])
 
     report(f"BLS rapide : {len(periods)} periodes x {len(durations)} durations...")
     t_start = time.time()

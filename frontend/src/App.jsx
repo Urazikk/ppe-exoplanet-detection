@@ -1,14 +1,17 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useContext, createContext } from "react";
 import { createPortal } from "react-dom";
 import OrbitalViewer3D from "./OrbitalViewer3D";
 import {
   Search, Orbit, Activity, Database, Telescope, Star, ChevronRight,
   Loader2, AlertTriangle, CheckCircle2, Sparkles, RotateCcw, LogIn,
   LogOut, User, Lock, Eye, EyeOff, ShieldCheck, BarChart2, BookOpen,
-  UserPlus, Zap, Globe, TrendingUp, Filter, X, Info, Clock, FileText
+  UserPlus, Zap, Globe, TrendingUp, Filter, X, Info, Clock, FileText,
+  Columns, Dice6
 } from "lucide-react";
 
 const API_BASE = "http://localhost:5001";
+
+const ModeContext = createContext(false);
 
 const PRESET_TARGETS = [
   { id: "Kepler-10",  label: "Kepler-10"  },
@@ -17,6 +20,34 @@ const PRESET_TARGETS = [
   { id: "Kepler-452", label: "Kepler-452" },
   { id: "Kepler-62",  label: "Kepler-62"  },
   { id: "Kepler-186", label: "Kepler-186" },
+];
+
+// Pool vérifié status=ok dans le cache backend
+const VERIFIED_KIC_POOL = [
+  "KIC 10000490","KIC 10023469","KIC 10091257","KIC 10154388","KIC 10203349",
+  "KIC 10268714","KIC 10330115","KIC 10384798","KIC 10460984","KIC 10514429",
+  "KIC 10577994","KIC 10657406","KIC 10709622","KIC 10753922","KIC 10874614",
+  "KIC 10963065","KIC 11027624","KIC 11080405","KIC 11187436","KIC 11236244",
+  "KIC 11304987","KIC 11403530","KIC 11463211","KIC 11521793","KIC 11621897",
+  "KIC 11709124","KIC 11818872","KIC 11918099","KIC 12010534","KIC 12216278",
+  "KIC 12555140","KIC 2010191","KIC 2444412","KIC 2574201","KIC 2849805",
+  "KIC 3114167","KIC 3239945","KIC 3342467","KIC 3448130","KIC 3644399",
+  "KIC 3742855","KIC 3851193","KIC 3965326","KIC 4076976","KIC 4164994",
+  "KIC 4262581","KIC 4385148","KIC 4545187","KIC 4664743","KIC 4757437",
+  "KIC 4843751","KIC 4917596","KIC 5036480","KIC 5094751","KIC 5181455",
+  "KIC 5286786","KIC 5385410","KIC 5471202","KIC 5513897","KIC 5551504",
+  "KIC 5652237","KIC 5738346","KIC 5818068","KIC 5955621","KIC 6034945",
+  "KIC 6062929","KIC 6185331","KIC 6263593","KIC 6311520","KIC 6364582",
+  "KIC 6437617","KIC 6528464","KIC 6600492","KIC 6665064","KIC 6705026",
+  "KIC 6776401","KIC 6929841","KIC 7024045","KIC 7047922","KIC 7115597",
+  "KIC 7185710","KIC 7283710","KIC 7379385","KIC 7463685","KIC 7542369",
+  "KIC 7663405","KIC 7743464","KIC 7838675","KIC 7907423","KIC 8012732",
+  "KIC 8043638","KIC 8106610","KIC 8155368","KIC 8222813","KIC 8246781",
+  "KIC 8278371","KIC 8358012","KIC 8414914","KIC 8487645","KIC 8552719",
+  "KIC 8608544","KIC 8644288","KIC 8733898","KIC 8766222","KIC 8826878",
+  "KIC 8890150","KIC 8953257","KIC 9034103","KIC 9117416","KIC 9166870",
+  "KIC 9291039","KIC 9351920","KIC 9412445","KIC 9474483","KIC 9529733",
+  "KIC 9593528","KIC 9652649","KIC 9714550","KIC 9777090","KIC 9824805",
 ];
 
 const ANALYSIS_STEPS = [
@@ -81,9 +112,9 @@ function StarField() {
 }
 
 /* ─── Card wrapper ───────────────────────────────────────────── */
-function Card({ children, style={}, glow=false }) {
+function Card({ children, style={}, glow=false, onClick }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       background:"rgba(10,13,22,0.75)", backdropFilter:"blur(16px)",
       border:"1px solid rgba(99,140,255,0.1)", borderRadius:14, padding:16,
       animation: glow ? "pulse 6s ease-in-out infinite" : undefined,
@@ -1268,6 +1299,7 @@ function FeatureBar({ f, mx2, hint }) {
 
 /* ─── Catalog Tab ────────────────────────────────────────────── */
 function EnhancedMetricsTab() {
+  const simpleMode = useContext(ModeContext);
   const [metrics,setMetrics]=useState(null);
   const [loading,setLoading]=useState(true);
   const [err,setErr]=useState(null);
@@ -1289,6 +1321,24 @@ function EnhancedMetricsTab() {
     </div>
   );
   if(!metrics) return null;
+
+  if(simpleMode) {
+    const acc = metrics.test_accuracy ? Math.round(metrics.test_accuracy*100) : "—";
+    const total = metrics.n_train ? metrics.n_train + (metrics.n_test||0) : "—";
+    const correctOn10 = metrics.test_accuracy ? Math.round(metrics.test_accuracy*10) : "—";
+    return (
+      <Card style={{padding:"28px 32px",maxWidth:520}}>
+        <div style={{fontSize:36,marginBottom:14}}>📊</div>
+        <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:16,fontWeight:700,color:"#e0e8f5",marginBottom:8}}>Notre intelligence artificielle</h2>
+        <p style={{fontSize:13,color:"rgba(200,215,240,0.7)",lineHeight:1.7,marginBottom:12}}>
+          Elle a été entraînée sur <strong style={{color:"#638cff"}}>{total} étoiles</strong> et atteint une précision de <strong style={{color:"#4ade80"}}>{acc}%</strong>.
+        </p>
+        <p style={{fontSize:13,color:"rgba(200,215,240,0.7)",lineHeight:1.7}}>
+          Concrètement : sur 10 étoiles analysées, elle identifie correctement <strong style={{color:"#4ade80"}}>{correctOn10} cas sur 10</strong>.
+        </p>
+      </Card>
+    );
+  }
 
   const cm=metrics.confusion_matrix||[[0,0],[0,0]];
   const [tn,fp]=[cm[0][0],cm[0][1]];
@@ -1439,6 +1489,7 @@ function EnhancedMetricsTab() {
 }
 
 function CatalogTab({ onAnalyze }) {
+  const simpleMode = useContext(ModeContext);
   const [query,setQuery]=useState("");
   const [results,setResults]=useState(null);
   const [loading,setLoading]=useState(false);
@@ -1525,6 +1576,12 @@ function CatalogTab({ onAnalyze }) {
             {filtered.map((item,i)=>{
               const dispCol=item.disposition==="CONFIRMED"?"#4ade80":
                 item.disposition==="CANDIDATE"?"#fbbf24":"#f87171";
+              const dispLabel=simpleMode
+                ? item.disposition==="CONFIRMED"?"✅ Planète confirmée"
+                : item.disposition==="CANDIDATE"?"🔍 Possible planète"
+                : item.disposition==="FALSE POSITIVE"?"❌ Faux positif"
+                : item.disposition
+                : item.disposition;
               return (
                 <div key={i} style={{display:"flex",alignItems:"center",gap:12,
                   padding:"10px 14px",borderRadius:10,
@@ -1540,14 +1597,14 @@ function CatalogTab({ onAnalyze }) {
                       </span>
                       <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,
                         background:`${dispCol}15`,border:`1px solid ${dispCol}30`,color:dispCol}}>
-                        {item.disposition}
+                        {dispLabel}
                       </span>
                     </div>
                     <div style={{display:"flex",gap:16,fontSize:10,
                       fontFamily:"'DM Mono',monospace",color:"rgba(160,180,220,0.45)"}}>
-                      {item.period_days&&<span>P = {item.period_days} j</span>}
-                      {item.planet_radius_earth&&<span>R = {item.planet_radius_earth} R⊕</span>}
-                      {item.depth_ppm&&<span>Depth = {item.depth_ppm.toLocaleString()} ppm</span>}
+                      {item.period_days&&<span>{simpleMode?`Orbite : ${item.period_days} jours`:`P = ${item.period_days} j`}</span>}
+                      {item.planet_radius_earth&&<span>{simpleMode?`Taille : ${item.planet_radius_earth} × Terre`:`R = ${item.planet_radius_earth} R⊕`}</span>}
+                      {!simpleMode&&item.depth_ppm&&<span>Depth = {item.depth_ppm.toLocaleString()} ppm</span>}
                     </div>
                   </div>
                   <button onClick={()=>onAnalyze(`KIC ${item.kepid}`)} style={{
@@ -1693,12 +1750,23 @@ function LoginScreen({ onLogin }) {
 }
 
 /* ─── History Tab ────────────────────────────────────────────── */
+function formatHistoryDate(dateStr) {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleString("fr-FR", {
+      day:"2-digit", month:"2-digit", year:"2-digit",
+      hour:"2-digit", minute:"2-digit"
+    });
+  } catch { return dateStr; }
+}
+
 function HistoryTab({ history }) {
+  const simpleMode = useContext(ModeContext);
   if (!history.length) return (
     <div style={{padding:60,textAlign:"center",color:"rgba(160,180,220,0.25)",
       fontFamily:"'DM Mono',monospace",fontSize:12}}>
       <Clock size={32} style={{marginBottom:12,opacity:.3,display:"block",margin:"0 auto 12px"}}/>
-      Aucune analyse effectuée dans cette session
+      Aucune analyse effectuée pour ce compte
     </div>
   );
 
@@ -1712,7 +1780,7 @@ function HistoryTab({ history }) {
         <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Mono',monospace",fontSize:12}}>
           <thead>
             <tr style={{borderBottom:"1px solid rgba(99,140,255,0.1)"}}>
-              {["Cible","Score","Verdict","Date"].map(h=>(
+              {(simpleMode?["Étoile","Résultat","Date"]:["Cible","Score","Verdict","Période","Date"]).map(h=>(
                 <th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,
                   color:"rgba(160,180,220,0.4)",textTransform:"uppercase",letterSpacing:1.2,
                   fontWeight:400}}>{h}</th>
@@ -1722,21 +1790,31 @@ function HistoryTab({ history }) {
           <tbody>
             {history.map((row,i)=>{
               const col=row.score>=0.70?"#4ade80":row.score>=0.35?"#fbbf24":"#f87171";
+              const emoji=row.score>=0.70?"🌍":row.score>=0.35?"🔶":"⭐";
               return (
                 <tr key={i} style={{borderBottom:"1px solid rgba(99,140,255,0.05)",
                   animation:"slideIn .3s ease-out"}}>
                   <td style={{padding:"10px 12px",color:"#e0e8f5",fontWeight:500}}>{row.target}</td>
-                  <td style={{padding:"10px 12px"}}>
-                    <span style={{color:col,fontWeight:600}}>{(row.score*100).toFixed(1)}%</span>
-                  </td>
-                  <td style={{padding:"10px 12px"}}>
-                    <span style={{padding:"2px 8px",borderRadius:4,fontSize:10,
-                      background:`${col}15`,border:`1px solid ${col}30`,color:col}}>
-                      {row.verdict}
-                    </span>
-                  </td>
+                  {simpleMode?(
+                    <td style={{padding:"10px 12px",fontSize:18}}>{emoji}</td>
+                  ):(
+                    <>
+                      <td style={{padding:"10px 12px"}}>
+                        <span style={{color:col,fontWeight:600}}>{(row.score*100).toFixed(1)}%</span>
+                      </td>
+                      <td style={{padding:"10px 12px"}}>
+                        <span style={{padding:"2px 8px",borderRadius:4,fontSize:10,
+                          background:`${col}15`,border:`1px solid ${col}30`,color:col}}>
+                          {row.verdict}
+                        </span>
+                      </td>
+                      <td style={{padding:"10px 12px",color:"rgba(160,180,220,0.5)",fontSize:11}}>
+                        {row.period_days ? `${row.period_days} j` : "—"}
+                      </td>
+                    </>
+                  )}
                   <td style={{padding:"10px 12px",color:"rgba(160,180,220,0.4)",fontSize:11}}>
-                    {row.date}
+                    {formatHistoryDate(row.date)}
                   </td>
                 </tr>
               );
@@ -1825,10 +1903,557 @@ function DocTab() {
   );
 }
 
+/* ─── Suggestion Sidebar ─────────────────────────────────────── */
+function SuggestionSidebar({ current, onPick }) {
+  return (
+    <div style={{ position: "sticky", top: 16, display: "flex", flexDirection: "column", gap: 8, maxHeight: "calc(100vh - 160px)" }}>
+      <div style={{ fontSize: 10, fontFamily: "'DM Mono',monospace", color: "rgba(160,180,220,0.35)",
+        textTransform: "uppercase", letterSpacing: 1.5, paddingLeft: 2, marginBottom: 2 }}>
+        Suggestions
+      </div>
+
+      {/* Kepler nommées */}
+      <Card style={{ padding: "10px 12px" }}>
+        <div style={{ fontSize: 9, color: "rgba(99,140,255,0.5)", textTransform: "uppercase",
+          letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
+          Kepler nommées
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {PRESET_TARGETS.map(p => (
+            <button key={p.id} onClick={() => onPick(p.id)} style={{
+              textAlign: "left", padding: "5px 8px", borderRadius: 6, border: "none",
+              background: current === p.id ? "rgba(99,140,255,0.15)" : "transparent",
+              color: current === p.id ? "#638cff" : "rgba(160,180,220,0.6)",
+              fontFamily: "'DM Mono',monospace", fontSize: 11, cursor: "pointer",
+              borderLeft: `2px solid ${current === p.id ? "#638cff" : "transparent"}`,
+              transition: "all 0.15s",
+            }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* KIC vérifiés — scrollable */}
+      <Card style={{ padding: "10px 12px", flex: 1, overflowY: "auto", minHeight: 0 }}>
+        <div style={{ fontSize: 9, color: "rgba(160,180,220,0.35)", textTransform: "uppercase",
+          letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
+          Catalogue KIC
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {VERIFIED_KIC_POOL.map(id => (
+            <button key={id} onClick={() => onPick(id)} style={{
+              textAlign: "left", padding: "4px 8px", borderRadius: 6, border: "none",
+              background: current === id ? "rgba(99,140,255,0.15)" : "transparent",
+              color: current === id ? "#638cff" : "rgba(160,180,220,0.45)",
+              fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
+              borderLeft: `2px solid ${current === id ? "#638cff" : "transparent"}`,
+              transition: "all 0.15s", whiteSpace: "nowrap",
+            }}>
+              {id}
+            </button>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ─── Scanner Tab ────────────────────────────────────────────── */
+function ScannerTab() {
+  const simpleMode = useContext(ModeContext);
+  const [inputText, setInputText] = useState("");
+  const [jobs, setJobs] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [expandedJob, setExpandedJob] = useState(null);
+
+  const RANDOM_POOL = [
+    // Kepler nommés (toujours fonctionnels)
+    "Kepler-10","Kepler-22","Kepler-90","Kepler-452","Kepler-62","Kepler-186",
+    // KIC avec status=ok confirmé dans le cache backend
+    "KIC 10000490","KIC 10023469","KIC 10091257","KIC 10154388","KIC 10203349",
+    "KIC 10268714","KIC 10330115","KIC 10384798","KIC 10460984","KIC 10514429",
+    "KIC 10577994","KIC 10657406","KIC 10709622","KIC 10753922","KIC 10874614",
+    "KIC 10963065","KIC 11027624","KIC 11080405","KIC 11187436","KIC 11236244",
+    "KIC 11304987","KIC 11403530","KIC 11463211","KIC 11521793","KIC 11621897",
+    "KIC 11709124","KIC 11818872","KIC 11918099","KIC 12010534","KIC 12216278",
+    "KIC 12555140","KIC 2010191","KIC 2444412","KIC 2574201","KIC 2849805",
+    "KIC 3114167","KIC 3239945","KIC 3342467","KIC 3448130","KIC 3644399",
+    "KIC 3742855","KIC 3851193","KIC 3965326","KIC 4076976","KIC 4164994",
+    "KIC 4262581","KIC 4385148","KIC 4545187","KIC 4664743","KIC 4757437",
+    "KIC 4843751","KIC 4917596","KIC 5036480","KIC 5094751","KIC 5181455",
+    "KIC 5286786","KIC 5385410","KIC 5471202","KIC 5513897","KIC 5551504",
+    "KIC 5652237","KIC 5738346","KIC 5818068","KIC 5955621","KIC 6034945",
+    "KIC 6062929","KIC 6185331","KIC 6263593","KIC 6311520","KIC 6364582",
+    "KIC 6437617","KIC 6528464","KIC 6600492","KIC 6665064","KIC 6705026",
+    "KIC 6776401","KIC 6929841","KIC 7024045","KIC 7047922","KIC 7115597",
+    "KIC 7185710","KIC 7283710","KIC 7379385","KIC 7463685","KIC 7542369",
+    "KIC 7663405","KIC 7743464","KIC 7838675","KIC 7907423","KIC 8012732",
+    "KIC 8043638","KIC 8106610","KIC 8155368","KIC 8222813","KIC 8246781",
+    "KIC 8278371","KIC 8358012","KIC 8414914","KIC 8487645","KIC 8552719",
+    "KIC 8608544","KIC 8644288","KIC 8733898","KIC 8766222","KIC 8826878",
+    "KIC 8890150","KIC 8953257","KIC 9034103","KIC 9117416","KIC 9166870",
+    "KIC 9291039","KIC 9351920","KIC 9412445","KIC 9474483","KIC 9529733",
+    "KIC 9593528","KIC 9652649","KIC 9714550","KIC 9777090","KIC 9824805",
+  ];
+
+  const generateRandom = () => {
+    const shuffled = [...RANDOM_POOL].sort(() => Math.random() - 0.5);
+    setInputText(shuffled.slice(0, 5).join("\n"));
+  };
+
+  const startScan = async () => {
+    const targets = inputText.split(/[\n,]+/).map(t => t.trim()).filter(Boolean);
+    if (!targets.length) return;
+    
+    // limit to 10
+    const limited = targets.slice(0, 10);
+    
+    // reset jobs
+    const newJobs = limited.map((t, i) => ({ id: `job-${i}`, target: t, status: "pending", data: null, error: null }));
+    setJobs(newJobs);
+    setScanning(true);
+
+    await Promise.allSettled(newJobs.map(async (job) => {
+      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "loading" } : j));
+      try {
+        const res = await authFetch(`${API_BASE}/api/analyze?id=${encodeURIComponent(job.target)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erreur serveur");
+        setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "success", data } : j));
+      } catch (err) {
+        setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "error", error: err.message } : j));
+      }
+    }));
+    
+    setScanning(false);
+  };
+
+  return (
+    <div style={{ animation: "fadeIn 0.5s ease" }}>
+      <Card style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 600 }}>Scanner de Constellation (Batch)</h2>
+            <p style={{ fontSize: 11, color: "rgba(160,180,220,0.5)", marginTop: 2 }}>Analysez jusqu'à 10 étoiles simultanément avec XGBoost.</p>
+          </div>
+          <button onClick={generateRandom} disabled={scanning} style={{
+            padding: "6px 12px", borderRadius: 8, background: "rgba(99,140,255,0.05)",
+            border: "1px solid rgba(99,140,255,0.15)", color: "#638cff", fontSize: 10,
+            fontFamily: "'DM Mono',monospace", cursor: scanning ? "not-allowed" : "pointer"
+          }}>
+            <Sparkles size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+            Générer cibles aléatoires
+          </button>
+        </div>
+        
+        <textarea 
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          disabled={scanning}
+          placeholder="collez des noms d'étoiles (ex: Kepler-10, KIC 10811496...) séparés par des virgules ou retours à la ligne"
+          style={{ width: "100%", height: 80, background: "rgba(7,9,15,0.6)", border: "1px solid rgba(99,140,255,0.1)",
+            borderRadius: 8, padding: 10, color: "#e0e8f5", fontFamily: "'DM Mono',monospace", fontSize: 11,
+            outline: "none", resize: "none", marginBottom: 12 }}
+        />
+        
+        <button onClick={startScan} disabled={scanning || !inputText.trim()} style={{
+          width: "100%", padding: "10px", borderRadius: 8,
+          background: scanning ? "rgba(99,140,255,0.1)" : "linear-gradient(135deg, #638cff, #8b5cf6)",
+          color: scanning ? "rgba(160,180,220,0.5)" : "#fff", border: "none",
+          fontFamily: "'DM Mono',monospace", fontSize: 12, fontWeight: 600, cursor: scanning ? "wait" : "pointer",
+          display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "background 0.3s"
+        }}>
+          {scanning ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Globe size={14} />}
+          {scanning ? "Analyse Multi-cœurs en cours..." : "Lancer le Scanner de Constellation"}
+        </button>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+        {jobs.map(job => {
+          const isExpanded = expandedJob?.id === job.id;
+          const isGlow = job.data && job.data.score >= 0.70;
+          return (
+            <Card key={job.id} glow={isGlow}
+              onClick={job.status === "success" ? () => setExpandedJob(isExpanded ? null : job) : undefined}
+              style={{
+                border: isGlow ? "1px solid rgba(74,222,128,0.4)" : isExpanded ? "1px solid rgba(99,140,255,0.3)" : undefined,
+                background: isGlow ? "rgba(74,222,128,0.08)" : isExpanded ? "rgba(99,140,255,0.06)" : undefined,
+                cursor: job.status === "success" ? "pointer" : "default",
+                transition: "border 0.2s, background 0.2s",
+              }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 13, color: isGlow ? "#4ade80" : "#e0e8f5" }}>{job.target}</span>
+                {job.status === "pending" && <span style={{ fontSize: 10, color: "rgba(160,180,220,0.3)", padding: "2px 6px", border: "1px solid rgba(160,180,220,0.1)", borderRadius: 4 }}>En file</span>}
+                {job.status === "loading" && <Loader2 size={12} style={{ color: "#638cff", animation: "spin 1s linear infinite" }} />}
+                {job.status === "error" && <AlertTriangle size={12} style={{ color: "#f87171" }} />}
+                {job.status === "success" && (
+                  simpleMode
+                    ? <span style={{fontSize:18}}>{job.data.score>=0.70?"🌍":job.data.score>=0.35?"🔶":"⭐"}</span>
+                    : <div style={{ padding: "3px 8px", borderRadius: 4, fontSize: 10, fontFamily: "'DM Mono',monospace",
+                        background: job.data.score >= 0.7 ? "rgba(74,222,160,0.1)" : job.data.score >= 0.35 ? "rgba(251,191,36,0.1)" : "rgba(248,113,113,0.1)",
+                        color: job.data.score >= 0.7 ? "#4ade80" : job.data.score >= 0.35 ? "#fbbf24" : "#f87171" }}>
+                        {(job.data.score * 100).toFixed(1)}%
+                      </div>
+                )}
+              </div>
+              {job.status === "error" && <div style={{ fontSize: 10, color: "#f87171", fontFamily: "'DM Mono',monospace" }}>{simpleMode?"Étoile introuvable.":job.error}</div>}
+              {job.status === "success" && job.data && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: "'DM Mono',monospace", fontSize: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(160,180,220,0.1)", paddingBottom: 4 }}>
+                    <span style={{ color: "rgba(160,180,220,0.5)" }}>{simpleMode?"Résultat":"Verdict IA"}</span>
+                    <span style={{ color: isGlow ? "#4ade80" : "#e0e8f5", fontWeight: isGlow ? 700 : 400 }}>{job.data.verdict}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "rgba(160,180,220,0.5)" }}>Type</span>
+                    <span style={{ color: "#e0e8f5" }}>{job.data.characterization?.planet_type || "Indéterminé"}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "rgba(160,180,220,0.5)" }}>{simpleMode?"Taille":"Rayon"}</span>
+                    <span style={{ color: "#e0e8f5" }}>{job.data.characterization?.planet_radius_earth ? job.data.characterization.planet_radius_earth + (simpleMode?" × Terre":" R⊕") : "N/A"}</span>
+                  </div>
+                </div>
+              )}
+              {job.status === "loading" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(160,180,220,0.5)" }}>
+                  Traitement IA en cours...
+                </div>
+              )}
+              {job.status === "success" && (
+                <div style={{ marginTop: 8, fontSize: 10, color: isExpanded ? "rgba(160,180,220,0.4)" : "rgba(99,140,255,0.6)", fontFamily: "'DM Mono',monospace", textAlign: "right" }}>
+                  {isExpanded ? "▲ Réduire" : "▼ Voir l'analyse détaillée"}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* ─ Panneau d'analyse inline ─ */}
+      {expandedJob && expandedJob.data && (
+        <div style={{ marginTop: 20, animation: "fadeIn 0.4s ease" }}>
+          <Card style={{ marginBottom: 14, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 14, color: expandedJob.data.score >= 0.7 ? "#4ade80" : "#e0e8f5" }}>
+                {expandedJob.data.target}
+              </span>
+              <span style={{ fontSize: 12, color: "rgba(160,180,220,0.5)", marginLeft: 10 }}>{expandedJob.data.verdict}</span>
+            </div>
+            <button onClick={() => setExpandedJob(null)} style={{
+              background: "none", border: "1px solid rgba(160,180,220,0.15)", borderRadius: 6,
+              color: "rgba(160,180,220,0.5)", fontSize: 11, fontFamily: "'DM Mono',monospace",
+              padding: "4px 10px", cursor: "pointer"
+            }}>✕ Fermer</button>
+          </Card>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <Card glow style={{ padding: 14 }}>
+              <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Courbe de Lumière Repliée</h2>
+              <p style={{ fontSize: 10, color: "rgba(160,180,220,0.38)", marginBottom: 10 }}>
+                {expandedJob.data.target} — P = {expandedJob.data.period_days} j
+              </p>
+              <div style={{ height: 300, borderRadius: 10, overflow: "hidden" }}>
+                <LightCurveCanvas data={expandedJob.data.data || []} score={expandedJob.data.score} isLoading={false} />
+              </div>
+            </Card>
+
+            {simpleMode ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                <Card style={{ padding: 14, textAlign: "center" }}>
+                  <div style={{ fontSize: 36, marginBottom: 6 }}>
+                    {expandedJob.data.score >= 0.70 ? "🌍" : expandedJob.data.score >= 0.35 ? "🤔" : "❌"}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: expandedJob.data.score >= 0.70 ? "#4ade80" : expandedJob.data.score >= 0.35 ? "#fbbf24" : "#f87171" }}>
+                    {expandedJob.data.score >= 0.70 ? "Planète probable !" : expandedJob.data.score >= 0.35 ? "Pas sûr…" : "Probablement pas une planète"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(160,180,220,0.5)", marginTop: 4 }}>
+                    Notre IA est sûre à {Math.round(expandedJob.data.score * 100)}%
+                  </div>
+                </Card>
+                <Card style={{ padding: 14, textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: "rgba(160,180,220,0.4)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>Orbite</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#e0e8f5" }}>{expandedJob.data.period_days} j</div>
+                  <div style={{ fontSize: 10, color: "rgba(160,180,220,0.4)", marginTop: 4 }}>Durée d'une année sur cette planète</div>
+                </Card>
+                <Card style={{ padding: 14, textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: "rgba(160,180,220,0.4)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>Taille</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#e0e8f5" }}>{expandedJob.data.characterization?.planet_radius_re ? `${expandedJob.data.characterization.planet_radius_re} R⊕` : "—"}</div>
+                  <div style={{ fontSize: 10, color: "rgba(160,180,220,0.4)", marginTop: 4 }}>Par rapport à la Terre</div>
+                </Card>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "240px 1fr 1fr", gap: 14 }}>
+                  <Card style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 14px" }}>
+                    <h3 style={{ fontSize: 10, color: "rgba(160,180,220,0.45)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.5 }}>Verdict IA</h3>
+                    <ScoreGauge score={expandedJob.data.score} size={140} />
+                  </Card>
+                  {expandedJob.data.feature_importances?.length > 0
+                    ? <Card style={{ padding: 14 }}><FeatureBars features={expandedJob.data.feature_importances} /></Card>
+                    : <div />}
+                  <Card style={{ padding: 14 }}>
+                    <h3 style={{ fontSize: 10, color: "rgba(160,180,220,0.45)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1.5 }}>Caractéristiques</h3>
+                    <CharacterizationPanel data={expandedJob.data} />
+                  </Card>
+                </div>
+
+                <Card glow style={{ padding: 0, overflow: "hidden" }}>
+                  <div style={{ height: 340, borderRadius: 14 }}>
+                    <OrbitalViewer3D data={expandedJob.data} />
+                  </div>
+                </Card>
+
+                <SignalInsightsPanel data={expandedJob.data} />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Comparison Tab ─────────────────────────────────────────── */
+function ComparisonTab() {
+  const simpleMode = useContext(ModeContext);
+  const [slots, setSlots] = useState([
+    { id:"slot-0", input:"", data:null, loading:false, error:null },
+    { id:"slot-1", input:"", data:null, loading:false, error:null },
+  ]);
+
+  const updateSlot = (id, patch) =>
+    setSlots(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
+
+  const analyzeSlot = async (id) => {
+    const slot = slots.find(s => s.id === id);
+    if (!slot || !slot.input.trim()) return;
+    updateSlot(id, { loading:true, error:null, data:null });
+    try {
+      const res = await authFetch(`${API_BASE}/api/analyze?id=${encodeURIComponent(slot.input.trim())}`);
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Erreur serveur");
+      updateSlot(id, { loading:false, data:d });
+    } catch(e) {
+      updateSlot(id, { loading:false, error:e.message });
+    }
+  };
+
+  const randomizeSlot = (id) => {
+    const pick = VERIFIED_KIC_POOL[Math.floor(Math.random() * VERIFIED_KIC_POOL.length)];
+    updateSlot(id, { input:pick });
+  };
+
+  const addSlot = () => {
+    if (slots.length >= 3) return;
+    const id = `slot-${Date.now()}`;
+    setSlots(prev => [...prev, { id, input:"", data:null, loading:false, error:null }]);
+  };
+
+  const removeSlot = (id) => {
+    if (slots.length <= 2) return;
+    setSlots(prev => prev.filter(s => s.id !== id));
+  };
+
+  const verdictColor = (score) =>
+    score >= 0.70 ? "#4ade80" : score >= 0.35 ? "#fbbf24" : "#f87171";
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .5s ease-out"}}>
+      {/* Header row */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+        <div>
+          <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:15,fontWeight:600,color:"#e0e8f5",marginBottom:2}}>
+            Comparaison multi-étoiles
+          </h2>
+          <p style={{fontSize:11,color:"rgba(160,180,220,0.45)",fontFamily:"'DM Mono',monospace"}}>
+            Analysez jusqu'à 3 étoiles côte à côte
+          </p>
+        </div>
+        <button
+          onClick={addSlot}
+          disabled={slots.length >= 3}
+          style={{
+            display:"flex",alignItems:"center",gap:6,
+            padding:"7px 14px",borderRadius:9,fontSize:11,
+            fontFamily:"'DM Mono',monospace",cursor:slots.length>=3?"not-allowed":"pointer",
+            background:"rgba(99,140,255,0.08)",
+            border:"1px solid rgba(99,140,255,0.2)",
+            color:slots.length>=3?"rgba(99,140,255,0.3)":"#638cff",
+            opacity:slots.length>=3?0.5:1,
+          }}>
+          <Columns size={12}/> Ajouter une étoile
+        </button>
+      </div>
+
+      {/* Slots grid */}
+      <div style={{
+        display:"grid",
+        gridTemplateColumns:`repeat(${slots.length}, 1fr)`,
+        gap:14,
+        alignItems:"start",
+      }}>
+        {slots.map(slot => {
+          const col = slot.data ? verdictColor(slot.data.score) : "#638cff";
+          return (
+            <Card key={slot.id} style={{padding:14,display:"flex",flexDirection:"column",gap:12}}>
+              {/* Slot header with remove button */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
+                <span style={{fontSize:10,color:"rgba(160,180,220,0.4)",textTransform:"uppercase",
+                  letterSpacing:1.2,fontFamily:"'DM Mono',monospace"}}>
+                  Étoile {slots.indexOf(slot)+1}
+                </span>
+                <button
+                  onClick={() => removeSlot(slot.id)}
+                  disabled={slots.length <= 2}
+                  title="Supprimer ce slot"
+                  style={{
+                    background:"none",border:"1px solid rgba(248,113,113,0.2)",borderRadius:5,
+                    color:slots.length<=2?"rgba(248,113,113,0.2)":"rgba(248,113,113,0.6)",
+                    cursor:slots.length<=2?"not-allowed":"pointer",
+                    padding:"2px 6px",fontSize:10,lineHeight:1,
+                  }}>
+                  ✕
+                </button>
+              </div>
+
+              {/* Search bar */}
+              <div style={{display:"flex",gap:6}}>
+                <div style={{flex:1,display:"flex",alignItems:"center",
+                  background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.15)",
+                  borderRadius:8,overflow:"hidden"}}>
+                  <Search size={11} style={{color:"rgba(99,140,255,0.4)",marginLeft:9,flexShrink:0}}/>
+                  <input
+                    value={slot.input}
+                    onChange={e => updateSlot(slot.id, {input:e.target.value})}
+                    onKeyDown={e => e.key==="Enter" && analyzeSlot(slot.id)}
+                    placeholder="Kepler-10, KIC…"
+                    style={{flex:1,padding:"7px 8px",background:"transparent",border:"none",
+                      outline:"none",color:"#e0e8f5",fontFamily:"'DM Mono',monospace",fontSize:11}}/>
+                </div>
+                {/* Random button */}
+                <button
+                  onClick={() => randomizeSlot(slot.id)}
+                  title="Étoile aléatoire"
+                  style={{padding:"7px 9px",borderRadius:8,background:"rgba(99,140,255,0.06)",
+                    border:"1px solid rgba(99,140,255,0.15)",color:"#638cff",cursor:"pointer",fontSize:12}}>
+                  <Dice6 size={13}/>
+                </button>
+                {/* Analyze button */}
+                <button
+                  onClick={() => analyzeSlot(slot.id)}
+                  disabled={slot.loading || !slot.input.trim()}
+                  style={{padding:"7px 11px",borderRadius:8,fontSize:10,
+                    fontFamily:"'DM Mono',monospace",cursor:slot.loading||!slot.input.trim()?"not-allowed":"pointer",
+                    background:"linear-gradient(135deg,rgba(99,140,255,0.18),rgba(139,92,246,0.18))",
+                    border:"1px solid rgba(99,140,255,0.25)",color:"#638cff",
+                    display:"flex",alignItems:"center",gap:4,flexShrink:0,
+                    opacity:slot.loading||!slot.input.trim()?0.6:1}}>
+                  {slot.loading
+                    ? <Loader2 size={11} style={{animation:"spin 1s linear infinite"}}/>
+                    : <ChevronRight size={11}/>}
+                  Analyser
+                </button>
+              </div>
+
+              {/* Loading state */}
+              {slot.loading && (
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                  padding:20,color:"rgba(160,180,220,0.5)",fontFamily:"'DM Mono',monospace",fontSize:11}}>
+                  <Loader2 size={16} style={{color:"#638cff",animation:"spin 1s linear infinite"}}/>
+                  Analyse en cours…
+                </div>
+              )}
+
+              {/* Error state */}
+              {slot.error && !slot.loading && (
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",
+                  borderRadius:8,background:"rgba(248,113,113,0.06)",
+                  border:"1px solid rgba(248,113,113,0.15)",
+                  fontSize:11,color:"#f87171",fontFamily:"'DM Mono',monospace"}}>
+                  <AlertTriangle size={12}/>{slot.error}
+                </div>
+              )}
+
+              {/* Data state */}
+              {slot.data && !slot.loading && (
+                <div style={{display:"flex",flexDirection:"column",gap:10,animation:"fadeIn .4s ease-out"}}>
+                  {/* Target name + verdict badge */}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,flexWrap:"wrap"}}>
+                    <span style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:13,fontWeight:600,
+                      color:"#e0e8f5"}}>{slot.data.target}</span>
+                    <span style={{padding:"3px 10px",borderRadius:12,fontSize:10,
+                      fontFamily:"'DM Mono',monospace",
+                      color:col,background:`${col}15`,border:`1px solid ${col}30`}}>
+                      {slot.data.verdict}
+                    </span>
+                  </div>
+
+                  {/* Light curve */}
+                  <div style={{borderRadius:8,overflow:"hidden",height:160,background:"rgba(7,9,15,0.5)"}}>
+                    <LightCurveCanvas data={slot.data.data||[]} score={slot.data.score} isLoading={false}/>
+                  </div>
+                  <div style={{fontSize:9,color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace",
+                    textAlign:"center",marginTop:-6}}>
+                    P = {slot.data.period_days} j
+                  </div>
+
+                  {/* Score gauge / simple mode emoji */}
+                  {simpleMode ? (
+                    <div style={{textAlign:"center",padding:"8px 0"}}>
+                      <div style={{fontSize:32,marginBottom:4}}>
+                        {slot.data.score >= 0.70 ? "🌍" : slot.data.score >= 0.35 ? "🤔" : "❌"}
+                      </div>
+                      <div style={{fontSize:12,fontWeight:600,
+                        color:col,fontFamily:"'Space Grotesk',sans-serif"}}>
+                        {slot.data.score >= 0.70 ? "Planète probable !" : slot.data.score >= 0.35 ? "Pas sûr…" : "Probablement pas"}
+                      </div>
+                      <div style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginTop:3,
+                        fontFamily:"'DM Mono',monospace"}}>
+                        IA sûre à {Math.round(slot.data.score * 100)}%
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{display:"flex",justifyContent:"center"}}>
+                      <ScoreGauge score={slot.data.score} size={120}/>
+                    </div>
+                  )}
+
+                  {/* Characterization panel — expert only */}
+                  {!simpleMode && slot.data.characterization && (
+                    <div>
+                      <div style={{fontSize:9,color:"rgba(160,180,220,0.4)",textTransform:"uppercase",
+                        letterSpacing:1.2,marginBottom:6,fontFamily:"'DM Mono',monospace"}}>
+                        Caractéristiques
+                      </div>
+                      <CharacterizationPanel data={slot.data}/>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Empty placeholder */}
+              {!slot.data && !slot.loading && !slot.error && (
+                <div style={{padding:24,textAlign:"center",color:"rgba(160,180,220,0.2)",
+                  fontFamily:"'DM Mono',monospace",fontSize:11}}>
+                  <Telescope size={24} style={{opacity:.25,display:"block",margin:"0 auto 8px"}}/>
+                  Entrez un identifiant puis cliquez Analyser
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Dashboard ─────────────────────────────────────────── */
 export default function ExoPlanetDashboard() {
   const [authState,setAuthState]=useState(getAuth());
   const [activeTab,setActiveTab]=useState("analysis");
+  const [simpleMode,setSimpleMode]=useState(()=>localStorage.getItem("simpleMode")==="true");
+
+  useEffect(()=>{ localStorage.setItem("simpleMode", simpleMode); },[simpleMode]);
 
   // analysis state
   const [input,setInput]=useState("Kepler-10");
@@ -1850,6 +2475,9 @@ export default function ExoPlanetDashboard() {
     if(!authState) return;
     authFetch(`${API_BASE}/api/status`).then(r=>r.json()).then(setStatus)
       .catch(()=>{ clearAuth(); setAuthState(null); });
+    authFetch(`${API_BASE}/api/history`).then(r=>r.json()).then(entries=>{
+      if(Array.isArray(entries)) setHistory(entries);
+    }).catch(()=>{});
   },[authState]);
 
   // Simulated progress during analysis
@@ -1889,8 +2517,8 @@ export default function ExoPlanetDashboard() {
       endProgress();
       setAData(d);
       setHistory(h=>[{target:d.target,score:d.score,verdict:d.verdict,
-        date:new Date().toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})},
-        ...h].slice(0,10));
+        period_days:d.period_days,mission:d.mission,date:new Date().toISOString()},
+        ...h].slice(0,50));
     } catch(e){
       if(e.name==="AbortError"){ endProgress(); setLoading(false); return; }
       if(e.message==="Session expirée"||e.message==="Non authentifié"){ clearAuth(); setAuthState(null); return; }
@@ -1911,6 +2539,8 @@ export default function ExoPlanetDashboard() {
 
   const TABS=[
     {key:"analysis",       label:"Analyse",      icon:Telescope},
+    {key:"scanner",        label:"Scanner",      icon:Globe},
+    {key:"comparison",     label:"Comparaison",  icon:Columns},
     {key:"metrics",        label:"Métriques",    icon:BarChart2},
     {key:"catalog",        label:"Catalogue",    icon:Database},
     {key:"history",        label:"Historique",   icon:Clock},
@@ -1918,6 +2548,7 @@ export default function ExoPlanetDashboard() {
   ];
 
   return (
+    <ModeContext.Provider value={simpleMode}>
     <div style={{minHeight:"100vh",
       background:"linear-gradient(165deg,#050710 0%,#0a0e1a 40%,#0d1025 100%)",
       fontFamily:"'DM Mono','JetBrains Mono',monospace",color:"#e0e8f5",position:"relative"}}>
@@ -1953,6 +2584,16 @@ export default function ExoPlanetDashboard() {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <StatusDots status={status}/>
+          {/* Simple / Expert toggle */}
+          <button onClick={()=>setSimpleMode(m=>!m)} style={{
+            display:"flex",alignItems:"center",gap:6,padding:"5px 11px",borderRadius:20,
+            border:`1px solid ${simpleMode?"rgba(139,92,246,0.4)":"rgba(99,140,255,0.2)"}`,
+            background:simpleMode?"rgba(139,92,246,0.12)":"rgba(99,140,255,0.06)",
+            color:simpleMode?"#a78bfa":"rgba(160,180,220,0.5)",
+            fontFamily:"'DM Mono',monospace",fontSize:10,cursor:"pointer",transition:"all .2s",
+          }}>
+            {simpleMode?"🔭 Mode Expert":"✨ Mode Simple"}
+          </button>
           <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",
             borderRadius:7,background:"rgba(99,140,255,0.06)",
             border:"1px solid rgba(99,140,255,0.1)"}}>
@@ -1990,16 +2631,16 @@ export default function ExoPlanetDashboard() {
 
         {/* ─ Analysis tab ─ */}
         {activeTab==="analysis"&&(
-          <>
-            {/* search + presets */}
-            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 190px",gap:16,alignItems:"start"}}>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+
+              {/* search */}
               <form onSubmit={submit} style={{display:"flex",alignItems:"center",
-                flex:"1 1 320px",maxWidth:460,
                 background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.14)",
                 borderRadius:11,overflow:"hidden"}}>
                 <Search size={13} style={{color:"rgba(99,140,255,0.4)",marginLeft:11}}/>
                 <input value={input} onChange={e=>setInput(e.target.value)}
-                  placeholder="Kepler-10, KIC 11446443, TIC 12345678…"
+                  placeholder={simpleMode?"Nom d'une étoile (ex: Kepler-10)…":"Kepler-10, KIC 11446443, TIC 12345678…"}
                   style={{flex:1,padding:"9px 11px",background:"transparent",
                     border:"none",outline:"none",color:"#e0e8f5",
                     fontFamily:"'DM Mono',monospace",fontSize:13}}/>
@@ -2009,127 +2650,169 @@ export default function ExoPlanetDashboard() {
                   color:"#638cff",fontFamily:"'DM Mono',monospace",fontSize:11,
                   cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
                   {loading?<Loader2 size={12} style={{animation:"spin 1s linear infinite"}}/>
-                          :<ChevronRight size={12}/>} Analyser
+                          :<ChevronRight size={12}/>} {simpleMode?"Analyser !":"Analyser"}
                 </button>
               </form>
-              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                {PRESET_TARGETS.map(p=>(
-                  <button key={p.id} onClick={()=>pick(p.id)} style={{
-                    padding:"4px 9px",borderRadius:5,fontSize:10,cursor:"pointer",
-                    fontFamily:"'DM Mono',monospace",
-                    background:target===p.id?"rgba(99,140,255,0.14)":"rgba(15,18,30,0.55)",
-                    border:`1px solid ${target===p.id?"rgba(99,140,255,0.3)":"rgba(99,140,255,0.07)"}`,
-                    color:target===p.id?"#638cff":"rgba(160,180,220,0.45)"}}>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            {error&&(
-              <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 13px",
-                borderRadius:9,background:"rgba(248,113,113,0.06)",
-                border:"1px solid rgba(248,113,113,0.15)",fontSize:12,color:"#f87171"}}>
-                <AlertTriangle size={12}/>{error}
-              </div>
-            )}
-
-            <ProgressPanel progress={progress}/>
-
-            {/* verdict banner when done */}
-            {aData&&!loading&&(
-              <div style={{
-                display:"flex",alignItems:"center",gap:12,padding:"10px 16px",
-                borderRadius:10,animation:"fadeIn .4s ease-out",
-                background:aData.score>=0.70?"rgba(74,222,160,0.08)":
-                           aData.score>=0.35 ?"rgba(251,191,36,0.08)":"rgba(248,113,113,0.08)",
-                border:`1px solid ${aData.score>=0.70?"rgba(74,222,160,0.2)":
-                                    aData.score>=0.35 ?"rgba(251,191,36,0.2)":"rgba(248,113,113,0.2)"}`,
-              }}>
-                {aData.score>=0.70?<CheckCircle2 size={16} style={{color:"#4ade80"}}/>
-                  :aData.score>=0.35?<Info size={16} style={{color:"#fbbf24"}}/>
-                  :<AlertTriangle size={16} style={{color:"#f87171"}}/>}
-                <div>
-                  <span style={{fontSize:13,fontWeight:600,color:"#e0e8f5"}}>{aData.target}</span>
-                  <span style={{fontSize:12,color:"rgba(160,180,220,0.6)",marginLeft:10}}>{aData.verdict}</span>
+              {error&&(
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 13px",
+                  borderRadius:9,background:"rgba(248,113,113,0.06)",
+                  border:"1px solid rgba(248,113,113,0.15)",fontSize:12,color:"#f87171"}}>
+                  <AlertTriangle size={12}/>
+                  {simpleMode?"Étoile introuvable. Essayez un autre nom.":error}
                 </div>
-                <div style={{marginLeft:"auto",fontSize:11,color:"rgba(160,180,220,0.35)"}}>
-                  Mission: {aData.mission} · analysé par {aData.analyzed_by}
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* ── Analysis content ── */}
-            <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .6s ease-out"}}>
+              <ProgressPanel progress={progress}/>
 
-              {/* Light curve — full width */}
-              <Card glow style={{padding:14}}>
-                <div style={{display:"flex",justifyContent:"space-between",
-                  alignItems:"center",marginBottom:10}}>
-                  <div>
-                    <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:13,fontWeight:600}}>
-                      Courbe de Lumière Repliée
-                    </h2>
-                    <p style={{fontSize:10,color:"rgba(160,180,220,0.38)",marginTop:1}}>
-                      {aData?`${aData.target} — P = ${aData.period_days} j`:"En attente d'une analyse…"}
-                    </p>
+              {/* ══ MODE SIMPLE ══ */}
+              {simpleMode && aData && !loading && (()=>{
+                const isPlant = aData.score>=0.70;
+                const isMaybe = aData.score>=0.35;
+                const emoji   = isPlant?"🌍":isMaybe?"🔶":"⭐";
+                const title   = isPlant
+                  ?`${aData.target} a probablement une planète !`
+                  :isMaybe
+                  ?`${aData.target} — résultat ambigu`
+                  :`${aData.target} — aucune planète détectée`;
+                const subtitle= isPlant
+                  ?`Notre intelligence artificielle est confiante à ${Math.round(aData.score*100)}%. Un objet en orbite crée des mini-éclipses régulières visibles sur le graphique ci-dessous.`
+                  :isMaybe
+                  ?`La confiance est de ${Math.round(aData.score*100)}%. Le signal est présent mais peu clair — il faudrait plus de données pour conclure.`
+                  :`Confiance : ${Math.round(aData.score*100)}%. La luminosité de cette étoile ne montre pas de passage régulier d'une planète.`;
+                const col = isPlant?"#4ade80":isMaybe?"#fbbf24":"#94a3b8";
+                const bg  = isPlant?"rgba(74,222,128,0.07)":isMaybe?"rgba(251,191,36,0.07)":"rgba(148,163,184,0.05)";
+                const border=isPlant?"rgba(74,222,128,0.25)":isMaybe?"rgba(251,191,36,0.25)":"rgba(148,163,184,0.15)";
+                return (
+                  <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .5s ease-out"}}>
+                    {/* Big verdict card */}
+                    <Card style={{padding:"24px 28px",background:bg,border:`1px solid ${border}`}}>
+                      <div style={{fontSize:48,marginBottom:12,lineHeight:1}}>{emoji}</div>
+                      <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:18,fontWeight:700,
+                        color:col,marginBottom:8}}>{title}</h2>
+                      <p style={{fontSize:13,color:"rgba(200,215,240,0.75)",lineHeight:1.6,maxWidth:560}}>{subtitle}</p>
+                    </Card>
+
+                    {/* Light curve + plain explanation */}
+                    <Card glow style={{padding:16}}>
+                      <h3 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:13,fontWeight:600,marginBottom:4}}>
+                        Ce que voit le télescope
+                      </h3>
+                      <p style={{fontSize:11,color:"rgba(160,180,220,0.45)",marginBottom:12}}>
+                        Chaque petit creux dans ce graphique correspond à une planète passant devant l'étoile et bloquant une infime partie de sa lumière.
+                        {aData.period_days && ` Ce phénomène se répète tous les ${aData.period_days} jours.`}
+                      </p>
+                      <div style={{height:300,borderRadius:10,overflow:"hidden"}}>
+                        <LightCurveCanvas data={aData.data||[]} score={aData.score} isLoading={false}/>
+                      </div>
+                    </Card>
+
+                    {/* Simple stats */}
+                    {aData.characterization && (
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+                        {[
+                          {label:"Durée d'une orbite", value: aData.period_days ? `${aData.period_days} jours` : "—", icon:"🔄"},
+                          {label:"Taille estimée",     value: aData.characterization.planet_radius_earth ? `${aData.characterization.planet_radius_earth} × la Terre` : "—", icon:"📏"},
+                          {label:"Type de planète",    value: aData.characterization.planet_type || "Indéterminé", icon:"🪐"},
+                        ].map(({label,value,icon})=>(
+                          <Card key={label} style={{padding:"14px 16px",textAlign:"center"}}>
+                            <div style={{fontSize:22,marginBottom:6}}>{icon}</div>
+                            <div style={{fontSize:11,color:"rgba(160,180,220,0.45)",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>{label}</div>
+                            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif"}}>{value}</div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <button onClick={()=>analyze(target)} disabled={loading} style={{
-                    display:"flex",alignItems:"center",gap:4,padding:"4px 8px",
-                    borderRadius:6,background:"rgba(99,140,255,0.07)",
-                    border:"1px solid rgba(99,140,255,0.14)",
-                    color:"#638cff",fontSize:10,fontFamily:"'DM Mono',monospace",cursor:"pointer"}}>
-                    <RotateCcw size={11}/> Recharger
-                  </button>
-                </div>
-                <div style={{height:340,borderRadius:10,overflow:"hidden"}}>
-                  <LightCurveCanvas
-                    data={aData?.data||[]}
-                    score={aData?.score||0.5}
-                    isLoading={loading}/>
-                </div>
-              </Card>
+                );
+              })()}
 
-              {/* Score + Features + Characterization — 3-column grid */}
-              <div style={{display:"grid",gridTemplateColumns:"280px 1fr 1fr",gap:14}}>
-                {/* score gauge */}
-                <Card style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"16px 14px"}}>
-                  <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:8,
-                    textTransform:"uppercase",letterSpacing:1.5}}>Verdict de l'IA</h3>
-                  {aData
-                    ?<ScoreGauge score={aData.score}/>
-                    :<div style={{color:"rgba(160,180,220,0.3)",fontSize:12,padding:16}}>En attente…</div>
-                  }
-                </Card>
+              {/* ══ MODE EXPERT ══ */}
+              {!simpleMode&&(
+                <>
+                  {/* verdict banner */}
+                  {aData&&!loading&&(
+                    <div style={{
+                      display:"flex",alignItems:"center",gap:12,padding:"10px 16px",
+                      borderRadius:10,animation:"fadeIn .4s ease-out",
+                      background:aData.score>=0.70?"rgba(74,222,160,0.08)":
+                                 aData.score>=0.35 ?"rgba(251,191,36,0.08)":"rgba(248,113,113,0.08)",
+                      border:`1px solid ${aData.score>=0.70?"rgba(74,222,160,0.2)":
+                                          aData.score>=0.35 ?"rgba(251,191,36,0.2)":"rgba(248,113,113,0.2)"}`,
+                    }}>
+                      {aData.score>=0.70?<CheckCircle2 size={16} style={{color:"#4ade80"}}/>
+                        :aData.score>=0.35?<Info size={16} style={{color:"#fbbf24"}}/>
+                        :<AlertTriangle size={16} style={{color:"#f87171"}}/>}
+                      <div>
+                        <span style={{fontSize:13,fontWeight:600,color:"#e0e8f5"}}>{aData.target}</span>
+                        <span style={{fontSize:12,color:"rgba(160,180,220,0.6)",marginLeft:10}}>{aData.verdict}</span>
+                      </div>
+                      <div style={{marginLeft:"auto",fontSize:11,color:"rgba(160,180,220,0.35)"}}>
+                        Mission: {aData.mission} · analysé par {aData.analyzed_by}
+                      </div>
+                    </div>
+                  )}
 
-                {/* feature importance */}
-                {aData?.feature_importances?.length>0?(
-                  <Card style={{padding:14}}>
-                    <FeatureBars features={aData.feature_importances}/>
-                  </Card>
-                ):<div/>}
+                  <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .6s ease-out"}}>
+                    <Card glow style={{padding:14}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                        <div>
+                          <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:13,fontWeight:600}}>Courbe de Lumière Repliée</h2>
+                          <p style={{fontSize:10,color:"rgba(160,180,220,0.38)",marginTop:1}}>
+                            {aData?`${aData.target} — P = ${aData.period_days} j`:"En attente d'une analyse…"}
+                          </p>
+                        </div>
+                        <button onClick={()=>analyze(target)} disabled={loading} style={{
+                          display:"flex",alignItems:"center",gap:4,padding:"4px 8px",
+                          borderRadius:6,background:"rgba(99,140,255,0.07)",
+                          border:"1px solid rgba(99,140,255,0.14)",
+                          color:"#638cff",fontSize:10,fontFamily:"'DM Mono',monospace",cursor:"pointer"}}>
+                          <RotateCcw size={11}/> Recharger
+                        </button>
+                      </div>
+                      <div style={{height:340,borderRadius:10,overflow:"hidden"}}>
+                        <LightCurveCanvas data={aData?.data||[]} score={aData?.score||0.5} isLoading={loading}/>
+                      </div>
+                    </Card>
 
-                {/* characterization & metadata */}
-                {aData?(
-                  <Card style={{padding:14}}>
-                    <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:10,
-                      textTransform:"uppercase",letterSpacing:1.5}}>Caractéristiques</h3>
-                    <CharacterizationPanel data={aData}/>
-                  </Card>
-                ):<div/>}
-              </div>
+                    <div style={{display:"grid",gridTemplateColumns:"280px 1fr 1fr",gap:14}}>
+                      <Card style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"16px 14px"}}>
+                        <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:8,
+                          textTransform:"uppercase",letterSpacing:1.5}}>Verdict de l'IA</h3>
+                        {aData?<ScoreGauge score={aData.score}/>
+                          :<div style={{color:"rgba(160,180,220,0.3)",fontSize:12,padding:16}}>En attente…</div>}
+                      </Card>
+                      {aData?.feature_importances?.length>0
+                        ?<Card style={{padding:14}}><FeatureBars features={aData.feature_importances}/></Card>
+                        :<div/>}
+                      {aData
+                        ?<Card style={{padding:14}}>
+                          <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:10,
+                            textTransform:"uppercase",letterSpacing:1.5}}>Caractéristiques</h3>
+                          <CharacterizationPanel data={aData}/>
+                        </Card>
+                        :<div/>}
+                    </div>
 
-              {/* 3D Orbital viewer — full width below statistics */}
-              <Card glow style={{padding:0,overflow:"hidden"}}>
-                <div style={{height:380,borderRadius:14}}>
-                  <OrbitalViewer3D data={aData}/>
-                </div>
-              </Card>
+                    <Card glow style={{padding:0,overflow:"hidden"}}>
+                      <div style={{height:380,borderRadius:14}}><OrbitalViewer3D data={aData}/></div>
+                    </Card>
+                  </div>
+
+                  {aData&&<SignalInsightsPanel data={aData}/>}
+                </>
+              )}
+
             </div>
-
-            {aData && <SignalInsightsPanel data={aData}/>}
-          </>
+            <SuggestionSidebar current={target} onPick={pick}/>
+          </div>
         )}
+
+        {/* ─ Scanner tab ─ */}
+        {activeTab==="scanner"&&<ScannerTab/>}
+
+        {/* ─ Comparison tab ─ */}
+        {activeTab==="comparison"&&<ComparisonTab/>}
 
         {/* ─ Metrics tab ─ */}
         {activeTab==="metrics"&&<EnhancedMetricsTab/>}
@@ -2152,6 +2835,7 @@ export default function ExoPlanetDashboard() {
         </div>
       </main>
     </div>
+    </ModeContext.Provider>
   );
 }
 

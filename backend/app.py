@@ -70,12 +70,13 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
 # Chemins
-MODEL_PATH = "models/exoplanet_model.json"
-FEATURES_PATH = "models/selected_features.json"
-METRICS_PATH = "models/model_metrics.json"
-CATALOG_PATH = "data/catalog/kepler_koi_catalog.csv"
+MODEL_PATH = "../models/exoplanet_model.json"
+FEATURES_PATH = "../models/selected_features.json"
+METRICS_PATH = "../models/model_metrics.json"
+CATALOG_PATH = "../data/catalog/exoplanet_binary_full.csv"
 USERS_PATH = "data/users.json"
 RESULTS_CACHE_PATH = "data/results_cache.json"
+HISTORY_PATH = "data/history.json"
 
 
 # =============================================================================
@@ -209,6 +210,30 @@ def save_users(users):
 def hash_password(password):
     """Hash SHA-256 du mot de passe (en production, utiliser bcrypt)."""
     return hashlib.sha256(password.encode()).hexdigest()
+
+
+# =============================================================================
+# Gestion de l'historique par utilisateur
+# =============================================================================
+
+def load_history():
+    """Charge l'historique des analyses depuis le fichier JSON."""
+    if os.path.exists(HISTORY_PATH):
+        with open(HISTORY_PATH, "r") as f:
+            return json.load(f)
+    return {}
+
+
+def save_history_entry(username, entry):
+    """Sauvegarde une entrée d'analyse dans l'historique de l'utilisateur (max 50)."""
+    history = load_history()
+    if username not in history:
+        history[username] = []
+    history[username].insert(0, entry)
+    history[username] = history[username][:50]
+    os.makedirs(os.path.dirname(HISTORY_PATH), exist_ok=True)
+    with open(HISTORY_PATH, "w") as f:
+        json.dump(history, f, indent=2)
 
 
 # =============================================================================
@@ -370,7 +395,7 @@ def run_full_analysis(target_id, mission, username):
     log(f"Prétraitement OK ({len(lc_clean)} points après nettoyage)")
 
     log("BLS - recherche de période...")
-    period = get_period_hint(lc_clean)
+    period, bls_stats = get_period_hint(lc_clean)
     lc_folded = fold_lightcurve(lc_clean, period=period)
     log(f"BLS OK - période = {period:.4f} j")
 
@@ -401,7 +426,7 @@ def run_full_analysis(target_id, mission, username):
 
     log(f"Pipeline terminée en {time.time()-t0:.1f}s")
 
-    return json_safe({
+    result = json_safe({
         "target": target_id,
         "mission": mission,
         "score": round(float(score), 4),
@@ -414,6 +439,17 @@ def run_full_analysis(target_id, mission, username):
         "data": chart_data,
         "analyzed_by": username,
     })
+
+    save_history_entry(username, {
+        "target": result["target"],
+        "score": result["score"],
+        "verdict": result["verdict"],
+        "period_days": result["period_days"],
+        "mission": result["mission"],
+        "date": datetime.datetime.utcnow().isoformat(),
+    })
+
+    return result
 
 
 @app.route('/api/analyze', methods=['GET'])
@@ -512,7 +548,7 @@ def analyze_stream():
                 return
 
             yield evt("progress", {"step": "bls", "message": "Recherche de période (BLS)...", "percent": 50})
-            period = get_period_hint(lc_clean)
+            period, bls_stats = get_period_hint(lc_clean)
             lc_folded = fold_lightcurve(lc_clean, period=period)
 
             yield evt("progress", {"step": "prediction", "message": "Prédiction par le modèle IA...", "percent": 70})
@@ -611,6 +647,15 @@ def validate_target():
 def logout():
     """Déconnexion (côté client, le token est simplement ignoré)."""
     return jsonify({"message": "Déconnecté."})
+
+
+@app.route('/api/history', methods=['GET'])
+@token_required
+def get_history():
+    """Retourne l'historique des analyses du user connecté."""
+    username = g.current_user
+    history = load_history()
+    return jsonify(history.get(username, []))
 
 
 @app.route('/api/metrics', methods=['GET'])

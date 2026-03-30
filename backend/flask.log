@@ -15,5 +15,5 @@
  * Running on http://127.0.0.1:5001
  * Running on http://192.168.1.162:5001
 [33mPress CTRL+C to quit[0m
-/opt/anaconda3/lib/python3.13/multiprocessing/resource_tracker.py:301: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/loky-62838-iotxi49b'}
+/opt/anaconda3/lib/python3.13/multiprocessing/resource_tracker.py:301: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/loky-67094-rlw7a29x'}
   warnings.warn(

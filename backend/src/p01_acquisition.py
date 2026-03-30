@@ -1,12 +1,48 @@
+import json
+import os
+import re
 import lightkurve as lk
 import numpy as np
+
+_CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "cache", "lightkurve_training")
+
+
+def _load_from_local_cache(target_id):
+    """
+    Tente de reconstruire un LightCurve depuis le cache JSON local.
+    Retourne un LightCurve ou None si absent/erreur.
+    """
+    m = re.search(r'\d+', target_id)
+    if not m:
+        return None
+    kepid = m.group(0)
+    path = os.path.join(_CACHE_DIR, f"star_{kepid}.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            d = json.load(f)
+        if d.get("status") != "ok":
+            return None
+        time = np.array(d["time"], dtype=float)
+        flux = np.array(d["flux"], dtype=float)
+        lc = lk.LightCurve(time=time, flux=flux)
+        print(f"   [Acquisition] Cache local OK pour {target_id} ({len(lc)} points)")
+        return lc
+    except Exception as e:
+        print(f"   [Acquisition] Erreur lecture cache local {target_id} : {e}")
+        return None
 
 
 def fetch_lightcurve(target_id, mission="Kepler", author=None):
     """
-    Récupère une courbe de lumière depuis MAST avec 3 stratégies de fallback.
+    Récupère une courbe de lumière : cache local en priorité, puis MAST.
     Limite à 2 fichiers max pour éviter les timeouts.
     """
+    lc = _load_from_local_cache(target_id)
+    if lc is not None:
+        return lc
+
     strategies = [
         # Stratégie 1 : sans filtre author, limité à 2 résultats
         dict(target=target_id, mission=mission),

@@ -6,7 +6,7 @@ import {
   Loader2, AlertTriangle, CheckCircle2, Sparkles, RotateCcw, LogIn,
   LogOut, User, Lock, Eye, EyeOff, ShieldCheck, BarChart2, BookOpen,
   UserPlus, Zap, Globe, TrendingUp, Filter, X, Info, Clock, FileText,
-  Columns, Dice6
+  Columns, Dice6, Rocket, Moon, Satellite, Radar, Ghost, Monitor
 } from "lucide-react";
 
 const API_BASE = "http://localhost:5001";
@@ -50,6 +50,29 @@ const VERIFIED_KIC_POOL = [
   "KIC 9593528","KIC 9652649","KIC 9714550","KIC 9777090","KIC 9824805",
 ];
 
+const KEPLER_NAMED = [
+  "Kepler-10","Kepler-10b","Kepler-10c","Kepler-11","Kepler-16","Kepler-16b",
+  "Kepler-20","Kepler-20f","Kepler-22","Kepler-22b","Kepler-25","Kepler-36",
+  "Kepler-37","Kepler-42","Kepler-47","Kepler-55","Kepler-62","Kepler-62f",
+  "Kepler-68","Kepler-69","Kepler-78","Kepler-80","Kepler-89","Kepler-90",
+  "Kepler-93","Kepler-102","Kepler-138","Kepler-160","Kepler-167",
+  "Kepler-186","Kepler-186f","Kepler-296","Kepler-395","Kepler-421",
+  "Kepler-438","Kepler-438b","Kepler-442","Kepler-442b","Kepler-444",
+  "Kepler-452","Kepler-452b","Kepler-453","Kepler-503","Kepler-560",
+];
+
+const TOUR_STEPS = [
+  { sel:null,                     title:"🚀 Bienvenue !",              desc:"Ce tutoriel rapide te présente toutes les fonctionnalités en moins de 2 minutes. Clique sur Suivant pour commencer, ou Passer pour ignorer." },
+  { sel:"[data-tour='mode-toggle']", title:"✨ Débutant / Expert",      desc:"Choisis ton niveau ici. Le mode Débutant simplifie tout en français courant avec des emojis. Le mode Expert affiche les données scientifiques complètes." },
+  { sel:"[data-tour='nav']",      title:"🗂 Les onglets",               desc:"Chaque onglet est un outil différent. Tu peux naviguer librement entre Analyse, Scanner, Comparaison, Catalogue, Historique et Documentation." },
+  { sel:"[data-tour='search']",   title:"🔍 Analyser une étoile",      desc:"Tape le nom d'une étoile (ex: Kepler-22b) ou son identifiant KIC. L'IA analyse sa courbe de lumière et te dit si une planète est probable — en quelques secondes." },
+  { sel:"[data-tour='tab-scanner']",  title:"🌌 Scanner",              desc:"Le Scanner choisit des étoiles aléatoirement depuis notre banque de 1477 étoiles et les analyse en parallèle. Parfait pour explorer !" },
+  { sel:"[data-tour='tab-comparison']",title:"⚖️ Comparaison",         desc:"Compare jusqu'à 3 étoiles côte à côte : courbes de lumière, score IA et caractéristiques orbitales." },
+  { sel:"[data-tour='tab-catalog']",  title:"📚 Catalogue",            desc:"Parcours toutes nos étoiles avec des filtres avancés (SNR, période, type planète), ou upload ton propre fichier CSV pour analyser une étoile personnalisée." },
+  { sel:"[data-tour='tab-history']",  title:"🕓 Historique",           desc:"Retrouve toutes tes analyses passées, même après déconnexion. Tu peux relancer une analyse directement depuis ici." },
+  { sel:null,                     title:"🎉 C'est parti !",            desc:"Tu connais maintenant toutes les fonctionnalités. Lance-toi en tapant un nom d'étoile dans la barre de recherche !" },
+];
+
 const ANALYSIS_STEPS = [
   { key: "connect",    label: "Connexion API",       pct: 10 },
   { key: "acquire",    label: "Téléchargement courbe", pct: 30 },
@@ -69,6 +92,9 @@ async function authFetch(url, opts = {}) {
   const a = getAuth();
   if (!a) throw new Error("Non authentifié");
   const headers = { ...opts.headers, Authorization: `Bearer ${a.token}` };
+  if (opts.body && typeof opts.body === "string" && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
   const res = await fetch(url, { ...opts, headers });
   if (res.status === 401) { clearAuth(); throw new Error("Session expirée"); }
   return res;
@@ -752,6 +778,50 @@ function CharacterizationPanel({ data }) {
 }
 
 /* ─── Feature Importance Bar ─────────────────────────────────── */
+const KOI_LABELS = {
+  koi_period:         "Période orbitale",
+  koi_period_err1:    "Incertitude période",
+  koi_period_err2:    "Incertitude période",
+  koi_time0bk:        "Époque du transit",
+  koi_time0bk_err1:   "Incertitude époque",
+  koi_time0bk_err2:   "Incertitude époque",
+  koi_impact:         "Paramètre d'impact",
+  koi_impact_err1:    "Incertitude impact",
+  koi_impact_err2:    "Incertitude impact",
+  koi_duration:       "Durée du transit",
+  koi_duration_err1:  "Incertitude durée",
+  koi_duration_err2:  "Incertitude durée",
+  koi_depth:          "Profondeur du transit",
+  koi_depth_err1:     "Incertitude profondeur",
+  koi_depth_err2:     "Incertitude profondeur",
+  koi_prad:           "Rayon de la planète",
+  koi_prad_err1:      "Incertitude rayon planète",
+  koi_prad_err2:      "Incertitude rayon planète",
+  koi_teq:            "Température d'équilibre",
+  koi_insol:          "Flux d'irradiation",
+  koi_insol_err1:     "Incertitude flux",
+  koi_insol_err2:     "Incertitude flux",
+  koi_steff:          "Température de l'étoile",
+  koi_steff_err1:     "Incertitude temp. étoile",
+  koi_steff_err2:     "Incertitude temp. étoile",
+  koi_slogg:          "Gravité de surface étoile",
+  koi_slogg_err1:     "Incertitude gravité",
+  koi_slogg_err2:     "Incertitude gravité",
+  koi_srad:           "Rayon de l'étoile",
+  koi_srad_err1:      "Incertitude rayon étoile",
+  koi_srad_err2:      "Incertitude rayon étoile",
+  koi_model_snr:      "Rapport signal / bruit",
+  koi_fpflag_nt:      "Flag non-transit",
+  koi_fpflag_ss:      "Flag étoile secondaire",
+  koi_fpflag_co:      "Flag contamination",
+  koi_fpflag_ec:      "Flag éphéméride",
+};
+
+function featureLabel(name) {
+  const raw = (name||"").replace("flux__","").replace("sci_","");
+  return KOI_LABELS[raw] || KOI_LABELS[name] || raw;
+}
+
 function FeatureBars({ features }) {
   if (!features?.length) return null;
   const mx=Math.max(...features.map(f=>f.weight||f.importance||0));
@@ -764,7 +834,7 @@ function FeatureBars({ features }) {
       {features.map((f,i)=>{
         const val=(f.weight??f.importance??0);
         const pct=(val/mx)*100;
-        const name=(f.name||"").replace("flux__","").replace("sci_","sci_");
+        const name=featureLabel(f.name);
         return (
           <div key={i} style={{position:"relative",marginBottom:5}}>
             <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${pct}%`,
@@ -1323,20 +1393,86 @@ function EnhancedMetricsTab() {
   if(!metrics) return null;
 
   if(simpleMode) {
-    const acc = metrics.test_accuracy ? Math.round(metrics.test_accuracy*100) : "—";
-    const total = metrics.n_train ? metrics.n_train + (metrics.n_test||0) : "—";
-    const correctOn10 = metrics.test_accuracy ? Math.round(metrics.test_accuracy*10) : "—";
+    const acc   = metrics.test_accuracy   ? Math.round(metrics.test_accuracy*100)   : null;
+    const prec  = metrics.test_precision  ? Math.round(metrics.test_precision*100)  : null;
+    const rec   = metrics.test_recall     ? Math.round(metrics.test_recall*100)      : null;
+    const total = (metrics.n_train||0) + (metrics.n_test||0);
+    const correctOn10 = acc ? Math.round(acc/10) : null;
+    const wrongOn10   = correctOn10 != null ? 10-correctOn10 : null;
+    const topFeats = (metrics.top_features||[]).slice(0,5);
     return (
-      <Card style={{padding:"28px 32px",maxWidth:520}}>
-        <div style={{fontSize:36,marginBottom:14}}>📊</div>
-        <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:16,fontWeight:700,color:"#e0e8f5",marginBottom:8}}>Notre intelligence artificielle</h2>
-        <p style={{fontSize:13,color:"rgba(200,215,240,0.7)",lineHeight:1.7,marginBottom:12}}>
-          Elle a été entraînée sur <strong style={{color:"#638cff"}}>{total} étoiles</strong> et atteint une précision de <strong style={{color:"#4ade80"}}>{acc}%</strong>.
-        </p>
-        <p style={{fontSize:13,color:"rgba(200,215,240,0.7)",lineHeight:1.7}}>
-          Concrètement : sur 10 étoiles analysées, elle identifie correctement <strong style={{color:"#4ade80"}}>{correctOn10} cas sur 10</strong>.
-        </p>
-      </Card>
+      <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .5s ease-out"}}>
+        <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:15,fontWeight:700,color:"#e0e8f5",marginBottom:0}}>
+          🤖 Notre intelligence artificielle
+        </h2>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12}}>
+          <Card style={{padding:"18px 20px",textAlign:"center"}}>
+            <div style={{fontSize:34,marginBottom:6}}>🎯</div>
+            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#4ade80"}}>
+              {acc != null ? `${acc}%` : "—"}
+            </div>
+            <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:4}}>de bonnes réponses</div>
+          </Card>
+          <Card style={{padding:"18px 20px",textAlign:"center"}}>
+            <div style={{fontSize:34,marginBottom:6}}>⭐</div>
+            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#638cff"}}>
+              {total > 0 ? total.toLocaleString() : "—"}
+            </div>
+            <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:4}}>étoiles analysées pour s'entraîner</div>
+          </Card>
+          <Card style={{padding:"18px 20px",textAlign:"center"}}>
+            <div style={{fontSize:34,marginBottom:6}}>✅</div>
+            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#4ade80"}}>
+              {correctOn10 != null ? `${correctOn10}/10` : "—"}
+            </div>
+            <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:4}}>bons résultats sur 10 analyses</div>
+          </Card>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Card style={{padding:"16px 20px"}}>
+            <div style={{fontSize:20,marginBottom:6}}>🔭</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",marginBottom:6}}>Quand l'IA dit "planète"…</div>
+            <p style={{fontSize:12,color:"rgba(200,215,240,0.65)",lineHeight:1.7,margin:0}}>
+              Elle a raison <strong style={{color:"#4ade80"}}>{prec != null ? `${prec}%` : "—"}</strong> du temps.
+              {prec != null && prec >= 80 ? " Très peu de fausses alertes !" : prec != null && prec >= 60 ? " Assez fiable." : ""}
+            </p>
+          </Card>
+          <Card style={{padding:"16px 20px"}}>
+            <div style={{fontSize:20,marginBottom:6}}>🌍</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",marginBottom:6}}>Planètes réelles trouvées</div>
+            <p style={{fontSize:12,color:"rgba(200,215,240,0.65)",lineHeight:1.7,margin:0}}>
+              Sur 10 vraies planètes, l'IA en détecte <strong style={{color:"#4ade80"}}>{rec != null ? `${Math.round(rec/10)}` : "—"}</strong> et en rate <strong style={{color:"#fbbf24"}}>{rec != null ? `${10-Math.round(rec/10)}` : "—"}</strong>.
+            </p>
+          </Card>
+        </div>
+
+        {topFeats.length > 0 && (
+          <Card style={{padding:"16px 20px"}}>
+            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",marginBottom:12}}>🔍 Ce que l'IA observe en priorité</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {topFeats.map((f,i)=>{
+                const label = featureLabel(f.name);
+                const pct = Math.round(f.importance*100);
+                const mx = topFeats[0]?.importance||1;
+                return (
+                  <div key={i}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,
+                      fontFamily:"'DM Mono',monospace",marginBottom:3}}>
+                      <span style={{color:"rgba(160,180,220,0.7)",textTransform:"capitalize"}}>{label}</span>
+                      <span style={{color:"#638cff"}}>{pct}%</span>
+                    </div>
+                    <div style={{height:6,borderRadius:3,background:"rgba(99,140,255,0.08)"}}>
+                      <div style={{height:"100%",width:`${(f.importance/mx)*100}%`,
+                        background:"linear-gradient(90deg,#638cff,#8b5cf6)",borderRadius:3}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+      </div>
     );
   }
 
@@ -1433,18 +1569,36 @@ function EnhancedMetricsTab() {
 
         <Card>
           <FeatureImportanceHeader />
+          <div style={{fontSize:10,color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace",
+            marginBottom:10}}>
+            Plus la barre est longue, plus cette variable a influencé les décisions du modèle.
+          </div>
           {(metrics.top_features||[]).slice(0,8).map((f,i)=>{
             const mx2=metrics.top_features[0]?.importance||1;
+            const rankColors=["#fbbf24","#94a3b8","#cd7c3a","#638cff","#638cff","#638cff","#638cff","#638cff"];
+            const label = featureLabel(f.name);
             return (
-              <div key={i} style={{marginBottom:5}}>
-                <div style={{display:"flex",justifyContent:"space-between",
-                  fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:2}}>
-                  <span style={{color:"rgba(160,180,220,0.7)"}}>{f.name.replace("sci_","").replace("flux__","")}</span>
-                  <span style={{color:"#638cff"}}>{(f.importance*100).toFixed(1)}%</span>
+              <div key={i} style={{marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3,gap:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                    <span style={{
+                      fontSize:8,fontWeight:700,fontFamily:"'DM Mono',monospace",
+                      color:rankColors[i],flexShrink:0,
+                      width:16,textAlign:"center",
+                    }}>#{i+1}</span>
+                    <span style={{color:"rgba(200,215,240,0.8)",fontSize:10,fontFamily:"'DM Mono',monospace",
+                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</span>
+                  </div>
+                  <span style={{color:rankColors[i],fontSize:10,fontFamily:"'DM Mono',monospace",
+                    fontWeight:600,flexShrink:0}}>{(f.importance*100).toFixed(1)}%</span>
                 </div>
-                <div style={{height:4,borderRadius:2,background:"rgba(99,140,255,0.08)"}}>
+                <div style={{height:5,borderRadius:3,background:"rgba(99,140,255,0.07)"}}>
                   <div style={{height:"100%",width:`${(f.importance/mx2)*100}%`,
-                    background:"linear-gradient(90deg,#638cff,#8b5cf6)",borderRadius:2}}/>
+                    background:i===0?"linear-gradient(90deg,#fbbf24,#f59e0b)":
+                               i===1?"linear-gradient(90deg,#94a3b8,#64748b)":
+                               i===2?"linear-gradient(90deg,#cd7c3a,#b45309)":
+                               "linear-gradient(90deg,#638cff,#8b5cf6)",
+                    borderRadius:3,transition:"width .6s ease"}}/>
                 </div>
               </div>
             );
@@ -1490,143 +1644,625 @@ function EnhancedMetricsTab() {
 
 function CatalogTab({ onAnalyze }) {
   const simpleMode = useContext(ModeContext);
-  const [query,setQuery]=useState("");
-  const [results,setResults]=useState(null);
-  const [loading,setLoading]=useState(false);
-  const [err,setErr]=useState(null);
-  const [filter,setFilter]=useState("ALL");
 
-  const search=async(e)=>{
-    e?.preventDefault();
-    if(!query.trim()) return;
-    setLoading(true); setErr(null);
-    try {
-      const r=await authFetch(`${API_BASE}/api/catalog/search?q=${encodeURIComponent(query)}&limit=50`);
-      const d=await r.json();
-      if(!r.ok) throw new Error(d.error||"Erreur");
-      setResults(d);
-    } catch(e){ setErr(e.message); }
-    setLoading(false);
+  // ── Our stars (cache index) ──
+  const [stars, setStars] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [nPlanetsFiltered, setNPlanetsFiltered] = useState(0);
+  const [pages, setPages] = useState(1);
+  const [statsData, setStatsData] = useState(null);
+  const [page, setPage] = useState(1);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(null);
+
+  // ── Filters ──
+  const [search, setSearch] = useState("");
+  const [label, setLabel] = useState("all");
+  const [sortBy, setSortBy] = useState("snr");
+  const [sortDir, setSortDir] = useState("desc");
+  const [minSnr, setMinSnr] = useState("");
+  const [maxSnr, setMaxSnr] = useState("");
+  const [minPeriod, setMinPeriod] = useState("");
+  const [maxPeriod, setMaxPeriod] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [sug, setSug] = useState([]);
+  const [showSug, setShowSug] = useState(false);
+  const [activeSug, setActiveSug] = useState(-1);
+  const sugRef = useRef(null);
+
+  // ── Upload tab ──
+  const [activeSection, setActiveSection] = useState("browse");  // "browse" | "upload"
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadTargetId, setUploadTargetId] = useState("");
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
+  const [uploadErr, setUploadErr] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const doFetch = async () => {
+      setLoading(true); setErr(null);
+      try {
+        const params = new URLSearchParams({
+          page, limit: 20,
+          sort_by: sortBy, sort_dir: sortDir,
+          label,
+          ...(search && { search }),
+          ...(minSnr && { min_snr: minSnr }),
+          ...(maxSnr && { max_snr: maxSnr }),
+          ...(minPeriod && { min_period: minPeriod }),
+          ...(maxPeriod && { max_period: maxPeriod }),
+        });
+        const r = await authFetch(`${API_BASE}/api/catalog/stars?${params}`);
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Erreur serveur");
+        if (!cancelled) {
+          setStars(d.stars);
+          setTotal(d.total);
+          setNPlanetsFiltered(d.n_planets_filtered ?? 0);
+          setPages(d.pages);
+          if (d.stats) setStatsData(d.stats);
+        }
+      } catch(e) { if (!cancelled) setErr(e.message); }
+      if (!cancelled) setLoading(false);
+    };
+    doFetch();
+    return () => { cancelled = true; };
+  }, [page, fetchTrigger]);
+
+  const applyFilters = () => {
+    if (page === 1) setFetchTrigger(t => t + 1);
+    else setPage(1);
   };
 
-  const dispositions=["ALL","CONFIRMED","CANDIDATE","FALSE POSITIVE"];
-  const filtered=results?.results?.filter(r=>filter==="ALL"||r.disposition===filter)||[];
+  const handleUpload = async () => {
+    if (!uploadFile) return;
+    setUploadLoading(true); setUploadErr(null); setUploadResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", uploadFile);
+      if (uploadTargetId.trim()) fd.append("target_id", uploadTargetId.trim());
+      const r = await authFetch(`${API_BASE}/api/catalog/upload`, { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erreur serveur");
+      setUploadResult(d);
+    } catch(e) { setUploadErr(e.message); }
+    setUploadLoading(false);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    const f = e.dataTransfer.files[0];
+    if (f) setUploadFile(f);
+  };
+
+  const labelColor = (l) => l === 1 ? "#4ade80" : "#f87171";
+  const snrColor = (snr) => snr >= 10 ? "#4ade80" : snr >= 5 ? "#fbbf24" : "#f87171";
+
+  const SORT_OPTIONS = [
+    { value: "snr",    label: "SNR" },
+    { value: "period", label: "Période" },
+    { value: "depth",  label: "Profondeur" },
+    { value: "score",  label: "Score BLS" },
+  ];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .5s ease-out"}}>
-      <form onSubmit={search} style={{display:"flex",gap:8}}>
-        <div style={{flex:1,display:"flex",alignItems:"center",
-          background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.15)",
-          borderRadius:10,overflow:"hidden"}}>
-          <Search size={13} style={{color:"rgba(99,140,255,0.4)",marginLeft:12}}/>
-          <input value={query} onChange={e=>setQuery(e.target.value)}
-            placeholder="Rechercher par KIC ID (ex: 11446443)…"
-            style={{flex:1,padding:"10px 12px",background:"transparent",border:"none",
-              outline:"none",color:"#e0e8f5",fontFamily:"'DM Mono',monospace",fontSize:13}}/>
-          {query&&<button type="button" onClick={()=>{setQuery("");setResults(null);}}
-            style={{background:"none",border:"none",cursor:"pointer",color:"rgba(160,180,220,0.4)",padding:"0 10px"}}>
-            <X size={13}/>
-          </button>}
-        </div>
-        <button type="submit" disabled={loading} style={{
-          padding:"10px 18px",borderRadius:10,
-          background:"linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))",
-          border:"1px solid rgba(99,140,255,0.25)",color:"#638cff",
-          fontFamily:"'DM Mono',monospace",fontSize:12,cursor:"pointer",
-          display:"flex",alignItems:"center",gap:6}}>
-          {loading?<Loader2 size={13} style={{animation:"spin 1s linear infinite"}}/>:<Search size={13}/>}
-          Chercher
-        </button>
-      </form>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, animation: "fadeIn .5s ease-out" }}>
 
-      {err&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",
-        borderRadius:8,background:"rgba(248,113,113,0.06)",border:"1px solid rgba(248,113,113,0.15)",
-        fontSize:12,color:"#f87171",fontFamily:"'DM Mono',monospace"}}>
-        <AlertTriangle size={13}/>{err}
-      </div>}
+      {/* ── Section tabs ── */}
+      <div style={{ display: "flex", gap: 4 }}>
+        {[
+          { id: "browse", label: simpleMode ? "🔭 Nos étoiles" : "Parcourir le catalogue" },
+          { id: "upload", label: simpleMode ? "📂 Ma propre étoile" : "Analyser mon CSV" },
+        ].map(s => (
+          <button key={s.id} onClick={() => setActiveSection(s.id)} style={{
+            padding: "7px 16px", borderRadius: 8, fontSize: 11, cursor: "pointer",
+            fontFamily: "'DM Mono',monospace",
+            background: activeSection === s.id ? "rgba(99,140,255,0.15)" : "rgba(15,18,30,0.5)",
+            border: `1px solid ${activeSection === s.id ? "rgba(99,140,255,0.35)" : "rgba(99,140,255,0.08)"}`,
+            color: activeSection === s.id ? "#638cff" : "rgba(160,180,220,0.5)",
+          }}>{s.label}</button>
+        ))}
+      </div>
 
-      {results&&(
+      {/* ══════════════════════════════════════ BROWSE ══════════════════════════════════════ */}
+      {activeSection === "browse" && (
         <>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,
-              color:"rgba(160,180,220,0.5)",fontFamily:"'DM Mono',monospace"}}>
-              <Filter size={11}/> {results.count} résultats
+          {/* Stats header */}
+          {statsData && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
+              {[
+                { emoji: "⭐", val: statsData.total_stars.toLocaleString(), label: simpleMode ? "étoiles en stock" : "étoiles indexées" },
+                { emoji: "🌍", val: statsData.n_planets.toLocaleString(), label: simpleMode ? "planètes probables" : "label planète (1)" },
+                { emoji: "❌", val: statsData.n_non_planets.toLocaleString(), label: simpleMode ? "non planètes" : "label non-planète (0)" },
+                { emoji: "📡", val: statsData.avg_snr, label: simpleMode ? "SNR moyen" : "SNR moyen (BLS)" },
+              ].map((s, i) => (
+                <Card key={i} style={{ padding: "12px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{s.emoji}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#e0e8f5", fontFamily: "'Space Grotesk',sans-serif" }}>{s.val}</div>
+                  <div style={{ fontSize: 9, color: "rgba(160,180,220,0.4)", marginTop: 2, fontFamily: "'DM Mono',monospace" }}>{s.label}</div>
+                </Card>
+              ))}
             </div>
-            <div style={{display:"flex",gap:4}}>
-              {dispositions.map(d=>(
-                <button key={d} onClick={()=>setFilter(d)} style={{
-                  padding:"3px 8px",borderRadius:5,fontSize:10,cursor:"pointer",
-                  fontFamily:"'DM Mono',monospace",
-                  background:filter===d?"rgba(99,140,255,0.15)":"rgba(15,18,30,0.5)",
-                  border:`1px solid ${filter===d?"rgba(99,140,255,0.3)":"rgba(99,140,255,0.08)"}`,
-                  color:filter===d?"#638cff":"rgba(160,180,220,0.4)"}}>
-                  {d}
+          )}
+
+          {/* Search + filters bar */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {/* Search input + Autocomplete */}
+            <div style={{ flex: 1, minWidth: 180, position: "relative" }} ref={sugRef}>
+              <div style={{ display: "flex", alignItems: "center",
+                background: "rgba(15,18,30,0.8)", border: "1px solid rgba(99,140,255,0.15)",
+                borderRadius: 9, overflow: "hidden" }}>
+                <Search size={12} style={{ color: "rgba(99,140,255,0.4)", marginLeft: 10, flexShrink: 0 }} />
+                <input
+                  value={search}
+                  onChange={e => {
+                    const v = e.target.value; setSearch(v); setActiveSug(-1);
+                    if(v.length >= 2){
+                      const q = v.toLowerCase();
+                      const named = KEPLER_NAMED.filter(n => n.toLowerCase().startsWith(q));
+                      const kic = v.toLowerCase().startsWith("kic")
+                        ? VERIFIED_KIC_POOL.filter(k => k.toLowerCase().includes(q)).slice(0,4)
+                        : [];
+                      const merged = [...new Set([...named,...kic])].slice(0,7);
+                      setSug(merged); setShowSug(merged.length > 0);
+                    } else { setSug([]); setShowSug(false); }
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") {
+                      if(activeSug >= 0 && sug[activeSug]){ 
+                        setSearch(sug[activeSug]); setShowSug(false); setActiveSug(-1);
+                      } else { applyFilters(); }
+                    }
+                    if(!showSug) return;
+                    if(e.key === "ArrowDown"){ e.preventDefault(); setActiveSug(i => Math.min(i+1, sug.length-1)); }
+                    else if(e.key === "ArrowUp"){ e.preventDefault(); setActiveSug(i => Math.max(i-1, -1)); }
+                    else if(e.key === "Escape"){ setShowSug(false); setActiveSug(-1); }
+                  }}
+                  onBlur={() => setTimeout(() => setShowSug(false), 150)}
+                  onFocus={() => { if(sug.length > 0) setShowSug(true); }}
+                  placeholder={simpleMode ? "Rechercher une étoile…" : "Kepler-10, KIC 11446…"}
+                  style={{ flex: 1, padding: "8px 10px", background: "transparent", border: "none",
+                    outline: "none", color: "#e0e8f5", fontFamily: "'DM Mono',monospace", fontSize: 11 }} />
+                {search && <button onClick={() => { setSearch(""); setSug([]); setShowSug(false); }} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(160,180,220,0.4)", padding: "0 8px" }}><X size={11} /></button>}
+              </div>
+
+              {/* Dropdown suggestions */}
+              {showSug && sug.length > 0 && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
+                  background: "rgba(8,11,22,0.97)", border: "1px solid rgba(99,140,255,0.2)",
+                  borderRadius: 9, overflow: "hidden", zIndex: 200,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                }}>
+                  {sug.map((s, i) => (
+                    <div key={s}
+                      onMouseDown={() => { setSearch(s); setShowSug(false); setActiveSug(-1); }}
+                      style={{
+                        padding: "8px 12px", cursor: "pointer", fontSize: 11,
+                        fontFamily: "'DM Mono',monospace",
+                        background: activeSug === i ? "rgba(99,140,255,0.12)" : "transparent",
+                        color: activeSug === i ? "#638cff" : "rgba(200,215,240,0.75)",
+                        display: "flex", alignItems: "center", gap: 8,
+                        borderBottom: i < sug.length - 1 ? "1px solid rgba(99,140,255,0.06)" : "none",
+                        transition: "background .1s",
+                      }}
+                      onMouseEnter={() => setActiveSug(i)}
+                      onMouseLeave={() => setActiveSug(-1)}>
+                      <Search size={10} style={{ opacity: .4, flexShrink: 0 }} />
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Label filter */}
+            <div style={{ display: "flex", gap: 4 }}>
+              {[
+                { val: "all", label: simpleMode ? "Toutes" : "Tout" },
+                { val: "1", label: simpleMode ? "🌍 Planètes" : "Planète" },
+                { val: "0", label: simpleMode ? "⭐ Étoiles" : "Non-planète" },
+              ].map(opt => (
+                <button key={opt.val} onClick={() => setLabel(opt.val)} style={{
+                  padding: "6px 10px", borderRadius: 7, fontSize: 10, cursor: "pointer",
+                  fontFamily: "'DM Mono',monospace",
+                  background: label === opt.val ? "rgba(99,140,255,0.15)" : "rgba(15,18,30,0.5)",
+                  border: `1px solid ${label === opt.val ? "rgba(99,140,255,0.3)" : "rgba(99,140,255,0.08)"}`,
+                  color: label === opt.val ? "#638cff" : "rgba(160,180,220,0.45)" }}>
+                  {opt.label}
                 </button>
               ))}
             </div>
+
+            {/* Sort */}
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{
+              padding: "6px 10px", borderRadius: 7, fontSize: 10, background: "rgba(15,18,30,0.8)",
+              border: "1px solid rgba(99,140,255,0.15)", color: "rgba(160,180,220,0.7)",
+              fontFamily: "'DM Mono',monospace", cursor: "pointer" }}>
+              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{simpleMode ? `Trier par ${o.label}` : `↕ ${o.label}`}</option>)}
+            </select>
+
+            <button onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")} title="Inverser l'ordre" style={{
+              padding: "6px 9px", borderRadius: 7, background: "rgba(15,18,30,0.8)",
+              border: "1px solid rgba(99,140,255,0.15)", color: "rgba(160,180,220,0.5)",
+              cursor: "pointer", fontSize: 12 }}>
+              {sortDir === "desc" ? "↓" : "↑"}
+            </button>
+
+            {/* Advanced filters toggle */}
+            <button onClick={() => setShowFilters(f => !f)} style={{
+              padding: "6px 10px", borderRadius: 7, fontSize: 10, cursor: "pointer",
+              fontFamily: "'DM Mono',monospace",
+              background: showFilters ? "rgba(99,140,255,0.12)" : "rgba(15,18,30,0.5)",
+              border: `1px solid ${showFilters ? "rgba(99,140,255,0.3)" : "rgba(99,140,255,0.08)"}`,
+              color: showFilters ? "#638cff" : "rgba(160,180,220,0.45)",
+              display: "flex", alignItems: "center", gap: 5 }}>
+              <Filter size={10} /> {simpleMode ? "Filtres avancés" : "Filtres"}
+            </button>
+
+            {/* Apply button */}
+            <button onClick={applyFilters} style={{
+              padding: "6px 14px", borderRadius: 7, fontSize: 10, cursor: "pointer",
+              fontFamily: "'DM Mono',monospace",
+              background: "linear-gradient(135deg,rgba(99,140,255,0.18),rgba(139,92,246,0.18))",
+              border: "1px solid rgba(99,140,255,0.25)", color: "#638cff",
+              display: "flex", alignItems: "center", gap: 4 }}>
+              <Search size={10} /> Appliquer
+            </button>
           </div>
 
-          <div style={{display:"grid",gap:6,maxHeight:460,overflowY:"auto"}}>
-            {filtered.length===0&&(
-              <div style={{padding:24,textAlign:"center",color:"rgba(160,180,220,0.3)",
-                fontFamily:"'DM Mono',monospace",fontSize:12}}>
-                Aucun résultat pour ce filtre
-              </div>
-            )}
-            {filtered.map((item,i)=>{
-              const dispCol=item.disposition==="CONFIRMED"?"#4ade80":
-                item.disposition==="CANDIDATE"?"#fbbf24":"#f87171";
-              const dispLabel=simpleMode
-                ? item.disposition==="CONFIRMED"?"✅ Planète confirmée"
-                : item.disposition==="CANDIDATE"?"🔍 Possible planète"
-                : item.disposition==="FALSE POSITIVE"?"❌ Faux positif"
-                : item.disposition
-                : item.disposition;
-              return (
-                <div key={i} style={{display:"flex",alignItems:"center",gap:12,
-                  padding:"10px 14px",borderRadius:10,
-                  background:"rgba(15,18,30,0.6)",border:"1px solid rgba(99,140,255,0.08)",
-                  cursor:"pointer",transition:"border-color .2s",
-                  animation:"slideIn .3s ease-out"}}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(99,140,255,0.25)"}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(99,140,255,0.08)"}>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:"#e0e8f5",fontWeight:500}}>
-                        KIC {item.kepid}
-                      </span>
-                      <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,
-                        background:`${dispCol}15`,border:`1px solid ${dispCol}30`,color:dispCol}}>
-                        {dispLabel}
-                      </span>
-                    </div>
-                    <div style={{display:"flex",gap:16,fontSize:10,
-                      fontFamily:"'DM Mono',monospace",color:"rgba(160,180,220,0.45)"}}>
-                      {item.period_days&&<span>{simpleMode?`Orbite : ${item.period_days} jours`:`P = ${item.period_days} j`}</span>}
-                      {item.planet_radius_earth&&<span>{simpleMode?`Taille : ${item.planet_radius_earth} × Terre`:`R = ${item.planet_radius_earth} R⊕`}</span>}
-                      {!simpleMode&&item.depth_ppm&&<span>Depth = {item.depth_ppm.toLocaleString()} ppm</span>}
-                    </div>
+          {/* Advanced filters panel */}
+          {showFilters && (
+            <Card style={{ padding: "12px 16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10 }}>
+                {[
+                  { label: simpleMode ? "SNR minimum" : "SNR min", val: minSnr, set: setMinSnr, placeholder: "ex: 5" },
+                  { label: simpleMode ? "SNR maximum" : "SNR max", val: maxSnr, set: setMaxSnr, placeholder: "ex: 20" },
+                  { label: simpleMode ? "Période min (jours)" : "Période min (j)", val: minPeriod, set: setMinPeriod, placeholder: "ex: 1" },
+                  { label: simpleMode ? "Période max (jours)" : "Période max (j)", val: maxPeriod, set: setMaxPeriod, placeholder: "ex: 100" },
+                ].map((f, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: 9, color: "rgba(160,180,220,0.4)", textTransform: "uppercase",
+                      letterSpacing: 1.2, marginBottom: 5, fontFamily: "'DM Mono',monospace" }}>{f.label}</div>
+                    <input
+                      type="number" value={f.val} onChange={e => f.set(e.target.value)}
+                      placeholder={f.placeholder}
+                      style={{ width: "100%", padding: "6px 10px", borderRadius: 7, fontSize: 11,
+                        background: "rgba(15,18,30,0.8)", border: "1px solid rgba(99,140,255,0.15)",
+                        color: "#e0e8f5", fontFamily: "'DM Mono',monospace", outline: "none" }} />
                   </div>
-                  <button onClick={()=>onAnalyze(`KIC ${item.kepid}`)} style={{
-                    padding:"5px 12px",borderRadius:7,fontSize:10,cursor:"pointer",
-                    fontFamily:"'DM Mono',monospace",
-                    background:"rgba(99,140,255,0.1)",
-                    border:"1px solid rgba(99,140,255,0.2)",color:"#638cff",
-                    display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
-                    <Telescope size={11}/> Analyser
+                ))}
+                <div style={{ display: "flex", alignItems: "flex-end" }}>
+                  <button onClick={() => { setMinSnr(""); setMaxSnr(""); setMinPeriod(""); setMaxPeriod(""); }} style={{
+                    padding: "6px 10px", borderRadius: 7, fontSize: 10, cursor: "pointer",
+                    fontFamily: "'DM Mono',monospace", background: "none",
+                    border: "1px solid rgba(248,113,113,0.2)", color: "rgba(248,113,113,0.5)" }}>
+                    Réinitialiser
                   </button>
                 </div>
-              );
-            })}
+              </div>
+            </Card>
+          )}
+
+          {/* Error */}
+          {err && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
+              borderRadius: 8, background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.15)",
+              fontSize: 11, color: "#f87171", fontFamily: "'DM Mono',monospace" }}>
+              <AlertTriangle size={12} />{err}
+            </div>
+          )}
+
+          {/* Results count */}
+          {!loading && total > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 10,
+              color: "rgba(160,180,220,0.35)", fontFamily: "'DM Mono',monospace" }}>
+              <span>{total.toLocaleString()} étoile{total > 1 ? "s" : ""} · page {page}/{pages}</span>
+              <span style={{ color: "#4ade80" }}>🌍 {nPlanetsFiltered} planète{nPlanetsFiltered > 1 ? "s" : ""}</span>
+              <span style={{ color: "#f87171" }}>⭐ {(total - nPlanetsFiltered).toLocaleString()} non-planète{(total - nPlanetsFiltered) > 1 ? "s" : ""}</span>
+            </div>
+          )}
+
+          {/* Table */}
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'DM Mono',monospace", fontSize: 11 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(99,140,255,0.1)" }}>
+                  {(simpleMode
+                    ? [{l:"KIC ID",k:null},{l:"Type",k:null},{l:"Période",k:"period"},{l:"SNR",k:"snr"},{l:"",k:null}]
+                    : [{l:"KIC ID",k:null},{l:"Label",k:null},{l:"Période (j)",k:"period"},{l:"SNR",k:"snr"},{l:"Profondeur (ppm)",k:"depth"},{l:"Score BLS",k:"score"},{l:"Points",k:null},{l:"",k:null}]
+                  ).map(col => (
+                    <th key={col.l} onClick={col.k ? () => {
+                      if (sortBy === col.k) setSortDir(d => d === "desc" ? "asc" : "desc");
+                      else { setSortBy(col.k); setSortDir("desc"); }
+                      setFetchTrigger(t => t + 1);
+                    } : undefined} style={{
+                      padding: "8px 10px", textAlign: "left", fontSize: 9,
+                      color: sortBy === col.k ? "#638cff" : "rgba(160,180,220,0.4)",
+                      textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 400,
+                      whiteSpace: "nowrap", cursor: col.k ? "pointer" : "default",
+                      userSelect: "none",
+                      transition: "color .15s",
+                    }}>
+                      {col.l}{col.k && <span style={{ marginLeft: 4, opacity: sortBy === col.k ? 1 : 0.3 }}>
+                        {sortBy === col.k ? (sortDir === "desc" ? "↓" : "↑") : "↕"}
+                      </span>}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={simpleMode ? 5 : 8} style={{ padding: 32, textAlign: "center",
+                    color: "rgba(160,180,220,0.4)", fontFamily: "'DM Mono',monospace" }}>
+                    <Loader2 size={16} style={{ animation: "spin 1s linear infinite", display: "inline-block", marginRight: 8 }} />
+                    Chargement…
+                  </td></tr>
+                ) : stars.length === 0 ? (
+                  <tr><td colSpan={simpleMode ? 5 : 8} style={{ padding: 32, textAlign: "center",
+                    color: "rgba(160,180,220,0.25)", fontFamily: "'DM Mono',monospace", fontSize: 12 }}>
+                    Aucun résultat
+                  </td></tr>
+                ) : stars.map((s, i) => (
+                  <tr key={s.kepid} style={{
+                    borderBottom: "1px solid rgba(99,140,255,0.05)",
+                    transition: "background .15s",
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(99,140,255,0.04)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <td style={{ padding: "9px 10px", color: "#e0e8f5", fontWeight: 500 }}>
+                      KIC {s.kepid}
+                    </td>
+                    <td style={{ padding: "9px 10px" }}>
+                      {simpleMode ? (
+                        <span style={{ fontSize: 14 }}>{s.label === 1 ? "🌍" : "⭐"}</span>
+                      ) : (
+                        <span style={{ padding: "2px 7px", borderRadius: 4, fontSize: 9,
+                          background: `${labelColor(s.label)}15`, border: `1px solid ${labelColor(s.label)}30`,
+                          color: labelColor(s.label) }}>
+                          {s.label === 1 ? "Planète" : "Non-planète"}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: "9px 10px", color: "rgba(160,180,220,0.6)" }}>
+                      {s.period != null ? `${s.period} j` : "—"}
+                    </td>
+                    <td style={{ padding: "9px 10px" }}>
+                      {s.bls_snr != null ? (
+                        <span style={{ color: snrColor(s.bls_snr), fontWeight: 600 }}>
+                          {s.bls_snr.toFixed(1)}
+                        </span>
+                      ) : "—"}
+                    </td>
+                    {!simpleMode && <>
+                      <td style={{ padding: "9px 10px", color: "rgba(160,180,220,0.5)" }}>
+                        {s.bls_depth_ppm != null ? s.bls_depth_ppm.toLocaleString() : "—"}
+                      </td>
+                      <td style={{ padding: "9px 10px", color: "rgba(160,180,220,0.5)" }}>
+                        {s.bls_score != null ? s.bls_score.toFixed(3) : "—"}
+                      </td>
+                      <td style={{ padding: "9px 10px", color: "rgba(160,180,220,0.4)" }}>
+                        {s.n_points?.toLocaleString() || "—"}
+                      </td>
+                    </>}
+                    <td style={{ padding: "9px 10px" }}>
+                      <button onClick={() => onAnalyze(`KIC ${s.kepid}`)} style={{
+                        padding: "4px 10px", borderRadius: 6, fontSize: 9, cursor: "pointer",
+                        fontFamily: "'DM Mono',monospace",
+                        background: "rgba(99,140,255,0.08)", border: "1px solid rgba(99,140,255,0.2)",
+                        color: "#638cff", whiteSpace: "nowrap",
+                        display: "flex", alignItems: "center", gap: 4 }}>
+                        <ChevronRight size={9} />
+                        {simpleMode ? "Analyser" : "Analyser"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          {/* Pagination */}
+          {pages > 1 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{
+                padding: "5px 12px", borderRadius: 7, fontSize: 10, cursor: page === 1 ? "not-allowed" : "pointer",
+                fontFamily: "'DM Mono',monospace", background: "rgba(15,18,30,0.8)",
+                border: "1px solid rgba(99,140,255,0.15)", color: page === 1 ? "rgba(99,140,255,0.2)" : "#638cff",
+                opacity: page === 1 ? 0.5 : 1 }}>← Préc.</button>
+              {Array.from({ length: Math.min(7, pages) }, (_, i) => {
+                let p;
+                if (pages <= 7) p = i + 1;
+                else if (page <= 4) p = i + 1;
+                else if (page >= pages - 3) p = pages - 6 + i;
+                else p = page - 3 + i;
+                return (
+                  <button key={p} onClick={() => setPage(p)} style={{
+                    padding: "5px 9px", borderRadius: 7, fontSize: 10, cursor: "pointer",
+                    fontFamily: "'DM Mono',monospace",
+                    background: page === p ? "rgba(99,140,255,0.18)" : "rgba(15,18,30,0.6)",
+                    border: `1px solid ${page === p ? "rgba(99,140,255,0.35)" : "rgba(99,140,255,0.1)"}`,
+                    color: page === p ? "#638cff" : "rgba(160,180,220,0.45)", minWidth: 30 }}>
+                    {p}
+                  </button>
+                );
+              })}
+              <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages} style={{
+                padding: "5px 12px", borderRadius: 7, fontSize: 10, cursor: page === pages ? "not-allowed" : "pointer",
+                fontFamily: "'DM Mono',monospace", background: "rgba(15,18,30,0.8)",
+                border: "1px solid rgba(99,140,255,0.15)", color: page === pages ? "rgba(99,140,255,0.2)" : "#638cff",
+                opacity: page === pages ? 0.5 : 1 }}>Suiv. →</button>
+            </div>
+          )}
         </>
       )}
 
-      {!results&&!loading&&(
-        <div style={{padding:40,textAlign:"center",color:"rgba(160,180,220,0.25)",
-          fontFamily:"'DM Mono',monospace",fontSize:12}}>
-          <Database size={32} style={{marginBottom:12,opacity:.3,display:"block",margin:"0 auto 12px"}}/>
-          Cherchez une étoile par son KIC ID pour explorer le catalogue NASA Kepler
+      {/* ══════════════════════════════════════ UPLOAD ══════════════════════════════════════ */}
+      {activeSection === "upload" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* Format documentation */}
+          <Card style={{ padding: "16px 20px" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#e0e8f5", marginBottom: 10 }}>
+              {simpleMode ? "📋 Comment préparer ton fichier ?" : "Format CSV requis"}
+            </div>
+            {simpleMode ? (
+              <div style={{ fontSize: 12, color: "rgba(200,215,240,0.65)", lineHeight: 1.8 }}>
+                <p style={{ marginBottom: 8 }}>Ton fichier doit être un <strong style={{ color: "#638cff" }}>.csv</strong> avec au minimum ces deux colonnes :</p>
+                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, background: "rgba(99,140,255,0.06)",
+                  border: "1px solid rgba(99,140,255,0.15)", borderRadius: 8, padding: "10px 14px", marginBottom: 8 }}>
+                  time,flux<br />
+                  1.0,1.0003<br />
+                  1.02,0.9998<br />
+                  1.04,0.9997<br />
+                  ...
+                </div>
+                <ul style={{ paddingLeft: 16, fontSize: 11, color: "rgba(160,180,220,0.6)" }}>
+                  <li><strong style={{ color: "#e0e8f5" }}>time</strong> — moment de la mesure (en jours, valeur numérique)</li>
+                  <li><strong style={{ color: "#e0e8f5" }}>flux</strong> — luminosité de l'étoile (valeur proche de 1.0 normalement)</li>
+                  <li>Minimum <strong style={{ color: "#fbbf24" }}>50 points</strong> de données requis</li>
+                  <li>Les valeurs manquantes (NaN) sont ignorées automatiquement</li>
+                </ul>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: "rgba(160,180,220,0.6)", lineHeight: 1.7 }}>
+                <div style={{ fontFamily: "'DM Mono',monospace", background: "rgba(99,140,255,0.06)",
+                  border: "1px solid rgba(99,140,255,0.15)", borderRadius: 8, padding: "10px 14px", marginBottom: 10, fontSize: 10 }}>
+                  <span style={{ color: "#4ade80" }}>time</span>,<span style={{ color: "#638cff" }}>flux</span><span style={{ color: "rgba(160,180,220,0.3)" }}>[,flux_err]</span><br />
+                  <span style={{ color: "rgba(160,180,220,0.4)" }}>1.02345,1.000312</span><br />
+                  <span style={{ color: "rgba(160,180,220,0.4)" }}>1.04321,0.999987</span>
+                </div>
+                <ul style={{ paddingLeft: 14, fontSize: 10 }}>
+                  <li><strong style={{ color: "#4ade80" }}>time</strong> — temps en jours BKJD ou BJD (numérique)</li>
+                  <li><strong style={{ color: "#638cff" }}>flux</strong> — flux normalisé (proche de 1.0) ou brut</li>
+                  <li>Colonnes supplémentaires ignorées · NaN filtrés automatiquement</li>
+                  <li>Minimum 50 points · Encodage UTF-8 · Séparateur virgule</li>
+                </ul>
+              </div>
+            )}
+          </Card>
+
+          {/* Drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              border: `2px dashed ${dragOver ? "rgba(99,140,255,0.6)" : uploadFile ? "rgba(74,222,160,0.4)" : "rgba(99,140,255,0.2)"}`,
+              borderRadius: 12, padding: "32px 20px", textAlign: "center", cursor: "pointer",
+              background: dragOver ? "rgba(99,140,255,0.05)" : "rgba(15,18,30,0.4)",
+              transition: "all .2s",
+            }}>
+            <input ref={fileInputRef} type="file" accept=".csv" style={{ display: "none" }}
+              onChange={e => e.target.files[0] && setUploadFile(e.target.files[0])} />
+            {uploadFile ? (
+              <>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
+                <div style={{ fontSize: 12, color: "#4ade80", fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{uploadFile.name}</div>
+                <div style={{ fontSize: 10, color: "rgba(160,180,220,0.4)", marginTop: 4 }}>
+                  {(uploadFile.size / 1024).toFixed(1)} ko · Cliquer pour changer
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>☁️</div>
+                <div style={{ fontSize: 12, color: "rgba(160,180,220,0.5)", fontFamily: "'DM Mono',monospace" }}>
+                  {simpleMode ? "Glisse ton fichier .csv ici ou clique pour choisir" : "Drag & drop .csv · ou cliquer pour parcourir"}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Target name input */}
+          <div>
+            <div style={{ fontSize: 9, color: "rgba(160,180,220,0.4)", textTransform: "uppercase",
+              letterSpacing: 1.2, marginBottom: 6, fontFamily: "'DM Mono',monospace" }}>
+              {simpleMode ? "Nom de l'étoile (optionnel)" : "Nom / ID cible (optionnel)"}
+            </div>
+            <input
+              value={uploadTargetId} onChange={e => setUploadTargetId(e.target.value)}
+              placeholder={simpleMode ? "ex: Mon étoile préférée" : "ex: TIC 123456789"}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 11,
+                background: "rgba(15,18,30,0.8)", border: "1px solid rgba(99,140,255,0.15)",
+                color: "#e0e8f5", fontFamily: "'DM Mono',monospace", outline: "none" }} />
+          </div>
+
+          {/* Analyze button */}
+          <button onClick={handleUpload} disabled={!uploadFile || uploadLoading} style={{
+            padding: "10px 20px", borderRadius: 9, fontSize: 12, cursor: !uploadFile || uploadLoading ? "not-allowed" : "pointer",
+            fontFamily: "'DM Mono',monospace", opacity: !uploadFile || uploadLoading ? 0.6 : 1,
+            background: "linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))",
+            border: "1px solid rgba(99,140,255,0.3)", color: "#638cff",
+            display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+            {uploadLoading
+              ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Analyse en cours…</>
+              : <><Zap size={13} /> {simpleMode ? "Analyser mon étoile !" : "Lancer l'analyse"}</>}
+          </button>
+
+          {/* Upload error */}
+          {uploadErr && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 14px",
+              borderRadius: 8, background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.15)",
+              fontSize: 11, color: "#f87171", fontFamily: "'DM Mono',monospace" }}>
+              <AlertTriangle size={13} style={{ marginTop: 1, flexShrink: 0 }} />{uploadErr}
+            </div>
+          )}
+
+          {/* Upload result */}
+          {uploadResult && !uploadLoading && (
+            <Card glow style={{ padding: 16, animation: "fadeIn .4s ease-out" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 14, color: "#e0e8f5" }}>
+                    {uploadResult.target}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(160,180,220,0.4)", marginTop: 2 }}>
+                    {uploadResult.n_points?.toLocaleString()} points · P = {uploadResult.period_days} j
+                  </div>
+                </div>
+                <span style={{
+                  padding: "4px 12px", borderRadius: 12, fontSize: 11, fontFamily: "'DM Mono',monospace",
+                  color: uploadResult.score >= 0.7 ? "#4ade80" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171",
+                  background: `${uploadResult.score >= 0.7 ? "#4ade80" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171"}15`,
+                  border: `1px solid ${uploadResult.score >= 0.7 ? "#4ade80" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171"}30`,
+                }}>
+                  {uploadResult.verdict}
+                </span>
+              </div>
+              {simpleMode ? (
+                <div style={{ textAlign: "center", padding: "12px 0" }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>
+                    {uploadResult.score >= 0.7 ? "🌍" : uploadResult.score >= 0.35 ? "🤔" : "❌"}
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: uploadResult.score >= 0.7 ? "#4ade80" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171" }}>
+                    {uploadResult.verdict}
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(160,180,220,0.5)", marginTop: 6 }}>
+                    Notre IA est sûre à {Math.round(uploadResult.score * 100)}%
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                  <ScoreGauge score={uploadResult.score} size={110} />
+                  <div style={{ flex: 1, fontSize: 11, fontFamily: "'DM Mono',monospace", color: "rgba(160,180,220,0.55)" }}>
+                    <div>Score : <span style={{ color: "#638cff", fontWeight: 600 }}>{(uploadResult.score * 100).toFixed(1)}%</span></div>
+                    <div style={{ marginTop: 4 }}>Période : <span style={{ color: "#e0e8f5" }}>{uploadResult.period_days} j</span></div>
+                    <div style={{ marginTop: 4 }}>Points analysés : <span style={{ color: "#e0e8f5" }}>{uploadResult.n_points?.toLocaleString()}</span></div>
+                  </div>
+                </div>
+              )}
+              {uploadResult.data?.length > 0 && (
+                <div style={{ height: 220, borderRadius: 8, overflow: "hidden", marginTop: 12 }}>
+                  <LightCurveCanvas data={uploadResult.data} score={uploadResult.score} isLoading={false} />
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       )}
     </div>
@@ -1651,7 +2287,15 @@ function LoginScreen({ onLogin }) {
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Erreur");
       if(tab==="login") { onLogin(d); }
-      else { setOk("Compte créé ! Vous pouvez vous connecter."); setTab("login"); setU(""); setPw(""); }
+      else { 
+        const loginRes = await fetch(`${API_BASE}/api/auth/login`,{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({username:u.trim().toLowerCase(),password:pw}),
+        });
+        const loginD = await loginRes.json();
+        if(!loginRes.ok) throw new Error(loginD.error||"Erreur de connexion post-inscription");
+        onLogin(loginD);
+      }
     } catch(e){ setErr(e.message); }
     setLd(false);
   };
@@ -1760,8 +2404,22 @@ function formatHistoryDate(dateStr) {
   } catch { return dateStr; }
 }
 
-function HistoryTab({ history }) {
+function HistoryTab({ history, onClear, onAnalyze }) {
   const simpleMode = useContext(ModeContext);
+  const [confirming, setConfirming] = useState(false);
+  const confirmTimer = useRef(null);
+
+  const handleClear = async () => {
+    if (!confirming) {
+      setConfirming(true);
+      confirmTimer.current = setTimeout(() => setConfirming(false), 3000);
+      return;
+    }
+    clearTimeout(confirmTimer.current);
+    setConfirming(false);
+    await onClear();
+  };
+
   if (!history.length) return (
     <div style={{padding:60,textAlign:"center",color:"rgba(160,180,220,0.25)",
       fontFamily:"'DM Mono',monospace",fontSize:12}}>
@@ -1772,15 +2430,29 @@ function HistoryTab({ history }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:10,animation:"fadeIn .5s ease-out"}}>
-      <div style={{fontSize:10,color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace",
-        textTransform:"uppercase",letterSpacing:1.5}}>
-        {history.length} dernière{history.length>1?"s":""} analyse{history.length>1?"s":""}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{fontSize:10,color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace",
+          textTransform:"uppercase",letterSpacing:1.5}}>
+          {history.length} dernière{history.length>1?"s":""} analyse{history.length>1?"s":""}
+        </div>
+        <button
+          onClick={handleClear}
+          style={{
+            padding:"5px 12px",borderRadius:7,fontSize:10,
+            fontFamily:"'DM Mono',monospace",cursor:"pointer",
+            background: confirming ? "rgba(248,113,113,0.12)" : "rgba(248,113,113,0.05)",
+            border: confirming ? "1px solid rgba(248,113,113,0.5)" : "1px solid rgba(248,113,113,0.15)",
+            color: confirming ? "#f87171" : "rgba(248,113,113,0.5)",
+            transition:"all .2s",
+          }}>
+          {confirming ? "⚠ Confirmer la suppression" : "🗑 Vider l'historique"}
+        </button>
       </div>
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Mono',monospace",fontSize:12}}>
           <thead>
             <tr style={{borderBottom:"1px solid rgba(99,140,255,0.1)"}}>
-              {(simpleMode?["Étoile","Résultat","Date"]:["Cible","Score","Verdict","Période","Date"]).map(h=>(
+              {(simpleMode?["Étoile","Résultat","Date",""]:["Cible","Score","Verdict","Période","Date",""]).map(h=>(
                 <th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,
                   color:"rgba(160,180,220,0.4)",textTransform:"uppercase",letterSpacing:1.2,
                   fontWeight:400}}>{h}</th>
@@ -1815,6 +2487,15 @@ function HistoryTab({ history }) {
                   )}
                   <td style={{padding:"10px 12px",color:"rgba(160,180,220,0.4)",fontSize:11}}>
                     {formatHistoryDate(row.date)}
+                  </td>
+                  <td style={{padding:"10px 12px"}}>
+                    <button onClick={()=>onAnalyze(row.target)} style={{
+                      padding:"3px 10px",borderRadius:6,fontSize:9,cursor:"pointer",
+                      fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",
+                      background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
+                      color:"#638cff",display:"flex",alignItems:"center",gap:4}}>
+                      <ChevronRight size={9}/>{simpleMode?"Revoir":"Analyser"}
+                    </button>
                   </td>
                 </tr>
               );
@@ -2447,17 +3128,411 @@ function ComparisonTab() {
   );
 }
 
+/* ─── Tour Overlay ───────────────────────────────────────────── */
+function TourOverlay({ step, onNext, onSkip }) {
+  const def = TOUR_STEPS[step];
+  const [rect, setRect] = useState(null);
+  const PAD = 10;
+
+  useEffect(() => {
+    if (!def.sel) { setRect(null); return; }
+    const el = document.querySelector(def.sel);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      // Small delay to let scroll settle before measuring
+      const t = setTimeout(() => setRect(el.getBoundingClientRect()), 120);
+      return () => clearTimeout(t);
+    }
+    setRect(null);
+  }, [step, def.sel]);
+
+  const winW = window.innerWidth;
+  const isCenter = !def.sel || !rect;
+
+  // Tooltip positioning relative to highlight box
+  const tooltipW = 340;
+  let ttop = 0, tleft = 0;
+  if (!isCenter && rect) {
+    ttop  = rect.bottom + PAD + 10;
+    tleft = Math.max(12, Math.min(rect.left, winW - tooltipW - 12));
+    // If tooltip would go off bottom, put it above
+    if (ttop + 180 > window.innerHeight) ttop = rect.top - 180 - PAD;
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:9990 }}>
+      {/* Dark overlay (non-interactive so clicks pass through to highlight) */}
+      <div style={{ position:"fixed", inset:0, background:"rgba(2,4,12,0.78)", pointerEvents:"all" }} />
+
+      {/* Highlight cutout */}
+      {rect && (
+        <div style={{
+          position:"fixed",
+          left: rect.left - PAD, top: rect.top - PAD,
+          width: rect.width + PAD*2, height: rect.height + PAD*2,
+          borderRadius: 10,
+          boxShadow: "0 0 0 9999px rgba(2,4,12,0.78), 0 0 0 2px rgba(99,140,255,0.9), 0 0 24px rgba(99,140,255,0.35)",
+          zIndex: 9995, pointerEvents:"none",
+          transition:"all .35s cubic-bezier(.4,0,.2,1)",
+        }} />
+      )}
+
+      {/* Tooltip */}
+      <div style={{
+        position:"fixed",
+        ...(isCenter
+          ? { top:"50%", left:"50%", transform:"translate(-50%,-50%)" }
+          : { top: ttop, left: tleft }),
+        width: tooltipW,
+        background:"rgba(8,11,22,0.98)",
+        border:"1px solid rgba(99,140,255,0.35)",
+        borderRadius:14, padding:"20px 22px",
+        zIndex:9999, pointerEvents:"all",
+        boxShadow:"0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,140,255,0.1)",
+        animation:"fadeIn .22s ease",
+      }}>
+        <div style={{ fontSize:15, fontWeight:700, color:"#e0e8f5", marginBottom:10,
+          fontFamily:"'Space Grotesk',sans-serif" }}>{def.title}</div>
+        <p style={{ fontSize:12, color:"rgba(200,215,240,0.72)", lineHeight:1.75,
+          marginBottom:18, fontFamily:"'Space Grotesk',sans-serif" }}>{def.desc}</p>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span style={{ fontSize:9, color:"rgba(160,180,220,0.3)", fontFamily:"'DM Mono',monospace" }}>
+            {step+1} / {TOUR_STEPS.length}
+          </span>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={onSkip} style={{
+              padding:"5px 12px", borderRadius:7, fontSize:10, cursor:"pointer",
+              fontFamily:"'DM Mono',monospace", background:"none",
+              border:"1px solid rgba(160,180,220,0.15)", color:"rgba(160,180,220,0.4)" }}>
+              Passer
+            </button>
+            <button onClick={onNext} style={{
+              padding:"5px 18px", borderRadius:7, fontSize:10, cursor:"pointer",
+              fontFamily:"'DM Mono',monospace", fontWeight:600,
+              background:"linear-gradient(135deg,rgba(99,140,255,0.22),rgba(139,92,246,0.22))",
+              border:"1px solid rgba(99,140,255,0.4)", color:"#638cff" }}>
+              {step === TOUR_STEPS.length-1 ? "Terminer ✓" : "Suivant →"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Profile Tab ────────────────────────────────────────────── */
+const AVATARS = [
+  { id: "rocket", icon: Rocket },
+  { id: "satellite", icon: Satellite },
+  { id: "moon", icon: Moon },
+  { id: "orbit", icon: Orbit },
+  { id: "ghost", icon: Ghost },
+  { id: "user", icon: User },
+];
+
+function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, setIsLightMode }) {
+  const simpleMode = useContext(ModeContext);
+  
+  const totalAnalyzed = history.length;
+  // Support both versions of spelling
+  const planetsFound = history.filter(h => h.verdict?.toLowerCase().includes("planète")).length;
+  const fpFound = history.filter(h => h.verdict?.toLowerCase().includes("faux positif")).length;
+  
+  // Custom CSV Logs
+  const csvLogs = history.filter(h => h.mission === "Custom CSV");
+
+  // Avatar state
+  const [showAvatar, setShowAvatar] = useState(false);
+  const CurrentIcon = AVATARS.find(a => a.id === authState?.avatar)?.icon || User;
+  
+  const handleAvatarSelect = async (id) => {
+    setShowAvatar(false);
+    try {
+      const r = await authFetch(`${API_BASE}/api/auth/update_profile`, {
+        method: "POST",
+        body: JSON.stringify({ avatar: id })
+      });
+      if (r.ok) {
+        setAuthState(prev => ({ ...prev, avatar: id }));
+      }
+    } catch(e) { console.error("Erreur màj avatar", e); }
+  };
+
+  // Password state
+  const [pwd, setPwd] = useState({ old: "", new: "" });
+  const [pwdStatus, setPwdStatus] = useState(null);
+  
+  const handleChangePwd = async (e) => {
+    e.preventDefault();
+    setPwdStatus(null);
+    try {
+      const r = await authFetch(`${API_BASE}/api/auth/change_password`, {
+        method: "POST",
+        body: JSON.stringify({ old_password: pwd.old, new_password: pwd.new })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erreur serveur");
+      setPwdStatus({ ok: true, msg: "Mot de passe modifié avec succès." });
+      setPwd({ old: "", new: "" });
+    } catch(e) { setPwdStatus({ ok: false, msg: e.message }); }
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:24,animation:"fadeIn .5s ease-out"}}>
+      <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:20,fontWeight:700,color:"#e0e8f5",margin:0}}>
+        {simpleMode ? "👤 Mon Profil" : "Profil Utilisateur"}
+      </h2>
+      
+      <div style={{display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
+        {/* Colonne Gauche : Identité & Badges */}
+        <div style={{flex:1,minWidth:250,display:"flex",flexDirection:"column",gap:16}}>
+          <Card style={{padding:32,display:"flex",flexDirection:"column",alignItems:"center",position:"relative"}}>
+            <button onClick={() => setShowAvatar(!showAvatar)} style={{
+               width:80,height:80,borderRadius:40,background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+               display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,marginBottom:16,
+               boxShadow:"0 12px 24px rgba(99,140,255,0.2)",border:"2px solid rgba(255,255,255,0.1)",
+               cursor:"pointer",transition:"transform .2s"}}>
+              <CurrentIcon size={40} color="#fff"/>
+            </button>
+            
+            {showAvatar && (
+              <div style={{position:"absolute",top:100,background:"#0a0e1a",border:"1px solid rgba(99,140,255,0.2)",
+                  padding:12,borderRadius:12,display:"flex",gap:8,zIndex:20,boxShadow:"0 10px 30px rgba(0,0,0,0.5)"}}>
+                {AVATARS.map(a => {
+                  const Icon = a.icon;
+                  return (
+                    <button key={a.id} onClick={() => handleAvatarSelect(a.id)}
+                      style={{padding:8,borderRadius:8,background:authState?.avatar===a.id?"rgba(99,140,255,0.2)":"transparent",
+                      border:"none",cursor:"pointer",color:authState?.avatar===a.id?"#638cff":"#e0e8f5"}}>
+                      <Icon size={20}/>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <h3 style={{fontSize:22,margin:0,fontFamily:"'Space Grotesk',sans-serif",color:"#e0e8f5"}}>{authState.username}</h3>
+            <div style={{fontSize:12,color:"rgba(160,180,220,0.5)",fontFamily:"'DM Mono',monospace",marginTop:6}}>
+              Explorateur stellaire
+            </div>
+            
+            <button onClick={onLogout} style={{
+              marginTop:32,padding:"10px 20px",borderRadius:9,background:"rgba(248,113,113,0.1)",
+              border:"1px solid rgba(248,113,113,0.25)",color:"#f87171",display:"flex",alignItems:"center",
+              gap:8,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
+              transition:"all .2s"}}>
+              <LogOut size={16}/> Déconnexion
+            </button>
+          </Card>
+
+          {/* Hauts Faits & Accessibilité */}
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <Card style={{padding:24}}>
+               <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:16,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>Hauts Faits</h3>
+               <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,background:totalAnalyzed>=1?"rgba(99,140,255,0.1)":"rgba(15,18,30,0.5)",border:totalAnalyzed>=1?"1px solid rgba(99,140,255,0.3)":"1px solid rgba(255,255,255,0.05)",opacity:totalAnalyzed>=1?1:0.4}}>
+                     <Star size={16} color={totalAnalyzed>=1?"#638cff":"#888"}/> <span style={{fontSize:12}}>Novice</span>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,background:totalAnalyzed>=10?"rgba(167,139,250,0.1)":"rgba(15,18,30,0.5)",border:totalAnalyzed>=10?"1px solid rgba(167,139,250,0.3)":"1px solid rgba(255,255,255,0.05)",opacity:totalAnalyzed>=10?1:0.4}}>
+                     <Globe size={16} color={totalAnalyzed>=10?"#a78bfa":"#888"}/> <span style={{fontSize:12}}>Explorateur</span>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,background:planetsFound>=1?"rgba(74,222,160,0.1)":"rgba(15,18,30,0.5)",border:planetsFound>=1?"1px solid rgba(74,222,160,0.3)":"1px solid rgba(255,255,255,0.05)",opacity:planetsFound>=1?1:0.4}}>
+                     <Sparkles size={16} color={planetsFound>=1?"#4ade80":"#888"}/> <span style={{fontSize:12}}>Chasseur</span>
+                  </div>
+               </div>
+            </Card>
+
+            <Card style={{padding:24}}>
+               <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:16,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>Accessibilité</h3>
+               <button onClick={()=>setIsLightMode(!isLightMode)} style={{
+                  width:"100%",padding:"12px",borderRadius:8,background:isLightMode?"rgba(99,140,255,0.2)":"rgba(15,18,30,0.5)",
+                  border:isLightMode?"1px solid rgba(99,140,255,0.4)":"1px solid rgba(255,255,255,0.05)",
+                  color:"#e0e8f5",display:"flex",alignItems:"center",gap:12,cursor:"pointer",
+                  fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,transition:"all .2s"
+               }}>
+                  <Monitor size={18} color={isLightMode?"#638cff":"#888"}/> 
+                  {isLightMode ? "Désactiver le Mode Jour" : "Activer le Mode Jour"}
+               </button>
+               <div style={{fontSize:10,color:"rgba(160,180,220,0.5)",marginTop:8}}>
+                  Applique une inversion visuelle pour améliorer le contraste en plein jour.
+               </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* Colonne Droite : Stats, Mdp & Logs CSV */}
+        <div style={{flex:2,minWidth:300,display:"flex",flexDirection:"column",gap:16}}>
+          <Card style={{padding:32}}>
+            <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:20,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>
+              {simpleMode ? "Statistiques de découverte" : "Statistiques d'analyse"}
+            </h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:16}}>
+              <div style={{background:"rgba(15,18,30,0.5)",borderRadius:12,padding:20,textAlign:"center",border:"1px solid rgba(99,140,255,0.1)"}}>
+                <div style={{fontSize:32,fontWeight:700,color:"#638cff",fontFamily:"'DM Mono',monospace"}}>{totalAnalyzed}</div>
+                <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:6}}>{simpleMode?"Étoiles scannées":"Cibles analysées"}</div>
+              </div>
+              <div style={{background:"rgba(15,18,30,0.5)",borderRadius:12,padding:20,textAlign:"center",border:"1px solid #4ade8030"}}>
+                <div style={{fontSize:32,fontWeight:700,color:"#4ade80",fontFamily:"'DM Mono',monospace"}}>{planetsFound}</div>
+                <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:6}}>Planètes probables</div>
+              </div>
+              <div style={{background:"rgba(15,18,30,0.5)",borderRadius:12,padding:20,textAlign:"center",border:"1px solid #f8717130"}}>
+                <div style={{fontSize:32,fontWeight:700,color:"#f87171",fontFamily:"'DM Mono',monospace"}}>{fpFound}</div>
+                <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:6}}>Faux positifs écartés</div>
+              </div>
+            </div>
+          </Card>
+
+          <Card style={{padding:32}}>
+            <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:16,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>Sécurité & Compte</h3>
+            
+            {/* Nouveau Pseudo */}
+            <div style={{marginBottom:24}}>
+               <label style={{display:"block",fontSize:10,color:"rgba(160,180,220,0.5)",marginBottom:6}}>Changer de mot de passe</label>
+               {pwdStatus && (
+                 <div style={{padding:10,marginBottom:12,fontSize:12,borderRadius:8,
+                   background:pwdStatus.ok?"rgba(74,222,160,0.1)":"rgba(248,113,113,0.1)",
+                   color:pwdStatus.ok?"#4ade80":"#f87171",border:`1px solid ${pwdStatus.ok?"rgba(74,222,160,0.3)":"rgba(248,113,113,0.3)"}`}}>
+                   {pwdStatus.msg}
+                 </div>
+               )}
+               <form onSubmit={handleChangePwd} style={{display:"flex",gap:12,alignItems:"flex-end",flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:150}}>
+                    <input type="password" placeholder="Ancien mot de passe" value={pwd.old} onChange={e=>setPwd(p=>({...p,old:e.target.value}))}
+                      style={{width:"100%",padding:10,background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.2)",
+                      borderRadius:8,color:"#fff",outline:"none",fontFamily:"'DM Mono',monospace",fontSize:12}}/>
+                  </div>
+                  <div style={{flex:1,minWidth:150}}>
+                    <input type="password" placeholder="Nouveau mot de passe" value={pwd.new} onChange={e=>setPwd(p=>({...p,new:e.target.value}))}
+                      style={{width:"100%",padding:10,background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.2)",
+                      borderRadius:8,color:"#fff",outline:"none",fontFamily:"'DM Mono',monospace",fontSize:12}}/>
+                  </div>
+                  <button type="submit" style={{padding:"11px 16px",background:"#638cff",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:600}}>
+                    Modifier
+                  </button>
+               </form>
+            </div>
+
+            <div style={{height:1,background:"rgba(255,255,255,0.05)",margin:"20px 0"}}></div>
+
+            <ChangeUsernameForm authState={authState} setAuthState={setAuthState} />
+          </Card>
+
+          {csvLogs.length > 0 && (
+            <Card style={{padding:32}}>
+              <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:16,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>Logs import CSV</h3>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {csvLogs.map((log,i) => (
+                   <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:"rgba(15,18,30,0.5)",borderRadius:8,border:"1px solid rgba(255,255,255,0.05)"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:12}}>
+                        <FileText size={14} color="rgba(160,180,220,0.5)"/>
+                        <span style={{fontSize:13,fontFamily:"'DM Mono',monospace",color:"#e0e8f5"}}>{log.target}</span>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:16}}>
+                        <span style={{fontSize:11,color:"rgba(160,180,220,0.5)"}}>{new Date(log.date).toLocaleDateString()}</span>
+                        <span style={{fontSize:11,padding:"3px 8px",borderRadius:4,
+                           background:log.verdict==="Planète probable"?"rgba(74,222,160,0.15)":"rgba(248,113,113,0.15)",
+                           color:log.verdict==="Planète probable"?"#4ade80":"#f87171"}}>{log.verdict}</span>
+                      </div>
+                   </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Change Username Component ──────────────────────────────── */
+function ChangeUsernameForm({ authState, setAuthState }) {
+  const [uname, setUname] = useState("");
+  const [status, setStatus] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus(null);
+    if (!uname || uname.length < 3) return setStatus({ok:false, msg:"Pseudo trop court"});
+    try {
+      const r = await authFetch(`${API_BASE}/api/auth/change_username`, {
+        method: "POST",
+        body: JSON.stringify({ new_username: uname })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erreur serveur");
+      setStatus({ ok: true, msg: "Pseudo modifié !" });
+      setAuthState(prev => ({ ...prev, username: uname, token: d.token }));
+      setUname("");
+    } catch(e) { setStatus({ ok: false, msg: e.message }); }
+  };
+
+  return (
+    <div>
+       <label style={{display:"block",fontSize:10,color:"rgba(160,180,220,0.5)",marginBottom:6}}>Changer de pseudo</label>
+       {status && (
+         <div style={{padding:8,marginBottom:12,fontSize:11,borderRadius:6,
+           background:status.ok?"rgba(74,222,160,0.1)":"rgba(248,113,113,0.1)",
+           color:status.ok?"#4ade80":"#f87171",border:`1px solid ${status.ok?"rgba(74,222,160,0.3)":"rgba(248,113,113,0.3)"}`}}>
+           {status.msg}
+         </div>
+       )}
+       <form onSubmit={handleSubmit} style={{display:"flex",gap:12,alignItems:"flex-end"}}>
+          <div style={{flex:1}}>
+            <input type="text" placeholder="Nouveau pseudo" value={uname} onChange={e=>setUname(e.target.value)}
+              style={{width:"100%",padding:10,background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.2)",
+              borderRadius:8,color:"#fff",outline:"none",fontFamily:"'DM Mono',monospace",fontSize:12}}/>
+          </div>
+          <button type="submit" style={{padding:"11px 16px",background:"#8b5cf6",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:600}}>
+            Modifier
+          </button>
+       </form>
+    </div>
+  );
+}
+
 /* ─── Main Dashboard ─────────────────────────────────────────── */
 export default function ExoPlanetDashboard() {
   const [authState,setAuthState]=useState(getAuth());
   const [activeTab,setActiveTab]=useState("analysis");
   const [simpleMode,setSimpleMode]=useState(()=>localStorage.getItem("simpleMode")==="true");
+  const [tourActive,setTourActive]=useState(false);
+  const [tourStep,setTourStep]=useState(0);
+  const [isLightMode,setIsLightMode]=useState(false);
 
   useEffect(()=>{ localStorage.setItem("simpleMode", simpleMode); },[simpleMode]);
+
+  // Auto-start tour for first-time users
+  useEffect(() => {
+    if (authState && authState.has_seen_tutorial === false) {
+      setTourActive(true);
+      setTourStep(0);
+    }
+  }, [authState]);
+
+  const markTourDone = () => {
+    setTourActive(false);
+    localStorage.setItem("tourDone", "1");
+    if (authState && authState.has_seen_tutorial === false) {
+      authFetch(`${API_BASE}/api/auth/tutorial_seen`, { method: "POST" })
+        .then(() => setAuthState(prev => ({ ...prev, has_seen_tutorial: true })))
+        .catch(console.error);
+    }
+  };
+
+  const tourNext = () => {
+    if (tourStep >= TOUR_STEPS.length - 1) { markTourDone(); }
+    else setTourStep(s => s + 1);
+  };
+  const tourSkip = () => { markTourDone(); };
 
   // analysis state
   const [input,setInput]=useState("Kepler-10");
   const [target,setTarget]=useState("Kepler-10");
+  const [suggestions,setSuggestions]=useState([]);
+  const [showSug,setShowSug]=useState(false);
+  const [activeSug,setActiveSug]=useState(-1);
+  const sugRef=useRef(null);
   const [aData,setAData]=useState(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState(null);
@@ -2468,7 +3543,7 @@ export default function ExoPlanetDashboard() {
   const abortRef=useRef(null);
   const progressTimer=useRef(null);
 
-  const handleLogin=(d)=>{ const a={token:d.token,username:d.username}; setAuth(a); setAuthState(a); };
+  const handleLogin=(d)=>{ const a={token:d.token,username:d.username,has_seen_tutorial:d.has_seen_tutorial}; setAuth(a); setAuthState(a); };
   const handleLogout=()=>{ clearAuth(); setAuthState(null); setAData(null); setStatus(null); };
 
   useEffect(()=>{
@@ -2545,15 +3620,20 @@ export default function ExoPlanetDashboard() {
     {key:"catalog",        label:"Catalogue",    icon:Database},
     {key:"history",        label:"Historique",   icon:Clock},
     {key:"documentation",  label:"Documentation",icon:FileText},
+    {key:"profile",        label:"Profil",       icon:User},
   ];
 
   return (
     <ModeContext.Provider value={simpleMode}>
     <div style={{minHeight:"100vh",
       background:"linear-gradient(165deg,#050710 0%,#0a0e1a 40%,#0d1025 100%)",
-      fontFamily:"'DM Mono','JetBrains Mono',monospace",color:"#e0e8f5",position:"relative"}}>
+      fontFamily:"'DM Mono','JetBrains Mono',monospace",color:"#e0e8f5",position:"relative",
+      filter: isLightMode ? "invert(1) hue-rotate(180deg)" : "none",
+      transition: "filter 0.5s ease"
+    }}>
       <style>{GLOBAL_CSS}</style>
       <StarField/>
+      {tourActive && <TourOverlay step={tourStep} onNext={tourNext} onSkip={tourSkip}/>}
 
       {/* ── Header ── */}
       <header style={{position:"relative",zIndex:10,padding:"20px 32px 0",
@@ -2584,36 +3664,50 @@ export default function ExoPlanetDashboard() {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <StatusDots status={status}/>
-          {/* Simple / Expert toggle */}
-          <button onClick={()=>setSimpleMode(m=>!m)} style={{
-            display:"flex",alignItems:"center",gap:6,padding:"5px 11px",borderRadius:20,
-            border:`1px solid ${simpleMode?"rgba(139,92,246,0.4)":"rgba(99,140,255,0.2)"}`,
-            background:simpleMode?"rgba(139,92,246,0.12)":"rgba(99,140,255,0.06)",
-            color:simpleMode?"#a78bfa":"rgba(160,180,220,0.5)",
-            fontFamily:"'DM Mono',monospace",fontSize:10,cursor:"pointer",transition:"all .2s",
-          }}>
-            {simpleMode?"🔭 Mode Expert":"✨ Mode Simple"}
-          </button>
+          {/* Tour button */}
+          <button onClick={()=>{setTourActive(true);setTourStep(0);}} title="Tutoriel interactif" style={{
+            width:28,height:28,borderRadius:"50%",fontSize:12,fontWeight:700,cursor:"pointer",
+            background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
+            color:"rgba(99,140,255,0.6)",display:"flex",alignItems:"center",justifyContent:"center",
+            fontFamily:"'Space Grotesk',sans-serif",flexShrink:0,
+          }}>?</button>
+          {/* Simple / Expert segmented toggle */}
+          <div data-tour="mode-toggle" style={{display:"flex",borderRadius:20,overflow:"hidden",
+            border:"1px solid rgba(99,140,255,0.15)",background:"rgba(10,12,22,0.7)"}}>
+            <button onClick={()=>setSimpleMode(true)} style={{
+              padding:"5px 13px",fontSize:10,fontFamily:"'DM Mono',monospace",cursor:"pointer",
+              border:"none",transition:"all .2s",
+              background:simpleMode?"rgba(139,92,246,0.22)":"transparent",
+              color:simpleMode?"#a78bfa":"rgba(160,180,220,0.3)",
+            }}>✨ Débutant</button>
+            <div style={{width:1,background:"rgba(99,140,255,0.12)",flexShrink:0}}/>
+            <button onClick={()=>setSimpleMode(false)} style={{
+              padding:"5px 13px",fontSize:10,fontFamily:"'DM Mono',monospace",cursor:"pointer",
+              border:"none",transition:"all .2s",
+              background:!simpleMode?"rgba(99,140,255,0.18)":"transparent",
+              color:!simpleMode?"#638cff":"rgba(160,180,220,0.3)",
+            }}>🔭 Expert</button>
+          </div>
           <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",
             borderRadius:7,background:"rgba(99,140,255,0.06)",
-            border:"1px solid rgba(99,140,255,0.1)"}}>
-            <ShieldCheck size={11} style={{color:"#4ade80"}}/>
-            <span style={{fontSize:11,color:"#e0e8f5"}}>{authState.username}</span>
-            <button onClick={handleLogout} title="Déconnexion"
-              style={{background:"none",border:"none",cursor:"pointer",
-                color:"rgba(248,113,113,0.65)",display:"flex",padding:2}}>
-              <LogOut size={12}/>
-            </button>
+            border:"1px solid rgba(99,140,255,0.1)",cursor:"pointer"}}
+            onClick={() => setActiveTab("profile")}
+            title="Voir mon profil">
+            {(()=>{ 
+              const HIcon = AVATARS.find(a=>a.id===authState?.avatar)?.icon || User; 
+              return <HIcon size={12} style={{color:"#4ade80"}}/>; 
+            })()}
+            <span style={{fontSize:11,color:"#e0e8f5",fontWeight:500}}>{authState.username}</span>
           </div>
         </div>
       </header>
 
       {/* ── Nav tabs ── */}
-      <nav style={{position:"relative",zIndex:10,padding:"14px 32px 0",
+      <nav data-tour="nav" style={{position:"relative",zIndex:10,padding:"14px 32px 0",
         display:"flex",gap:4,borderBottom:"1px solid rgba(99,140,255,0.07)",
         paddingBottom:0,marginBottom:0}}>
         {TABS.map(({key,label,icon:Icon})=>(
-          <button key={key} onClick={()=>setActiveTab(key)} style={{
+          <button key={key} data-tour={`tab-${key}`} onClick={()=>setActiveTab(key)} style={{
             display:"flex",alignItems:"center",gap:6,padding:"8px 14px",
             fontSize:11,fontFamily:"'DM Mono',monospace",border:"none",cursor:"pointer",
             borderBottom:`2px solid ${activeTab===key?"#638cff":"transparent"}`,
@@ -2634,25 +3728,81 @@ export default function ExoPlanetDashboard() {
           <div style={{display:"grid",gridTemplateColumns:"1fr 190px",gap:16,alignItems:"start"}}>
             <div style={{display:"flex",flexDirection:"column",gap:14}}>
 
-              {/* search */}
-              <form onSubmit={submit} style={{display:"flex",alignItems:"center",
-                background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.14)",
-                borderRadius:11,overflow:"hidden"}}>
-                <Search size={13} style={{color:"rgba(99,140,255,0.4)",marginLeft:11}}/>
-                <input value={input} onChange={e=>setInput(e.target.value)}
-                  placeholder={simpleMode?"Nom d'une étoile (ex: Kepler-10)…":"Kepler-10, KIC 11446443, TIC 12345678…"}
-                  style={{flex:1,padding:"9px 11px",background:"transparent",
-                    border:"none",outline:"none",color:"#e0e8f5",
-                    fontFamily:"'DM Mono',monospace",fontSize:13}}/>
-                <button type="submit" disabled={loading} style={{
-                  padding:"8px 14px",background:"linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))",
-                  border:"none",borderLeft:"1px solid rgba(99,140,255,0.12)",
-                  color:"#638cff",fontFamily:"'DM Mono',monospace",fontSize:11,
-                  cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                  {loading?<Loader2 size={12} style={{animation:"spin 1s linear infinite"}}/>
-                          :<ChevronRight size={12}/>} {simpleMode?"Analyser !":"Analyser"}
-                </button>
-              </form>
+              {/* search + autocomplete */}
+              <div style={{position:"relative"}} ref={sugRef}>
+                <form data-tour="search" onSubmit={e=>{
+                  e.preventDefault();
+                  setShowSug(false);
+                  if(activeSug>=0&&suggestions[activeSug]){ const s=suggestions[activeSug]; setInput(s); setTarget(s); analyze(s); setActiveSug(-1); }
+                  else if(input.trim()){ setTarget(input.trim()); analyze(input.trim()); }
+                }} style={{display:"flex",alignItems:"center",
+                  background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.14)",
+                  borderRadius:11,overflow:"hidden"}}>
+                  <Search size={13} style={{color:"rgba(99,140,255,0.4)",marginLeft:11}}/>
+                  <input value={input}
+                    onChange={e=>{
+                      const v=e.target.value; setInput(v); setActiveSug(-1);
+                      if(v.length>=2){
+                        const q=v.toLowerCase();
+                        const named=KEPLER_NAMED.filter(n=>n.toLowerCase().startsWith(q));
+                        const kic=v.toLowerCase().startsWith("kic")
+                          ? VERIFIED_KIC_POOL.filter(k=>k.toLowerCase().includes(q)).slice(0,4)
+                          : [];
+                        const merged=[...new Set([...named,...kic])].slice(0,7);
+                        setSuggestions(merged); setShowSug(merged.length>0);
+                      } else { setSuggestions([]); setShowSug(false); }
+                    }}
+                    onKeyDown={e=>{
+                      if(!showSug) return;
+                      if(e.key==="ArrowDown"){ e.preventDefault(); setActiveSug(i=>Math.min(i+1,suggestions.length-1)); }
+                      else if(e.key==="ArrowUp"){ e.preventDefault(); setActiveSug(i=>Math.max(i-1,-1)); }
+                      else if(e.key==="Escape"){ setShowSug(false); setActiveSug(-1); }
+                    }}
+                    onBlur={()=>setTimeout(()=>setShowSug(false),150)}
+                    onFocus={()=>{ if(suggestions.length>0) setShowSug(true); }}
+                    placeholder={simpleMode?"Nom d'une étoile (ex: Kepler-10)…":"Kepler-10, KIC 11446443, TIC 12345678…"}
+                    style={{flex:1,padding:"9px 11px",background:"transparent",
+                      border:"none",outline:"none",color:"#e0e8f5",
+                      fontFamily:"'DM Mono',monospace",fontSize:13}}/>
+                  <button type="submit" disabled={loading} style={{
+                    padding:"8px 14px",background:"linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))",
+                    border:"none",borderLeft:"1px solid rgba(99,140,255,0.12)",
+                    color:"#638cff",fontFamily:"'DM Mono',monospace",fontSize:11,
+                    cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                    {loading?<Loader2 size={12} style={{animation:"spin 1s linear infinite"}}/>
+                            :<ChevronRight size={12}/>} {simpleMode?"Analyser !":"Analyser"}
+                  </button>
+                </form>
+
+                {/* Dropdown suggestions */}
+                {showSug && suggestions.length>0 && (
+                  <div style={{
+                    position:"absolute",top:"calc(100% + 4px)",left:0,right:0,
+                    background:"rgba(8,11,22,0.97)",border:"1px solid rgba(99,140,255,0.2)",
+                    borderRadius:9,overflow:"hidden",zIndex:200,
+                    boxShadow:"0 8px 24px rgba(0,0,0,0.5)",
+                  }}>
+                    {suggestions.map((s,i)=>(
+                      <div key={s}
+                        onMouseDown={()=>{ setInput(s); setTarget(s); analyze(s); setShowSug(false); setActiveSug(-1); }}
+                        style={{
+                          padding:"8px 12px",cursor:"pointer",fontSize:12,
+                          fontFamily:"'DM Mono',monospace",
+                          background:activeSug===i?"rgba(99,140,255,0.12)":"transparent",
+                          color:activeSug===i?"#638cff":"rgba(200,215,240,0.75)",
+                          display:"flex",alignItems:"center",gap:8,
+                          borderBottom: i<suggestions.length-1?"1px solid rgba(99,140,255,0.06)":"none",
+                          transition:"background .1s",
+                        }}
+                        onMouseEnter={()=>setActiveSug(i)}
+                        onMouseLeave={()=>setActiveSug(-1)}>
+                        <Search size={10} style={{opacity:.4,flexShrink:0}}/>
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {error&&(
                 <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 13px",
@@ -2821,10 +3971,14 @@ export default function ExoPlanetDashboard() {
         {activeTab==="catalog"&&<CatalogTab onAnalyze={analyzeFromCatalog}/>}
 
         {/* ─ History tab ─ */}
-        {activeTab==="history"&&<HistoryTab history={history}/>}
+        {activeTab==="history"&&<HistoryTab history={history} onClear={async()=>{
+          await authFetch(`${API_BASE}/api/history`,{method:"DELETE"});
+          setHistory([]);
+        }} onAnalyze={analyzeFromCatalog}/>}
 
         {/* ─ Documentation tab ─ */}
         {activeTab==="documentation"&&<DocTab/>}
+        {activeTab==="profile"&&<ProfileTab authState={authState} history={history} onLogout={handleLogout} setAuthState={setAuthState} isLightMode={isLightMode} setIsLightMode={setIsLightMode}/>}
 
         {/* footer */}
         <div style={{display:"flex",justifyContent:"space-between",

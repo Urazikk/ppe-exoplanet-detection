@@ -60,7 +60,7 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, DELETE, OPTIONS'
     return response
 
 
@@ -92,6 +92,9 @@ results_cache = {}
 # Cache in-memory avec TTL (clé → {"result": ..., "ts": float})
 _analysis_cache = {}
 CACHE_TTL = 600  # 10 minutes
+
+# Catalog index (lightweight, no flux/time arrays)
+_catalog_cache_index = []
 
 
 def is_finite_number(value):
@@ -186,6 +189,38 @@ def load_resources():
 load_results_cache()
 
 load_resources()
+
+
+def _build_catalog_index():
+    """Builds a lightweight index of all ok-status cache files (no flux/time arrays)."""
+    global _catalog_cache_index
+    cache_dir = os.path.join(os.path.dirname(__file__), "data", "cache", "lightkurve_training")
+    entries = []
+    for fname in os.listdir(cache_dir):
+        if not fname.startswith("star_") or not fname.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(cache_dir, fname)) as f:
+                d = json.load(f)
+            if d.get("status") != "ok":
+                continue
+            entries.append({
+                "kepid": d["kepid"],
+                "label": d.get("label", 0),
+                "n_points": d.get("n_points", 0),
+                "bls_snr": round(d["bls_snr"], 3) if d.get("bls_snr") is not None else None,
+                "bls_depth_ppm": round(d["bls_depth_ppm"], 1) if d.get("bls_depth_ppm") is not None else None,
+                "bls_duration_days": round(d["bls_duration_days"], 4) if d.get("bls_duration_days") is not None else None,
+                "bls_score": round(d["bls_score"], 4) if d.get("bls_score") is not None else None,
+                "period": round(d["period"], 4) if d.get("period") is not None else None,
+            })
+        except Exception:
+            continue
+    _catalog_cache_index = sorted(entries, key=lambda x: x.get("bls_snr") or 0, reverse=True)
+    print(f"[Catalog] Index built: {len(_catalog_cache_index)} stars")
+
+
+_build_catalog_index()
 
 
 # =============================================================================
@@ -293,7 +328,9 @@ def register():
     
     users[username] = {
         "password_hash": hash_password(password),
-        "created_at": datetime.datetime.utcnow().isoformat()
+        "created_at": datetime.datetime.utcnow().isoformat(),
+        "has_seen_tutorial": False,
+        "avatar": "user"
     }
     save_users(users)
     
@@ -331,8 +368,100 @@ def login():
     return jsonify({
         "token": token,
         "expires_in": JWT_EXPIRATION_HOURS * 3600,
-        "username": username
+        "username": username,
+        "has_seen_tutorial": users[username].get("has_seen_tutorial", False),
+        "avatar": users[username].get("avatar", "user")
     })
+
+
+@app.route('/api/auth/tutorial_seen', methods=['POST'])
+@token_required
+def tutorial_seen():
+    """Marque le tutoriel interactif comme vu par l'utilisateur."""
+    username = g.current_user
+    users = load_users()
+    if username in users:
+        users[username]["has_seen_tutorial"] = True
+        save_users(users)
+    return jsonify({"ok": True})
+
+
+@app.route('/api/auth/update_profile', methods=['POST'])
+@token_required
+def update_profile():
+    """Modifie la photo de profil (avatar)."""
+    data = request.get_json()
+    if not data or 'avatar' not in data:
+        return jsonify({"error": "Paramètre 'avatar' requis."}), 400
+    username = g.current_user
+    users = load_users()
+    if username in users:
+        users[username]["avatar"] = data["avatar"]
+        save_users(users)
+    return jsonify({"ok": True, "avatar": data["avatar"]})
+
+
+@app.route('/api/auth/change_password', methods=['POST'])
+@token_required
+def change_password():
+    """Modifie le mot de passe après vérification de l'ancien."""
+    data = request.get_json()
+    if not data or 'old_password' not in data or 'new_password' not in data:
+        return jsonify({"error": "Champs 'old_password' et 'new_password' requis."}), 400
+    username = g.current_user
+    users = load_users()
+    if username not in users:
+        return jsonify({"error": "Utilisateur introuvable."}), 404
+        
+    old_hash = hash_password(data["old_password"])
+    if users[username]["password_hash"] != old_hash:
+        return jsonify({"error": "Ancien mot de passe incorrect."}), 401
+        
+    if len(data["new_password"]) < 6:
+        return jsonify({"error": "Le nouveau mot de passe doit faire au moins 6 caractères."}), 400
+        
+    users[username]["password_hash"] = hash_password(data["new_password"])
+    save_users(users)
+    return jsonify({"message": "Mot de passe modifié avec succès."})
+
+
+@app.route('/api/auth/change_username', methods=['POST'])
+@token_required
+def change_username():
+    """Change le pseudo utilisateur et migre ses données."""
+    data = request.get_json()
+    new_username = data.get("new_username", "").strip()
+    if not new_username or len(new_username) < 3:
+        return jsonify({"error": "Pseudo trop court ou invalide."}), 400
+        
+    old_username = g.current_user
+    users = load_users()
+    
+    if new_username in users:
+        return jsonify({"error": "Ce pseudo est déjà pris."}), 409
+        
+    if old_username not in users:
+        return jsonify({"error": "Utilisateur introuvable."}), 404
+        
+    # Migrate user
+    users[new_username] = users.pop(old_username)
+    save_users(users)
+    
+    # Migrate history
+    local_history = load_history()
+    if old_username in local_history:
+        local_history[new_username] = local_history.pop(old_username)
+        save_history(local_history)
+        
+    # Generate new token
+    import datetime, jwt
+    token = jwt.encode({
+        "username": new_username,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=JWT_EXPIRATION_HOURS),
+        "iat": datetime.datetime.utcnow()
+    }, app.config['SECRET_KEY'], algorithm="HS256")
+    
+    return jsonify({"message": "Pseudo modifié", "token": token})
 
 
 @app.route('/', methods=['GET'])
@@ -658,6 +787,18 @@ def get_history():
     return jsonify(history.get(username, []))
 
 
+@app.route('/api/history', methods=['DELETE'])
+@token_required
+def clear_history():
+    """Vide l'historique des analyses du user connecté."""
+    username = g.current_user
+    history = load_history()
+    history[username] = []
+    with open(HISTORY_PATH, "w") as f:
+        json.dump(history, f, indent=2)
+    return jsonify({"ok": True})
+
+
 @app.route('/api/metrics', methods=['GET'])
 @token_required
 def get_metrics():
@@ -708,6 +849,173 @@ def search_catalog():
         "count": len(entries),
         "results": entries
     })
+
+
+@app.route('/api/catalog/stars', methods=['GET'])
+@token_required
+def get_catalog_stars():
+    page = int(request.args.get('page', 1))
+    limit = min(int(request.args.get('limit', 20)), 100)
+    search = request.args.get('search', '').strip()
+    label = request.args.get('label', 'all')  # 'all', '0', '1'
+    sort_by = request.args.get('sort_by', 'snr')  # 'snr', 'period', 'depth', 'score'
+    sort_dir = request.args.get('sort_dir', 'desc')  # 'asc', 'desc'
+    min_snr = request.args.get('min_snr', None)
+    max_snr = request.args.get('max_snr', None)
+    min_period = request.args.get('min_period', None)
+    max_period = request.args.get('max_period', None)
+
+    data = _catalog_cache_index[:]
+
+    # filters
+    if search:
+        data = [s for s in data if search in str(s['kepid'])]
+    if label == '1':
+        data = [s for s in data if s['label'] == 1]
+    elif label == '0':
+        data = [s for s in data if s['label'] == 0]
+    if min_snr is not None:
+        data = [s for s in data if s.get('bls_snr') is not None and s['bls_snr'] >= float(min_snr)]
+    if max_snr is not None:
+        data = [s for s in data if s.get('bls_snr') is not None and s['bls_snr'] <= float(max_snr)]
+    if min_period is not None:
+        data = [s for s in data if s.get('period') is not None and s['period'] >= float(min_period)]
+    if max_period is not None:
+        data = [s for s in data if s.get('period') is not None and s['period'] <= float(max_period)]
+
+    # sort
+    sort_key_map = {'snr': 'bls_snr', 'period': 'period', 'depth': 'bls_depth_ppm', 'score': 'bls_score'}
+    key = sort_key_map.get(sort_by, 'bls_snr')
+    reverse = sort_dir != 'asc'
+    data = sorted(data, key=lambda x: (x.get(key) is None, x.get(key) or 0), reverse=reverse)
+
+    total = len(data)
+    n_planets_filtered = sum(1 for s in data if s['label'] == 1)
+    offset = (page - 1) * limit
+    page_data = data[offset:offset + limit]
+
+    # summary stats from full dataset
+    all_ok = _catalog_cache_index
+    n_planets = sum(1 for s in all_ok if s['label'] == 1)
+    snrs = [s['bls_snr'] for s in all_ok if s.get('bls_snr') is not None]
+    avg_snr = round(sum(snrs) / len(snrs), 2) if snrs else 0
+
+    return jsonify({
+        "total": total,
+        "n_planets_filtered": n_planets_filtered,
+        "page": page,
+        "pages": (total + limit - 1) // limit,
+        "limit": limit,
+        "stars": page_data,
+        "stats": {
+            "total_stars": len(all_ok),
+            "n_planets": n_planets,
+            "n_non_planets": len(all_ok) - n_planets,
+            "avg_snr": avg_snr,
+        }
+    })
+
+
+@app.route('/api/catalog/upload', methods=['POST'])
+@token_required
+def upload_custom_star():
+    """
+    Upload a custom star CSV file for analysis.
+    Required columns: time, flux
+    Optional column: target_id
+    """
+    import io
+    if 'file' not in request.files:
+        return jsonify({"error": "Aucun fichier fourni. Envoyez un champ 'file'."}), 400
+
+    file = request.files['file']
+    if not file.filename.endswith('.csv'):
+        return jsonify({"error": "Format non supporté. Seuls les fichiers .csv sont acceptés."}), 400
+
+    try:
+        content = file.read().decode('utf-8')
+        df_custom = pd.read_csv(io.StringIO(content))
+    except Exception as e:
+        return jsonify({"error": f"Impossible de lire le CSV : {e}"}), 400
+
+    # normalize column names
+    df_custom.columns = [c.strip().lower() for c in df_custom.columns]
+
+    if 'time' not in df_custom.columns or 'flux' not in df_custom.columns:
+        return jsonify({"error": "Colonnes manquantes. Le fichier doit contenir au minimum 'time' et 'flux'."}), 400
+
+    target_id = request.form.get('target_id', '') or df_custom.get('target_id', pd.Series(['Custom Star'])).iloc[0]
+    if not isinstance(target_id, str):
+        target_id = str(target_id)
+
+    try:
+        time_arr = np.array(df_custom['time'].values, dtype=float)
+        flux_arr = np.array(df_custom['flux'].values, dtype=float)
+    except Exception as e:
+        return jsonify({"error": f"Les colonnes time/flux doivent être numériques : {e}"}), 400
+
+    # Remove NaN
+    mask = ~(np.isnan(time_arr) | np.isnan(flux_arr))
+    time_arr = time_arr[mask]
+    flux_arr = flux_arr[mask]
+
+    if len(time_arr) < 50:
+        return jsonify({"error": f"Pas assez de points de données ({len(time_arr)} trouvés, minimum 50 requis)."}), 400
+
+    # Build a lightkurve LightCurve and run the pipeline
+    try:
+        import lightkurve as lk
+        lc = lk.LightCurve(time=time_arr, flux=flux_arr)
+        from src.p02_preprocessing import preprocess_lightcurve
+        from src.p03_bls import run_bls
+        from src.p04_features import extract_features
+        lc_clean = preprocess_lightcurve(lc)
+        if lc_clean is None or len(lc_clean) < 30:
+            return jsonify({"error": "Prétraitement échoué : courbe trop courte après nettoyage."}), 400
+
+        best_period, bls_model, bls_results = run_bls(lc_clean)
+        if best_period is None:
+            return jsonify({"error": "Détection BLS échouée. Vérifiez la qualité de vos données."}), 400
+
+        features_dict, folded_lc = extract_features(lc_clean, best_period, bls_model, bls_results)
+        if features_dict is None:
+            return jsonify({"error": "Extraction de features échouée."}), 400
+
+        if model is None:
+            return jsonify({"error": "Modèle IA non chargé."}), 503
+
+        features_df = pd.DataFrame([features_dict])
+        features_df = features_df.reindex(columns=model.feature_names_in_, fill_value=0)
+        score = float(model.predict_proba(features_df)[0][1])
+
+        verdict = "Planète probable" if score >= 0.7 else "Signal ambigu" if score >= 0.35 else "Non planétaire"
+
+        result_data = []
+        if folded_lc is not None:
+            fl_time = np.array(folded_lc.time.value if hasattr(folded_lc.time, 'value') else folded_lc.time, dtype=float)
+            fl_flux = np.array(folded_lc.flux.value if hasattr(folded_lc.flux, 'value') else folded_lc.flux, dtype=float)
+            mask2 = ~(np.isnan(fl_time) | np.isnan(fl_flux))
+            result_data = [{"x": float(t), "y": float(f)} for t, f in zip(fl_time[mask2], fl_flux[mask2])]
+            
+        save_history_entry(g.current_user, {
+            "target": target_id,
+            "score": round(score, 4),
+            "verdict": verdict,
+            "period_days": round(best_period, 4),
+            "mission": "Custom CSV",
+            "date": datetime.datetime.utcnow().isoformat(),
+        })
+
+        return jsonify({
+            "target": target_id,
+            "score": round(score, 4),
+            "verdict": verdict,
+            "period_days": round(best_period, 4),
+            "data": result_data[:1500],
+            "n_points": len(time_arr),
+        })
+    except Exception as e:
+        return jsonify({"error": f"Erreur lors de l'analyse : {e}"}), 500
 
 
 # =============================================================================

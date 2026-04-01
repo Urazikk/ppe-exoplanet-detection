@@ -204,32 +204,111 @@ load_resources()
 
 
 def _build_catalog_index():
-    """Builds a lightweight index of all ok-status cache files (no flux/time arrays)."""
+    """
+    Construit l'index du catalogue en 3 passes :
+    1. Cache Lightkurve local (vraies stats BLS) — priorité maximale
+    2. Catalogue Kepler CSV (koi_period, koi_depth…) pour les étoiles hors cache
+    3. Catalogue TESS TOI CSV (toutes les entrées avec leur TIC id)
+    """
     global _catalog_cache_index
+
+    # ── Passe 1 : cache local (données BLS réelles) ──────────────────────────
     cache_dir = os.path.join(os.path.dirname(__file__), "data", "cache", "lightkurve_training")
     entries = []
-    for fname in os.listdir(cache_dir):
-        if not fname.startswith("star_") or not fname.endswith(".json"):
-            continue
-        try:
-            with open(os.path.join(cache_dir, fname)) as f:
-                d = json.load(f)
-            if d.get("status") != "ok":
+    cached_kepids = set()
+
+    if os.path.isdir(cache_dir):
+        for fname in os.listdir(cache_dir):
+            if not fname.startswith("star_") or not fname.endswith(".json"):
                 continue
-            entries.append({
-                "kepid": d["kepid"],
-                "label": d.get("label", 0),
-                "n_points": d.get("n_points", 0),
-                "bls_snr": round(d["bls_snr"], 3) if d.get("bls_snr") is not None else None,
-                "bls_depth_ppm": round(d["bls_depth_ppm"], 1) if d.get("bls_depth_ppm") is not None else None,
-                "bls_duration_days": round(d["bls_duration_days"], 4) if d.get("bls_duration_days") is not None else None,
-                "bls_score": round(d["bls_score"], 4) if d.get("bls_score") is not None else None,
-                "period": round(d["period"], 4) if d.get("period") is not None else None,
-            })
-        except Exception:
-            continue
+            try:
+                with open(os.path.join(cache_dir, fname)) as f:
+                    d = json.load(f)
+                if d.get("status") != "ok":
+                    continue
+                kepid = d["kepid"]
+                cached_kepids.add(kepid)
+                entries.append({
+                    "kepid":            kepid,
+                    "target_id":        f"KIC {kepid}",
+                    "name":             f"KIC {kepid}",
+                    "mission":          "Kepler",
+                    "label":            d.get("label", 0),
+                    "n_points":         d.get("n_points", 0),
+                    "bls_snr":          round(d["bls_snr"], 3) if d.get("bls_snr") is not None else None,
+                    "bls_depth_ppm":    round(d["bls_depth_ppm"], 1) if d.get("bls_depth_ppm") is not None else None,
+                    "bls_duration_days":round(d["bls_duration_days"], 4) if d.get("bls_duration_days") is not None else None,
+                    "bls_score":        round(d["bls_score"], 4) if d.get("bls_score") is not None else None,
+                    "period":           round(d["period"], 4) if d.get("period") is not None else None,
+                })
+            except Exception:
+                continue
+
+    # ── Passe 2 : catalogue Kepler CSV (hors cache) ──────────────────────────
+    kepler_csv = os.path.join(os.path.dirname(__file__), "..", "data", "catalog", "exoplanet_binary_full.csv")
+    if os.path.exists(kepler_csv):
+        try:
+            kdf = pd.read_csv(kepler_csv)
+            for _, row in kdf.iterrows():
+                kepid = int(row["kepid"]) if pd.notna(row.get("kepid")) else None
+                if kepid is None or kepid in cached_kepids:
+                    continue
+                period = row.get("koi_period")
+                depth  = row.get("koi_depth")
+                dur    = row.get("koi_duration")  # heures
+                snr    = row.get("koi_model_snr")
+                name   = str(row["kepler_name"]) if pd.notna(row.get("kepler_name")) else f"KIC {kepid}"
+                entries.append({
+                    "kepid":            kepid,
+                    "target_id":        f"KIC {kepid}",
+                    "name":             name,
+                    "mission":          "Kepler",
+                    "label":            int(row["target_planet"]) if pd.notna(row.get("target_planet")) else 0,
+                    "n_points":         0,
+                    "bls_snr":          round(float(snr), 2) if pd.notna(snr) else None,
+                    "bls_depth_ppm":    round(float(depth), 1) if pd.notna(depth) else None,
+                    "bls_duration_days":round(float(dur) / 24.0, 4) if pd.notna(dur) else None,
+                    "bls_score":        None,
+                    "period":           round(float(period), 4) if pd.notna(period) else None,
+                })
+                cached_kepids.add(kepid)  # éviter doublons si plusieurs KOI pour le même KIC
+        except Exception as e:
+            print(f"[Catalog] Erreur lecture Kepler CSV : {e}")
+
+    # ── Passe 3 : catalogue TESS TOI CSV ─────────────────────────────────────
+    tess_csv = os.path.join(os.path.dirname(__file__), "..", "data", "catalog", "tess_toi_binary.csv")
+    if os.path.exists(tess_csv):
+        try:
+            tdf = pd.read_csv(tess_csv)
+            for _, row in tdf.iterrows():
+                tid = int(row["tid"]) if pd.notna(row.get("tid")) else None
+                toi = row.get("toi")
+                if tid is None:
+                    continue
+                period = row.get("koi_period")
+                depth  = row.get("koi_depth")
+                dur    = row.get("koi_duration")  # heures
+                name   = f"TOI {toi}" if pd.notna(toi) else f"TIC {tid}"
+                entries.append({
+                    "kepid":            tid,   # champ générique, contient TIC id pour TESS
+                    "target_id":        f"TIC {tid}",
+                    "name":             name,
+                    "mission":          "TESS",
+                    "label":            int(row["target_planet"]) if pd.notna(row.get("target_planet")) else 0,
+                    "n_points":         0,
+                    "bls_snr":          None,
+                    "bls_depth_ppm":    round(float(depth), 1) if pd.notna(depth) else None,
+                    "bls_duration_days":round(float(dur) / 24.0, 4) if pd.notna(dur) else None,
+                    "bls_score":        None,
+                    "period":           round(float(period), 4) if pd.notna(period) else None,
+                })
+        except Exception as e:
+            print(f"[Catalog] Erreur lecture TESS CSV : {e}")
+
     _catalog_cache_index = sorted(entries, key=lambda x: x.get("bls_snr") or 0, reverse=True)
-    print(f"[Catalog] Index built: {len(_catalog_cache_index)} stars")
+    n_kepler = sum(1 for e in entries if e["mission"] == "Kepler")
+    n_tess   = sum(1 for e in entries if e["mission"] == "TESS")
+    print(f"[Catalog] Index built: {len(_catalog_cache_index)} étoiles ({n_kepler} Kepler, {n_tess} TESS)")
 
 
 _build_catalog_index()
@@ -941,7 +1020,11 @@ def get_catalog_stars():
 
     # filters
     if search:
-        data = [s for s in data if search in str(s['kepid'])]
+        q = search.lower()
+        data = [s for s in data if
+                q in str(s.get('kepid', '')).lower() or
+                q in s.get('target_id', '').lower() or
+                q in s.get('name', '').lower()]
     if label == '1':
         data = [s for s in data if s['label'] == 1]
     elif label == '0':

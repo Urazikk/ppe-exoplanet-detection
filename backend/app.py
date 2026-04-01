@@ -673,7 +673,7 @@ def run_full_analysis(target_id, mission, username):
     log(f"Prédiction OK - score = {score:.4f}")
 
     characterization = compute_characterization(lc_clean, lc_folded, period, score)
-    metadata = get_real_metadata(target_id)
+    metadata = get_real_metadata(target_id, resolved_kepid=resolved_kepid)
 
     if not is_finite_number(score):
         score = 0.5
@@ -1539,32 +1539,67 @@ def compute_characterization(lc_clean, lc_folded, period, score):
         return {"error": f"Caractérisation échouée : {str(e)}"}
 
 
-def get_real_metadata(target_id):
+def get_real_metadata(target_id, resolved_kepid=None):
     """
-    Récupère les vraies métadonnées stellaires depuis le catalogue NASA.
+    Récupère les vraies métadonnées stellaires depuis les catalogues NASA.
+    Gère : KIC XXXXXXX, Kepler-XXX (par nom), TIC XXXXXXX (TESS TOI).
+    resolved_kepid : KIC ID déjà résolu par Lightkurve (prioritaire).
     """
+    # ── Lookup TESS TOI ─────────────────────────────────────────────────────
+    if tess_catalog_df is not None and "TIC" in str(target_id).upper():
+        try:
+            tic_id = int(str(target_id).upper().replace("TIC", "").strip())
+            tess_match = tess_catalog_df[tess_catalog_df['tid'] == tic_id]
+            if len(tess_match) > 0:
+                row = tess_match.iloc[0]
+                return {
+                    "tic_id": tic_id,
+                    "toi": str(row['toi']) if pd.notna(row.get('toi')) else None,
+                    "star_temperature_k": int(row['koi_steff']) if pd.notna(row.get('koi_steff')) else None,
+                    "star_radius_solar": round(float(row['koi_srad']), 3) if pd.notna(row.get('koi_srad')) else None,
+                    "kepler_magnitude": round(float(row['koi_kepmag']), 2) if pd.notna(row.get('koi_kepmag')) else None,
+                    "known_disposition": "CONFIRMED" if row.get('target_planet') == 1 else "FALSE POSITIVE",
+                    "catalog_period": round(float(row['koi_period']), 4) if pd.notna(row.get('koi_period')) else None,
+                    "catalog_depth_ppm": round(float(row['koi_depth']), 1) if pd.notna(row.get('koi_depth')) else None,
+                    "catalog_planet_radius": round(float(row['koi_prad']), 2) if pd.notna(row.get('koi_prad')) else None,
+                    "source": "NASA Exoplanet Archive (TESS TOI)"
+                }
+        except (ValueError, TypeError):
+            pass
+
+    # ── Lookup Kepler KOI ────────────────────────────────────────────────────
     if catalog_df is None:
         return {"note": "Catalogue non disponible"}
-    
-    # Extraction du KIC ID depuis le nom
-    kepid = None
-    
-    if "KIC" in target_id:
-        try:
-            kepid = int(target_id.replace("KIC", "").strip())
-        except ValueError:
-            pass
-    elif "Kepler-" in target_id:
-        # Pour les noms Kepler-X, on cherche dans le catalogue par nom
-        # (lightkurve résout le KIC automatiquement, mais pas nous ici)
-        pass
-    
+
+    kepid = resolved_kepid  # priorité : ID résolu par Lightkurve
+
+    if kepid is None:
+        if "KIC" in str(target_id).upper():
+            try:
+                kepid = int(str(target_id).upper().replace("KIC", "").strip())
+            except ValueError:
+                pass
+        elif "Kepler-" in target_id:
+            # Recherche par kepler_name (ex: "Kepler-452 b", "Kepler-10 b")
+            # On extrait le numéro pour éviter que "Kepler-10" matche "Kepler-105"
+            import re as _re_meta
+            m = _re_meta.match(r'(Kepler-\d+)', target_id.strip(), _re_meta.IGNORECASE)
+            if m:
+                name_prefix = m.group(1)
+                # Match exact du système : "Kepler-10 " (espace) ou fin de chaîne
+                pattern = rf'^{_re_meta.escape(name_prefix)}(\s|$)'
+                mask = catalog_df['kepler_name'].astype(str).str.match(pattern, case=False, na=False)
+                if mask.any():
+                    kepid = int(catalog_df.loc[mask, 'kepid'].iloc[0])
+
     if kepid is not None:
         match = catalog_df[catalog_df['kepid'] == kepid]
         if len(match) > 0:
             row = match.iloc[0]
+            kepler_name = str(row['kepler_name']) if pd.notna(row.get('kepler_name')) else None
             return {
                 "kepid": int(row['kepid']),
+                "kepler_name": kepler_name,
                 "star_temperature_k": int(row['koi_steff']) if pd.notna(row.get('koi_steff')) else None,
                 "star_radius_solar": round(float(row['koi_srad']), 3) if pd.notna(row.get('koi_srad')) else None,
                 "kepler_magnitude": round(float(row['koi_kepmag']), 2) if pd.notna(row.get('koi_kepmag')) else None,
@@ -1574,10 +1609,10 @@ def get_real_metadata(target_id):
                 "catalog_planet_radius": round(float(row['koi_prad']), 2) if pd.notna(row.get('koi_prad')) else None,
                 "source": "NASA Exoplanet Archive (KOI Table)"
             }
-    
+
     return {
-        "note": "Métadonnées non trouvées dans le catalogue KOI.",
-        "hint": "Utilisez un identifiant KIC (ex: KIC 11446443) pour des données complètes."
+        "note": "Métadonnées non trouvées dans le catalogue.",
+        "hint": "Utilisez KIC XXXXXXX, Kepler-XXX ou TIC XXXXXXX pour des données complètes."
     }
 
 

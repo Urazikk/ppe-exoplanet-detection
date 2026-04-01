@@ -6,7 +6,7 @@ import {
   Loader2, AlertTriangle, CheckCircle2, Sparkles, RotateCcw, LogIn,
   LogOut, User, Lock, Eye, EyeOff, ShieldCheck, BarChart2, BookOpen,
   UserPlus, Zap, Globe, TrendingUp, Filter, X, Info, Clock, FileText,
-  Columns, Dice6, Rocket, Moon, Satellite, Radar, Ghost, Monitor
+  Columns, Dice6, Rocket, Moon, Satellite, Radar, Ghost, Monitor, Trash2
 } from "lucide-react";
 
 const API_BASE = "http://localhost:5001";
@@ -23,6 +23,12 @@ const PRESET_TARGETS = [
 ];
 
 // Pool vérifié status=ok dans le cache backend
+const VERIFIED_TIC_POOL = [
+  "TIC 231670397","TIC 16288184","TIC 144065872","TIC 66818296","TIC 317060587",
+  "TIC 366989877","TIC 320004517","TIC 38846515","TIC 149601557","TIC 400595342",
+  "TIC 304021498","TIC 363260203","TIC 261136679","TIC 55525572","TIC 192826603",
+];
+
 const VERIFIED_KIC_POOL = [
   "KIC 10000490","KIC 10023469","KIC 10091257","KIC 10154388","KIC 10203349",
   "KIC 10268714","KIC 10330115","KIC 10384798","KIC 10460984","KIC 10514429",
@@ -64,9 +70,8 @@ const KEPLER_NAMED = [
 const TOUR_STEPS = [
   { sel:null,                     title:"🚀 Bienvenue !",              desc:"Ce tutoriel rapide te présente toutes les fonctionnalités en moins de 2 minutes. Clique sur Suivant pour commencer, ou Passer pour ignorer." },
   { sel:"[data-tour='mode-toggle']", title:"✨ Débutant / Expert",      desc:"Choisis ton niveau ici. Le mode Débutant simplifie tout en français courant avec des emojis. Le mode Expert affiche les données scientifiques complètes." },
-  { sel:"[data-tour='nav']",      title:"🗂 Les onglets",               desc:"Chaque onglet est un outil différent. Tu peux naviguer librement entre Analyse, Scanner, Comparaison, Catalogue, Historique et Documentation." },
+  { sel:"[data-tour='nav']",      title:"🗂 Les onglets",               desc:"Chaque onglet est un outil différent. Tu peux naviguer librement entre Analyse, Comparaison, Catalogue, Historique et Documentation." },
   { sel:"[data-tour='search']",   title:"🔍 Analyser une étoile",      desc:"Tape le nom d'une étoile (ex: Kepler-22b) ou son identifiant KIC. L'IA analyse sa courbe de lumière et te dit si une planète est probable — en quelques secondes." },
-  { sel:"[data-tour='tab-scanner']",  title:"🌌 Scanner",              desc:"Le Scanner choisit des étoiles aléatoirement depuis notre banque de 1477 étoiles et les analyse en parallèle. Parfait pour explorer !" },
   { sel:"[data-tour='tab-comparison']",title:"⚖️ Comparaison",         desc:"Compare jusqu'à 3 étoiles côte à côte : courbes de lumière, score IA et caractéristiques orbitales." },
   { sel:"[data-tour='tab-catalog']",  title:"📚 Catalogue",            desc:"Parcours toutes nos étoiles avec des filtres avancés (SNR, période, type planète), ou upload ton propre fichier CSV pour analyser une étoile personnalisée." },
   { sel:"[data-tour='tab-history']",  title:"🕓 Historique",           desc:"Retrouve toutes tes analyses passées, même après déconnexion. Tu peux relancer une analyse directement depuis ici." },
@@ -934,6 +939,10 @@ const KOI_LABELS = {
   koi_fpflag_ss:      "Flag étoile secondaire",
   koi_fpflag_co:      "Flag contamination",
   koi_fpflag_ec:      "Flag éphéméride",
+  is_tess:            "Mission TESS",
+  glon:               "Longitude galactique",
+  glat:               "Latitude galactique",
+  koi_kepmag:         "Magnitude Kepler/TESS",
 };
 
 /* Descriptions détaillées : comment chaque feature est calculée */
@@ -2644,7 +2653,7 @@ function formatHistoryDate(dateStr) {
   } catch { return dateStr; }
 }
 
-function HistoryTab({ history, onClear, onAnalyze }) {
+function HistoryTab({ history, onClear, onDelete, onAnalyze }) {
   const simpleMode = useContext(ModeContext);
   const [confirming, setConfirming] = useState(false);
   const confirmTimer = useRef(null);
@@ -2842,13 +2851,21 @@ function HistoryTab({ history, onClear, onAnalyze }) {
                       {formatHistoryDate(row.date)}
                     </td>
                     <td style={{padding:"10px 12px"}}>
-                      <button onClick={()=>onAnalyze(row.target)} style={{
-                        padding:"3px 10px",borderRadius:6,fontSize:9,cursor:"pointer",
-                        fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",
-                        background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
-                        color:"#638cff",display:"flex",alignItems:"center",gap:4}}>
-                        <ChevronRight size={9}/>{simpleMode?"Revoir":"Analyser"}
-                      </button>
+                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        <button onClick={()=>onAnalyze(row.target)} style={{
+                          padding:"3px 10px",borderRadius:6,fontSize:9,cursor:"pointer",
+                          fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",
+                          background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
+                          color:"#638cff",display:"flex",alignItems:"center",gap:4}}>
+                          <ChevronRight size={9}/>{simpleMode?"Revoir":"Analyser"}
+                        </button>
+                        <button onClick={()=>onDelete(i)} style={{
+                          padding:"3px 7px",borderRadius:6,fontSize:9,cursor:"pointer",
+                          background:"rgba(248,113,113,0.06)",border:"1px solid rgba(248,113,113,0.15)",
+                          color:"rgba(248,113,113,0.6)",display:"flex",alignItems:"center"}}>
+                          <Trash2 size={9}/>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -3219,260 +3236,6 @@ function SuggestionSidebar({ current, onPick }) {
   );
 }
 
-/* ─── Scanner Tab ────────────────────────────────────────────── */
-function ScannerTab() {
-  const simpleMode = useContext(ModeContext);
-  const [inputText, setInputText] = useState("");
-  const [jobs, setJobs] = useState([]);
-  const [scanning, setScanning] = useState(false);
-  const [expandedJob, setExpandedJob] = useState(null);
-
-  const RANDOM_POOL = [
-    // Kepler nommés (toujours fonctionnels)
-    "Kepler-10","Kepler-22","Kepler-90","Kepler-452","Kepler-62","Kepler-186",
-    // KIC avec status=ok confirmé dans le cache backend
-    "KIC 10000490","KIC 10023469","KIC 10091257","KIC 10154388","KIC 10203349",
-    "KIC 10268714","KIC 10330115","KIC 10384798","KIC 10460984","KIC 10514429",
-    "KIC 10577994","KIC 10657406","KIC 10709622","KIC 10753922","KIC 10874614",
-    "KIC 10963065","KIC 11027624","KIC 11080405","KIC 11187436","KIC 11236244",
-    "KIC 11304987","KIC 11403530","KIC 11463211","KIC 11521793","KIC 11621897",
-    "KIC 11709124","KIC 11818872","KIC 11918099","KIC 12010534","KIC 12216278",
-    "KIC 12555140","KIC 2010191","KIC 2444412","KIC 2574201","KIC 2849805",
-    "KIC 3114167","KIC 3239945","KIC 3342467","KIC 3448130","KIC 3644399",
-    "KIC 3742855","KIC 3851193","KIC 3965326","KIC 4076976","KIC 4164994",
-    "KIC 4262581","KIC 4385148","KIC 4545187","KIC 4664743","KIC 4757437",
-    "KIC 4843751","KIC 4917596","KIC 5036480","KIC 5094751","KIC 5181455",
-    "KIC 5286786","KIC 5385410","KIC 5471202","KIC 5513897","KIC 5551504",
-    "KIC 5652237","KIC 5738346","KIC 5818068","KIC 5955621","KIC 6034945",
-    "KIC 6062929","KIC 6185331","KIC 6263593","KIC 6311520","KIC 6364582",
-    "KIC 6437617","KIC 6528464","KIC 6600492","KIC 6665064","KIC 6705026",
-    "KIC 6776401","KIC 6929841","KIC 7024045","KIC 7047922","KIC 7115597",
-    "KIC 7185710","KIC 7283710","KIC 7379385","KIC 7463685","KIC 7542369",
-    "KIC 7663405","KIC 7743464","KIC 7838675","KIC 7907423","KIC 8012732",
-    "KIC 8043638","KIC 8106610","KIC 8155368","KIC 8222813","KIC 8246781",
-    "KIC 8278371","KIC 8358012","KIC 8414914","KIC 8487645","KIC 8552719",
-    "KIC 8608544","KIC 8644288","KIC 8733898","KIC 8766222","KIC 8826878",
-    "KIC 8890150","KIC 8953257","KIC 9034103","KIC 9117416","KIC 9166870",
-    "KIC 9291039","KIC 9351920","KIC 9412445","KIC 9474483","KIC 9529733",
-    "KIC 9593528","KIC 9652649","KIC 9714550","KIC 9777090","KIC 9824805",
-  ];
-
-  const generateRandom = () => {
-    const shuffled = [...RANDOM_POOL].sort(() => Math.random() - 0.5);
-    setInputText(shuffled.slice(0, 5).join("\n"));
-  };
-
-  const startScan = async () => {
-    const targets = inputText.split(/[\n,]+/).map(t => t.trim()).filter(Boolean);
-    if (!targets.length) return;
-    
-    // limit to 10
-    const limited = targets.slice(0, 10);
-    
-    // reset jobs
-    const newJobs = limited.map((t, i) => ({ id: `job-${i}`, target: t, status: "pending", data: null, error: null }));
-    setJobs(newJobs);
-    setScanning(true);
-
-    await Promise.allSettled(newJobs.map(async (job) => {
-      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "loading" } : j));
-      try {
-        const res = await authFetch(`${API_BASE}/api/analyze?id=${encodeURIComponent(job.target)}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Erreur serveur");
-        setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "success", data } : j));
-      } catch (err) {
-        setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "error", error: err.message } : j));
-      }
-    }));
-    
-    setScanning(false);
-  };
-
-  return (
-    <div style={{ animation: "fadeIn 0.5s ease" }}>
-      <Card style={{ marginBottom: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div>
-            <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 15, fontWeight: 600 }}>Scanner de Constellation (Batch)</h2>
-            <p style={{ fontSize: 11, color: "rgba(160,180,220,0.5)", marginTop: 2 }}>Analysez jusqu'à 10 étoiles simultanément avec XGBoost.</p>
-          </div>
-          <button onClick={generateRandom} disabled={scanning} style={{
-            padding: "6px 12px", borderRadius: 8, background: "rgba(99,140,255,0.05)",
-            border: "1px solid rgba(99,140,255,0.15)", color: "#638cff", fontSize: 10,
-            fontFamily: "'DM Mono',monospace", cursor: scanning ? "not-allowed" : "pointer"
-          }}>
-            <Sparkles size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-            Générer cibles aléatoires
-          </button>
-        </div>
-        
-        <textarea 
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          disabled={scanning}
-          placeholder="collez des noms d'étoiles (ex: Kepler-10, KIC 10811496...) séparés par des virgules ou retours à la ligne"
-          style={{ width: "100%", height: 80, background: "rgba(7,9,15,0.6)", border: "1px solid rgba(99,140,255,0.1)",
-            borderRadius: 8, padding: 10, color: "#e0e8f5", fontFamily: "'DM Mono',monospace", fontSize: 11,
-            outline: "none", resize: "none", marginBottom: 12 }}
-        />
-        
-        <button onClick={startScan} disabled={scanning || !inputText.trim()} style={{
-          width: "100%", padding: "10px", borderRadius: 8,
-          background: scanning ? "rgba(99,140,255,0.1)" : "linear-gradient(135deg, #638cff, #8b5cf6)",
-          color: scanning ? "rgba(160,180,220,0.5)" : "#fff", border: "none",
-          fontFamily: "'DM Mono',monospace", fontSize: 12, fontWeight: 600, cursor: scanning ? "wait" : "pointer",
-          display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "background 0.3s"
-        }}>
-          {scanning ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Globe size={14} />}
-          {scanning ? "Analyse Multi-cœurs en cours..." : "Lancer le Scanner de Constellation"}
-        </button>
-      </Card>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-        {jobs.map(job => {
-          const isExpanded = expandedJob?.id === job.id;
-          const isGlow = job.data && job.data.score >= 0.70;
-          return (
-            <Card key={job.id} glow={isGlow}
-              onClick={job.status === "success" ? () => setExpandedJob(isExpanded ? null : job) : undefined}
-              style={{
-                border: isGlow ? "1px solid rgba(74,222,128,0.4)" : isExpanded ? "1px solid rgba(99,140,255,0.3)" : undefined,
-                background: isGlow ? "rgba(74,222,128,0.08)" : isExpanded ? "rgba(99,140,255,0.06)" : undefined,
-                cursor: job.status === "success" ? "pointer" : "default",
-                transition: "border 0.2s, background 0.2s",
-              }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 13, color: isGlow ? "#4ade80" : "#e0e8f5" }}>{job.target}</span>
-                {job.status === "pending" && <span style={{ fontSize: 10, color: "rgba(160,180,220,0.3)", padding: "2px 6px", border: "1px solid rgba(160,180,220,0.1)", borderRadius: 4 }}>En file</span>}
-                {job.status === "loading" && <Loader2 size={12} style={{ color: "#638cff", animation: "spin 1s linear infinite" }} />}
-                {job.status === "error" && <AlertTriangle size={12} style={{ color: "#f87171" }} />}
-                {job.status === "success" && (
-                  simpleMode
-                    ? <span style={{fontSize:18}}>{job.data.score>=0.70?"🌍":job.data.score>=0.35?"🔶":"⭐"}</span>
-                    : <div style={{ padding: "3px 8px", borderRadius: 4, fontSize: 10, fontFamily: "'DM Mono',monospace",
-                        background: job.data.score >= 0.7 ? "rgba(74,222,160,0.1)" : job.data.score >= 0.35 ? "rgba(251,191,36,0.1)" : "rgba(248,113,113,0.1)",
-                        color: job.data.score >= 0.7 ? "#4ade80" : job.data.score >= 0.35 ? "#fbbf24" : "#f87171" }}>
-                        {(job.data.score * 100).toFixed(1)}%
-                      </div>
-                )}
-              </div>
-              {job.status === "error" && <div style={{ fontSize: 10, color: "#f87171", fontFamily: "'DM Mono',monospace" }}>{simpleMode?"Étoile introuvable.":job.error}</div>}
-              {job.status === "success" && job.data && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: "'DM Mono',monospace", fontSize: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(160,180,220,0.1)", paddingBottom: 4 }}>
-                    <span style={{ color: "rgba(160,180,220,0.5)" }}>{simpleMode?"Résultat":"Verdict IA"}</span>
-                    <span style={{ color: isGlow ? "#4ade80" : "#e0e8f5", fontWeight: isGlow ? 700 : 400 }}>{job.data.verdict}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "rgba(160,180,220,0.5)" }}>Type</span>
-                    <span style={{ color: "#e0e8f5" }}>{job.data.characterization?.planet_type || "Indéterminé"}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "rgba(160,180,220,0.5)" }}>{simpleMode?"Taille":"Rayon"}</span>
-                    <span style={{ color: "#e0e8f5" }}>{job.data.characterization?.planet_radius_earth ? job.data.characterization.planet_radius_earth + (simpleMode?" × Terre":" R⊕") : "N/A"}</span>
-                  </div>
-                </div>
-              )}
-              {job.status === "loading" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "rgba(160,180,220,0.5)" }}>
-                  Traitement IA en cours...
-                </div>
-              )}
-              {job.status === "success" && (
-                <div style={{ marginTop: 8, fontSize: 10, color: isExpanded ? "rgba(160,180,220,0.4)" : "rgba(99,140,255,0.6)", fontFamily: "'DM Mono',monospace", textAlign: "right" }}>
-                  {isExpanded ? "▲ Réduire" : "▼ Voir l'analyse détaillée"}
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* ─ Panneau d'analyse inline ─ */}
-      {expandedJob && expandedJob.data && (
-        <div style={{ marginTop: 20, animation: "fadeIn 0.4s ease" }}>
-          <Card style={{ marginBottom: 14, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 14, color: expandedJob.data.score >= 0.7 ? "#4ade80" : "#e0e8f5" }}>
-                {expandedJob.data.target}
-              </span>
-              <span style={{ fontSize: 12, color: "rgba(160,180,220,0.5)", marginLeft: 10 }}>{expandedJob.data.verdict}</span>
-            </div>
-            <button onClick={() => setExpandedJob(null)} style={{
-              background: "none", border: "1px solid rgba(160,180,220,0.15)", borderRadius: 6,
-              color: "rgba(160,180,220,0.5)", fontSize: 11, fontFamily: "'DM Mono',monospace",
-              padding: "4px 10px", cursor: "pointer"
-            }}>✕ Fermer</button>
-          </Card>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <Card glow style={{ padding: 14 }}>
-              <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Courbe de Lumière Repliée</h2>
-              <p style={{ fontSize: 10, color: "rgba(160,180,220,0.38)", marginBottom: 10 }}>
-                {expandedJob.data.target} — P = {expandedJob.data.period_days} j
-              </p>
-              <div style={{ height: 300, borderRadius: 10, overflow: "hidden" }}>
-                <LightCurveCanvas data={expandedJob.data.data || []} score={expandedJob.data.score} isLoading={false} />
-              </div>
-            </Card>
-
-            {simpleMode ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-                <Card style={{ padding: 14, textAlign: "center" }}>
-                  <div style={{ fontSize: 36, marginBottom: 6 }}>
-                    {expandedJob.data.score >= 0.70 ? "🌍" : expandedJob.data.score >= 0.35 ? "🤔" : "❌"}
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: expandedJob.data.score >= 0.70 ? "#4ade80" : expandedJob.data.score >= 0.35 ? "#fbbf24" : "#f87171" }}>
-                    {expandedJob.data.score >= 0.70 ? "Planète probable !" : expandedJob.data.score >= 0.35 ? "Pas sûr…" : "Probablement pas une planète"}
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(160,180,220,0.5)", marginTop: 4 }}>
-                    Notre IA est sûre à {Math.round(expandedJob.data.score * 100)}%
-                  </div>
-                </Card>
-                <Card style={{ padding: 14, textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "rgba(160,180,220,0.4)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>Orbite</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#e0e8f5" }}>{expandedJob.data.period_days} j</div>
-                  <div style={{ fontSize: 10, color: "rgba(160,180,220,0.4)", marginTop: 4 }}>Durée d'une année sur cette planète</div>
-                </Card>
-                <Card style={{ padding: 14, textAlign: "center" }}>
-                  <div style={{ fontSize: 11, color: "rgba(160,180,220,0.4)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>Taille</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#e0e8f5" }}>{expandedJob.data.characterization?.planet_radius_re ? `${expandedJob.data.characterization.planet_radius_re} R⊕` : "—"}</div>
-                  <div style={{ fontSize: 10, color: "rgba(160,180,220,0.4)", marginTop: 4 }}>Par rapport à la Terre</div>
-                </Card>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: "240px 1fr 1fr", gap: 14 }}>
-                  <Card style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 14px" }}>
-                    <h3 style={{ fontSize: 10, color: "rgba(160,180,220,0.45)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1.5 }}>Verdict IA</h3>
-                    <ScoreGauge score={expandedJob.data.score} size={140} />
-                  </Card>
-                  {expandedJob.data.feature_importances?.length > 0
-                    ? <Card style={{ padding: 14 }}><FeatureBars features={expandedJob.data.feature_importances} /></Card>
-                    : <div />}
-                  <Card style={{ padding: 14 }}>
-                    <h3 style={{ fontSize: 10, color: "rgba(160,180,220,0.45)", marginBottom: 10, textTransform: "uppercase", letterSpacing: 1.5 }}>Caractéristiques</h3>
-                    <CharacterizationPanel data={expandedJob.data} />
-                  </Card>
-                </div>
-
-                <Card glow style={{ padding: 0, overflow: "hidden" }}>
-                  <div style={{ height: 340, borderRadius: 14 }}>
-                    <OrbitalViewer3D data={expandedJob.data} />
-                  </div>
-                </Card>
-
-                <SignalInsightsPanel data={expandedJob.data} />
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ─── Comparison Tab ─────────────────────────────────────────── */
 function ComparisonTab() {
   const simpleMode = useContext(ModeContext);
@@ -3499,7 +3262,8 @@ function ComparisonTab() {
   };
 
   const randomizeSlot = (id) => {
-    const pick = VERIFIED_KIC_POOL[Math.floor(Math.random() * VERIFIED_KIC_POOL.length)];
+    const pool = [...VERIFIED_KIC_POOL, ...VERIFIED_TIC_POOL, ...KEPLER_NAMED];
+    const pick = pool[Math.floor(Math.random() * pool.length)];
     updateSlot(id, { input:pick });
   };
 
@@ -3841,6 +3605,13 @@ const PROFILE_NAV = [
       { id: "csv",         label: "Imports CSV"  },
     ]
   },
+  {
+    id: "activite", label: "Activité", icon: Clock,
+    items: [
+      { id: "historique",    label: "Historique"    },
+      { id: "documentation", label: "Documentation" },
+    ]
+  },
 ];
 
 /* ─── Profile Tab ────────────────────────────────────────────── */
@@ -3853,7 +3624,7 @@ const AVATARS = [
   { id: "user",      icon: User      },
 ];
 
-function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, setIsLightMode }) {
+function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, setIsLightMode, onAnalyze, onClearHistory, onDeleteHistory }) {
   const [expandedSection, setExpandedSection] = useState("compte");
   const [activeItem, setActiveItem]           = useState("identite");
 
@@ -4281,6 +4052,12 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
           </div>
         );
 
+      case "historique":
+        return <HistoryTab history={history} onClear={onClearHistory} onDelete={onDeleteHistory} onAnalyze={onAnalyze}/>;
+
+      case "documentation":
+        return <DocTab/>;
+
       default: return null;
     }
   };
@@ -4518,12 +4295,9 @@ export default function ExoPlanetDashboard() {
 
   const TABS=[
     {key:"analysis",       label:"Analyse",      icon:Telescope},
-    {key:"scanner",        label:"Scanner",      icon:Globe},
     {key:"comparison",     label:"Comparaison",  icon:Columns},
     {key:"metrics",        label:"Métriques",    icon:BarChart2},
     {key:"catalog",        label:"Catalogue",    icon:Database},
-    {key:"history",        label:"Historique",   icon:Clock},
-    {key:"documentation",  label:"Documentation",icon:FileText},
     {key:"profile",        label:"Profil",       icon:User},
   ];
 
@@ -4863,9 +4637,6 @@ export default function ExoPlanetDashboard() {
           </div>
         )}
 
-        {/* ─ Scanner tab ─ */}
-        {activeTab==="scanner"&&<ScannerTab/>}
-
         {/* ─ Comparison tab ─ */}
         {activeTab==="comparison"&&<ComparisonTab/>}
 
@@ -4875,15 +4646,20 @@ export default function ExoPlanetDashboard() {
         {/* ─ Catalog tab ─ */}
         {activeTab==="catalog"&&<CatalogTab onAnalyze={analyzeFromCatalog}/>}
 
-        {/* ─ History tab ─ */}
-        {activeTab==="history"&&<HistoryTab history={history} onClear={async()=>{
-          await authFetch(`${API_BASE}/api/history`,{method:"DELETE"});
-          setHistory([]);
-        }} onAnalyze={analyzeFromCatalog}/>}
-
-        {/* ─ Documentation tab ─ */}
-        {activeTab==="documentation"&&<DocTab/>}
-        {activeTab==="profile"&&<ProfileTab authState={authState} history={history} onLogout={handleLogout} setAuthState={setAuthState} isLightMode={isLightMode} setIsLightMode={setIsLightMode}/>}
+        {activeTab==="profile"&&<ProfileTab
+          authState={authState} history={history}
+          onLogout={handleLogout} setAuthState={setAuthState}
+          isLightMode={isLightMode} setIsLightMode={setIsLightMode}
+          onAnalyze={analyzeFromCatalog}
+          onClearHistory={async()=>{
+            await authFetch(`${API_BASE}/api/history`,{method:"DELETE"});
+            setHistory([]);
+          }}
+          onDeleteHistory={async(idx)=>{
+            await authFetch(`${API_BASE}/api/history/${idx}`,{method:"DELETE"});
+            setHistory(prev=>prev.filter((_,i)=>i!==idx));
+          }}
+        />}
 
         {/* footer */}
         <div style={{display:"flex",justifyContent:"space-between",

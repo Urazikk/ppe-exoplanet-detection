@@ -871,6 +871,22 @@ def clear_history():
     return jsonify({"ok": True})
 
 
+@app.route('/api/history/<int:idx>', methods=['DELETE'])
+@token_required
+def delete_history_item(idx):
+    """Supprime une entrée de l'historique par index."""
+    username = g.current_user
+    history = load_history()
+    items = history.get(username, [])
+    if idx < 0 or idx >= len(items):
+        return jsonify({"error": "Index invalide"}), 404
+    items.pop(idx)
+    history[username] = items
+    with open(HISTORY_PATH, "w") as f:
+        json.dump(history, f, indent=2)
+    return jsonify({"ok": True})
+
+
 @app.route('/api/metrics', methods=['GET'])
 @token_required
 def get_metrics():
@@ -1037,43 +1053,44 @@ def upload_custom_star():
     # Build a lightkurve LightCurve and run the pipeline
     try:
         import lightkurve as lk
-        lc = lk.LightCurve(time=time_arr, flux=flux_arr)
-        from src.p02_preprocessing import preprocess_lightcurve
-        from src.p03_bls import run_bls
-        from src.p04_features import extract_features
-        lc_clean = preprocess_lightcurve(lc)
-        if lc_clean is None or len(lc_clean) < 30:
-            return jsonify({"error": "Prétraitement échoué : courbe trop courte après nettoyage."}), 400
-
-        best_period, bls_model, bls_results = run_bls(lc_clean)
-        if best_period is None:
-            return jsonify({"error": "Détection BLS échouée. Vérifiez la qualité de vos données."}), 400
-
-        features_dict, folded_lc = extract_features(lc_clean, best_period, bls_model, bls_results)
-        if features_dict is None:
-            return jsonify({"error": "Extraction de features échouée."}), 400
+        from src.p02_preprocessing import clean_and_flatten, get_period_hint, fold_lightcurve
+        from src.p04_features import run_feature_extraction
 
         if model is None:
             return jsonify({"error": "Modèle IA non chargé."}), 503
 
-        features_df = pd.DataFrame([features_dict])
-        features_df = features_df.reindex(columns=model.feature_names_in_, fill_value=0)
-        score = float(model.predict_proba(features_df)[0][1])
+        lc_raw = lk.LightCurve(time=time_arr, flux=flux_arr)
+        lc_clean = clean_and_flatten(lc_raw)
+        if lc_clean is None or len(lc_clean) < 30:
+            return jsonify({"error": "Prétraitement échoué : courbe trop courte après nettoyage."}), 400
+
+        best_period, bls_stats = get_period_hint(lc_clean)
+        if best_period is None or best_period <= 0:
+            return jsonify({"error": "Détection de période échouée. Vérifiez la qualité de vos données."}), 400
+
+        lc_folded = fold_lightcurve(lc_clean, best_period)
+
+        features_df = run_feature_extraction(lc_clean, target_id, bls_stats=bls_stats)
+        input_data = build_input_vector(
+            features_df, target_id, selected_features,
+            mission="Custom", bls_stats=bls_stats, period=best_period
+        )
+        score = float(model.predict_proba(input_data)[0][1])
 
         verdict = "Planète probable" if score >= 0.7 else "Signal ambigu" if score >= 0.35 else "Non planétaire"
 
         result_data = []
-        if folded_lc is not None:
-            fl_time = np.array(folded_lc.time.value if hasattr(folded_lc.time, 'value') else folded_lc.time, dtype=float)
-            fl_flux = np.array(folded_lc.flux.value if hasattr(folded_lc.flux, 'value') else folded_lc.flux, dtype=float)
+        if lc_folded is not None:
+            fl_time = np.array(lc_folded.time.value if hasattr(lc_folded.time, 'value') else lc_folded.time, dtype=float)
+            fl_flux = np.array(lc_folded.flux.value if hasattr(lc_folded.flux, 'value') else lc_folded.flux, dtype=float)
             mask2 = ~(np.isnan(fl_time) | np.isnan(fl_flux))
-            result_data = [{"x": float(t), "y": float(f)} for t, f in zip(fl_time[mask2], fl_flux[mask2])]
-            
+            result_data = [{"time": float(t), "flux": float(f)} for t, f in zip(fl_time[mask2], fl_flux[mask2])]
+
         save_history_entry(g.current_user, {
             "target": target_id,
             "score": round(score, 4),
             "verdict": verdict,
-            "period_days": round(best_period, 4),
+            "period_days": round(float(best_period), 4),
             "mission": "Custom CSV",
             "date": datetime.datetime.utcnow().isoformat(),
         })
@@ -1082,7 +1099,7 @@ def upload_custom_star():
             "target": target_id,
             "score": round(score, 4),
             "verdict": verdict,
-            "period_days": round(best_period, 4),
+            "period_days": round(float(best_period), 4),
             "data": result_data[:1500],
             "n_points": len(time_arr),
         })

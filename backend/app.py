@@ -77,6 +77,7 @@ MODEL_PATH = str(BASE_DIR / "models" / "exoplanet_model.json")
 FEATURES_PATH = str(BASE_DIR / "models" / "selected_features.json")
 METRICS_PATH = str(BASE_DIR / "models" / "model_metrics.json")
 CATALOG_PATH = str(BASE_DIR / "data" / "catalog" / "exoplanet_binary_full.csv")
+TESS_CATALOG_PATH = str(BASE_DIR / "data" / "catalog" / "tess_toi_binary.csv")
 USERS_PATH = str(BASE_DIR / "data" / "users.json")
 RESULTS_CACHE_PATH = str(BASE_DIR / "data" / "results_cache.json")
 HISTORY_PATH = str(BASE_DIR / "data" / "history.json")
@@ -90,6 +91,7 @@ model = None
 selected_features = []
 model_metrics = {}
 catalog_df = None
+tess_catalog_df = None
 results_cache = {}
 
 # Cache in-memory avec TTL (clé → {"result": ..., "ts": float})
@@ -156,7 +158,7 @@ def save_results_cache():
 
 def load_resources():
     """Charge le modèle, les features, les métriques et le catalogue au démarrage."""
-    global model, selected_features, model_metrics, catalog_df
+    global model, selected_features, model_metrics, catalog_df, tess_catalog_df
     
     # Modèle XGBoost
     if os.path.exists(MODEL_PATH):
@@ -187,6 +189,13 @@ def load_resources():
         print(f"[OK] Catalogue NASA chargé ({len(catalog_df)} entrées).")
     else:
         print("[!] Catalogue NASA introuvable. Les métadonnées stellaires seront limitées.")
+
+    # Catalogue TESS TOI
+    if os.path.exists(TESS_CATALOG_PATH):
+        tess_catalog_df = pd.read_csv(TESS_CATALOG_PATH)
+        print(f"[OK] Catalogue TESS TOI chargé ({len(tess_catalog_df)} entrées).")
+    else:
+        print("[!] Catalogue TESS introuvable. Lancez download_tess_toi.py pour le générer.")
 
 
 load_results_cache()
@@ -520,6 +529,11 @@ def run_full_analysis(target_id, mission, username):
     if resolved_kepid:
         log(f"KIC résolu : {resolved_kepid}")
 
+    # Paramètres stellaires depuis les en-têtes FITS (TEFF, RADIUS, LOGG, magnitude)
+    lc_stellar_params = _extract_stellar_params_from_lc(lc_raw)
+    if lc_stellar_params:
+        log(f"Paramètres stellaires FITS : {list(lc_stellar_params.keys())}")
+
     log("Prétraitement...")
     lc_clean = clean_and_flatten(lc_raw, quality="fast")
     if lc_clean is None:
@@ -567,7 +581,7 @@ def run_full_analysis(target_id, mission, username):
         else:
             # Ancien modèle TSFRESH/KOI
             features_df = run_feature_extraction(lc_clean, target_id, bls_stats=bls_stats)
-            input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid)
+            input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid, mission=mission, bls_stats=bls_stats, period=period, lc_stellar_params=lc_stellar_params)
 
         score = float(model.predict_proba(input_data)[0][1])
         if hasattr(model, 'feature_importances_'):
@@ -703,6 +717,7 @@ def analyze_stream():
                 return
 
             resolved_kepid = _extract_kepid_from_lc(lc_raw)
+            lc_stellar_params = _extract_stellar_params_from_lc(lc_raw)
 
             yield evt("progress", {"step": "preprocessing", "message": "Nettoyage et normalisation...", "percent": 30})
             lc_clean = clean_and_flatten(lc_raw, quality="fast")
@@ -742,7 +757,7 @@ def analyze_stream():
                     input_data = pd.DataFrame([row_vals])[selected_features].astype(float)
                 else:
                     features_df = run_feature_extraction(lc_clean, target_id, bls_stats=bls_stats)
-                    input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid)
+                    input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid, mission=mission, bls_stats=bls_stats, period=period, lc_stellar_params=lc_stellar_params)
                 score = float(model.predict_proba(input_data)[0][1])
                 if hasattr(model, 'feature_importances_'):
                     imp = model.feature_importances_
@@ -1080,6 +1095,65 @@ def upload_custom_star():
 # =============================================================================
 
 
+def _extract_stellar_params_from_lc(lc):
+    """
+    Extrait les paramètres stellaires depuis les métadonnées FITS d'une
+    LightCurve lightkurve (TEFF, RADIUS, LOGG, magnitude, RA/Dec).
+    Fonctionne pour TESS (TESSMAG) et Kepler (KEPMAG).
+    Retourne un dict avec les clés koi_* correspondantes.
+    """
+    if lc is None:
+        return {}
+    meta = getattr(lc, 'meta', {}) or {}
+    params = {}
+
+    def _safe(keys):
+        for k in keys:
+            v = meta.get(k)
+            try:
+                f = float(v)
+                if np.isfinite(f) and f != 0:
+                    return f
+            except (TypeError, ValueError):
+                pass
+        return None
+
+    teff = _safe(['TEFF', 'teff'])
+    srad = _safe(['RADIUS', 'radius', 'SRAD', 'srad'])
+    logg = _safe(['LOGG', 'logg'])
+    mag  = _safe(['TESSMAG', 'tessmag', 'KEPMAG', 'kepmag', 'TMAG'])
+    ra   = _safe(['RA_OBJ', 'ra', 'RA'])
+    dec  = _safe(['DEC_OBJ', 'dec', 'DEC'])
+
+    if teff:
+        params['koi_steff'] = teff
+        # Incertitudes typiques TESS/Kepler (~3% de la valeur centrale)
+        params['koi_steff_err1'] =  teff * 0.03
+        params['koi_steff_err2'] = -teff * 0.03
+    if srad:
+        params['koi_srad'] = srad
+        params['koi_srad_err1'] =  srad * 0.05
+        params['koi_srad_err2'] = -srad * 0.05
+    if logg:
+        params['koi_slogg'] = logg
+        params['koi_slogg_err1'] =  0.1
+        params['koi_slogg_err2'] = -0.1
+    if mag:
+        params['koi_kepmag'] = mag
+
+    if ra is not None and dec is not None:
+        try:
+            from astropy.coordinates import SkyCoord
+            import astropy.units as u
+            coords = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame='icrs')
+            params['glon'] = float(coords.galactic.l.degree)
+            params['glat'] = float(coords.galactic.b.degree)
+        except Exception:
+            pass
+
+    return params
+
+
 def _extract_kepid_from_lc(lc):
     """
     Extrait le KIC (Kepler Input Catalogue) ID depuis les métadonnées d'une
@@ -1110,18 +1184,44 @@ def _extract_kepid_from_lc(lc):
 
 def get_catalog_features_dict(target_id, kepid=None):
     """
-    Retourne un dict des features physiques du catalogue KOI pour une cible.
+    Retourne un dict des features physiques du catalogue KOI ou TESS TOI pour une cible.
     Accepte soit un kepid entier (prioritaire), soit un target_id string.
     Retourne {} si la cible est introuvable (les features seront mis à 0).
     """
+    # --- Lookup TESS TOI ---
+    if tess_catalog_df is not None and "TIC" in str(target_id).upper():
+        try:
+            tic_id = int(str(target_id).upper().replace("TIC", "").strip())
+            tess_match = tess_catalog_df[tess_catalog_df['tid'] == tic_id]
+            if len(tess_match) > 0:
+                row = tess_match.iloc[0]
+                feats = {}
+                for col in tess_catalog_df.columns:
+                    v = row.get(col)
+                    if pd.notna(v) and isinstance(v, (int, float, np.number)):
+                        feats[col] = float(v)
+                if 'ra' in row and 'dec' in row and pd.notna(row.get('ra')) and pd.notna(row.get('dec')):
+                    try:
+                        from astropy.coordinates import SkyCoord
+                        import astropy.units as u
+                        coords = SkyCoord(ra=row['ra']*u.deg, dec=row['dec']*u.deg, frame='icrs')
+                        feats['glon'] = float(coords.galactic.l.degree)
+                        feats['glat'] = float(coords.galactic.b.degree)
+                    except Exception:
+                        pass
+                return feats
+        except (ValueError, TypeError):
+            pass
+
+    # --- Lookup Kepler KOI ---
     if catalog_df is None:
         return {}
 
     # Résolution du kepid : soit passé directement, soit extrait du target_id
     if kepid is None:
-        if "KIC" in target_id:
+        if "KIC" in str(target_id).upper():
             try:
-                kepid = int(target_id.replace("KIC", "").strip())
+                kepid = int(str(target_id).upper().replace("KIC", "").strip())
             except ValueError:
                 pass
 
@@ -1178,35 +1278,93 @@ def get_catalog_features_dict(target_id, kepid=None):
     return feats
 
 
-def build_input_vector(features_df, target_id, selected_features_list, resolved_kepid=None):
+def build_input_vector(features_df, target_id, selected_features_list, resolved_kepid=None,
+                       mission=None, bls_stats=None, period=None, lc_stellar_params=None):
     """
-    Construit le DataFrame d'entrée pour le modèle en combinant :
-    - Features TSFRESH / scientifiques extraites de la courbe de lumière
-    - Features physiques du catalogue KOI (si disponibles)
-    Les features manquantes sont mises à 0.
-    resolved_kepid : KIC ID entier extrait depuis lightkurve (prioritaire sur target_id string).
+    Construit le DataFrame d'entrée pour le modèle en combinant (par ordre de priorité) :
+    1. Features TSFRESH / scientifiques extraites de la courbe de lumière
+    2. Features physiques du catalogue KOI ou TESS TOI (si la cible est connue)
+    3. Paramètres stellaires depuis les en-têtes FITS (TEFF, RADIUS, LOGG, magnitude)
+    4. Fallback BLS : koi_period / koi_depth / koi_duration estimés depuis BLS
+    5. koi_prad dérivé de depth + srad (rayon planétaire estimé)
+    Les features toujours manquantes sont mises à 0.
     """
-    # On force la création d'1 et 1 seule ligne (index=[0])
+    # On force la création d'1 et 1 seule ligne (toutes les valeurs NaN au départ)
     input_data = pd.DataFrame(index=[0], columns=selected_features_list)
 
-    # 1. Injecter les features de la courbe de lumière
+    def _missing(col):
+        if col not in selected_features_list:
+            return False
+        v = input_data.loc[0, col]
+        return pd.isna(v) or v == 0
+
+    # 1. Injecter les features de la courbe de lumière (sci_*, bls_*)
     if features_df is not None and not features_df.empty:
         for col in selected_features_list:
             if col in features_df.columns:
                 input_data.loc[0, col] = features_df[col].iloc[0]
 
-    # 2. Enrichir avec les features du catalogue KOI
-    #    On utilise le kepid résolu depuis lightkurve (fonctionne pour Kepler-X)
-    #    et on tombe en arrière sur la recherche par string si nécessaire.
+    # 2. Enrichir avec les features du catalogue KOI ou TESS TOI
     cat_feats = get_catalog_features_dict(target_id, kepid=resolved_kepid)
     for col, val in cat_feats.items():
         if col in selected_features_list:
             input_data.loc[0, col] = val
 
-    # 3. Remplir les manquants par 0
+    # 3. Feature multi-missions : is_tess
+    if "is_tess" in selected_features_list:
+        input_data.loc[0, "is_tess"] = 1.0 if (mission and mission.upper() == "TESS") else 0.0
+
+    # 4. Paramètres stellaires depuis les métadonnées FITS Lightkurve
+    #    (TEFF, RADIUS, LOGG, TESSMAG, glon/glat) — comble ce que le catalogue n'a pas fourni
+    if lc_stellar_params:
+        for col, val in lc_stellar_params.items():
+            if col in selected_features_list and _missing(col):
+                input_data.loc[0, col] = float(val)
+
+    # 5. Fallback BLS : combler koi_period / koi_depth / koi_duration restants
+    if period and _missing("koi_period"):
+        input_data.loc[0, "koi_period"] = float(period)
+
+    if bls_stats:
+        depth_ppm = float(bls_stats.get("bls_depth_ppm", 0) or 0)
+        dur_days  = float(bls_stats.get("bls_duration_days", 0) or 0)
+
+        if _missing("koi_depth"):
+            input_data.loc[0, "koi_depth"] = depth_ppm
+        if _missing("koi_duration"):
+            input_data.loc[0, "koi_duration"] = dur_days * 24.0  # heures
+
+        # Barres d'erreur estimées à ±5% de la valeur centrale
+        for main_col, err_cols in [
+            ("koi_period",   ["koi_period_err1",   "koi_period_err2"]),
+            ("koi_depth",    ["koi_depth_err1",    "koi_depth_err2"]),
+            ("koi_duration", ["koi_duration_err1", "koi_duration_err2"]),
+        ]:
+            if main_col in selected_features_list:
+                main_val = input_data.loc[0, main_col]
+                if not pd.isna(main_val) and main_val != 0:
+                    for err_col in err_cols:
+                        if _missing(err_col):
+                            input_data.loc[0, err_col] = abs(float(main_val)) * 0.05
+
+    # 6. Dériver koi_prad depuis la profondeur du transit et le rayon stellaire
+    #    koi_prad (en R_terre) = sqrt(depth_ppm / 1e6) * koi_srad * 109.076
+    if _missing("koi_prad"):
+        srad      = input_data.loc[0, "koi_srad"]  if "koi_srad"  in selected_features_list else np.nan
+        depth_ppm = input_data.loc[0, "koi_depth"] if "koi_depth" in selected_features_list else np.nan
+        if not pd.isna(srad) and srad > 0 and not pd.isna(depth_ppm) and depth_ppm > 0:
+            rp_rstar = np.sqrt(depth_ppm / 1e6)
+            prad = rp_rstar * float(srad) * 109.076
+            input_data.loc[0, "koi_prad"] = prad
+            if _missing("koi_prad_err1"):
+                input_data.loc[0, "koi_prad_err1"] =  prad * 0.1
+            if _missing("koi_prad_err2"):
+                input_data.loc[0, "koi_prad_err2"] = -prad * 0.1
+
+    # 7. Remplir les manquants restants par 0
     input_data = input_data.fillna(0)
-    
-    # 4. Forcer le type float pour éviter l'erreur XGBoost 'object'
+
+    # 8. Forcer le type float pour éviter l'erreur XGBoost 'object'
     return input_data.astype(float)
 
 

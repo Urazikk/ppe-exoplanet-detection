@@ -1,106 +1,110 @@
 {
-    "test_precision": 0.9203539823008849,
-    "test_recall": 0.906318082788671,
-    "test_f1": 0.9132821075740944,
-    "test_auc_roc": 0.9864056623202072,
-    "cv_accuracy_mean": 0.946856146036334,
-    "cv_accuracy_std": 0.0030218288633489343,
-    "cv_f1_mean": 0.9164170293655008,
-    "cv_f1_std": 0.004774455523917269,
-    "n_features_selected": 35,
-    "n_features_total": 35,
-    "train_size": 5852,
-    "test_size": 1464,
+    "test_precision": 0.9012345679012346,
+    "test_recall": 0.9125,
+    "test_f1": 0.906832298136646,
+    "test_auc_roc": 0.9806930260975822,
+    "cv_accuracy_mean": 0.9263293534054652,
+    "cv_accuracy_std": 0.005286907425285213,
+    "cv_f1_mean": 0.9003669558904249,
+    "cv_f1_std": 0.0069766733144073275,
+    "n_features_selected": 32,
+    "n_features_total": 32,
+    "train_size": 7968,
+    "test_size": 1993,
     "confusion_matrix": [
         [
-            969,
-            36
+            1201,
+            72
         ],
         [
-            43,
-            416
+            63,
+            657
         ]
     ],
     "top_features": [
         {
             "name": "koi_steff_err1",
-            "importance": 0.17025122046470642
-        },
-        {
-            "name": "koi_prad",
-            "importance": 0.12277819216251373
-        },
-        {
-            "name": "koi_duration_err1",
-            "importance": 0.08280511945486069
-        },
-        {
-            "name": "koi_period_err2",
-            "importance": 0.05024639517068863
-        },
-        {
-            "name": "koi_teq",
-            "importance": 0.04441829398274422
-        },
-        {
-            "name": "koi_insol",
-            "importance": 0.04196062311530113
-        },
-        {
-            "name": "koi_model_snr",
-            "importance": 0.03798019140958786
-        },
-        {
-            "name": "koi_period",
-            "importance": 0.037869296967983246
+            "importance": 0.10631004720926285
         },
         {
             "name": "koi_duration_err2",
-            "importance": 0.03528976812958717
+            "importance": 0.08630885928869247
         },
         {
-            "name": "koi_steff_err2",
-            "importance": 0.03278842940926552
+            "name": "koi_prad",
+            "importance": 0.07559822499752045
+        },
+        {
+            "name": "is_tess",
+            "importance": 0.059714511036872864
         },
         {
             "name": "koi_prad_err2",
-            "importance": 0.03180694207549095
+            "importance": 0.05124983191490173
         },
         {
-            "name": "koi_period_err1",
-            "importance": 0.02514340542256832
+            "name": "koi_steff_err2",
+            "importance": 0.04616764560341835
         },
         {
-            "name": "koi_impact",
-            "importance": 0.022483469918370247
+            "name": "koi_period_err2",
+            "importance": 0.0406188927590847
         },
         {
             "name": "koi_time0bk_err2",
-            "importance": 0.020050114020705223
+            "importance": 0.0399305522441864
         },
         {
-            "name": "koi_depth_err2",
-            "importance": 0.016245823353528976
+            "name": "koi_prad_err1",
+            "importance": 0.03936685249209404
         },
         {
-            "name": "glat",
-            "importance": 0.015644608065485954
+            "name": "koi_duration_err1",
+            "importance": 0.03902663663029671
         },
         {
-            "name": "koi_impact_err2",
-            "importance": 0.01549717877060175
+            "name": "koi_teq",
+            "importance": 0.03805116191506386
+        },
+        {
+            "name": "koi_period",
+            "importance": 0.03735394775867462
+        },
+        {
+            "name": "koi_time0bk_err1",
+            "importance": 0.03203364461660385
+        },
+        {
+            "name": "koi_insol",
+            "importance": 0.02736469730734825
         },
         {
             "name": "koi_insol_err2",
-            "importance": 0.014448415488004684
+            "importance": 0.02091371826827526
         },
         {
             "name": "koi_depth",
-            "importance": 0.014446212910115719
+            "importance": 0.019912144169211388
         },
         {
-            "name": "koi_duration",
-            "importance": 0.01411786861717701
+            "name": "koi_srad_err1",
+            "importance": 0.019789550453424454
+        },
+        {
+            "name": "koi_time0bk",
+            "importance": 0.019641084596514702
+        },
+        {
+            "name": "koi_period_err1",
+            "importance": 0.019449621438980103
+        },
+        {
+            "name": "koi_srad",
+            "importance": 0.01875019632279873
         }
-    ]
+    ],
+    "datasets": {
+        "kepler": 7316,
+        "tess": 2645
+    }
 }

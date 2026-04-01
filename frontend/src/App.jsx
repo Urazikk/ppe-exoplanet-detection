@@ -2257,14 +2257,22 @@ function CatalogTab({ onAnalyze }) {
                     Aucun résultat
                   </td></tr>
                 ) : stars.map((s, i) => (
-                  <tr key={s.kepid} style={{
+                  <tr key={s.target_id || s.kepid} style={{
                     borderBottom: "1px solid rgba(99,140,255,0.05)",
                     transition: "background .15s",
                   }}
                     onMouseEnter={e => e.currentTarget.style.background = "rgba(99,140,255,0.04)"}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <td style={{ padding: "9px 10px", color: "#e0e8f5", fontWeight: 500 }}>
-                      KIC {s.kepid}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <span>{s.name || s.target_id || `KIC ${s.kepid}`}</span>
+                        {s.mission && (
+                          <span style={{ fontSize: 9, color: s.mission === "TESS" ? "#22d3ee" : "#a78bfa",
+                            fontFamily: "'DM Mono',monospace", opacity: 0.7 }}>
+                            {s.mission}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ padding: "9px 10px" }}>
                       {simpleMode ? (
@@ -2299,7 +2307,7 @@ function CatalogTab({ onAnalyze }) {
                       </td>
                     </>}
                     <td style={{ padding: "9px 10px" }}>
-                      <button onClick={() => onAnalyze(`KIC ${s.kepid}`)} style={{
+                      <button onClick={() => onAnalyze(s.target_id || `KIC ${s.kepid}`)} style={{
                         padding: "4px 10px", borderRadius: 6, fontSize: 9, cursor: "pointer",
                         fontFamily: "'DM Mono',monospace",
                         background: "rgba(99,140,255,0.08)", border: "1px solid rgba(99,140,255,0.2)",

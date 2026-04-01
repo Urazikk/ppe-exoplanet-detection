@@ -536,8 +536,39 @@ def run_full_analysis(target_id, mission, username):
     feature_importances = []
 
     if model and selected_features:
-        features_df = run_feature_extraction(lc_clean, target_id)
-        input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid)
+        # Déterminer si le modèle utilise les features BLS physiques (nouveau) ou TSFRESH (ancien)
+        _BLS_FEATURES = {"bls_snr", "bls_depth_ppm", "bls_transit_fraction",
+                         "bls_power", "bls_duration_days", "bls_score",
+                         "period", "star_radius_solar", "star_temperature_k"}
+        _uses_bls_model = all(f in _BLS_FEATURES for f in selected_features)
+
+        if _uses_bls_model:
+            # Nouveau modèle Kepler+TESS : vecteur BLS direct
+            from src.p02_preprocessing import compute_transit_score
+            bls_score_val = compute_transit_score(bls_stats)
+
+            # Données stellaires depuis catalogue KOI si disponible
+            cat_feats = get_catalog_features_dict(target_id, kepid=resolved_kepid)
+            srad  = cat_feats.get("koi_srad",  1.0) or 1.0
+            steff = cat_feats.get("koi_steff", 5500.0) or 5500.0
+
+            row_vals = {
+                "bls_snr":              float(bls_stats.get("bls_snr", 0)),
+                "bls_depth_ppm":        float(bls_stats.get("bls_depth_ppm", 0)),
+                "bls_transit_fraction": float(bls_stats.get("bls_transit_fraction", 0)),
+                "bls_power":            float(bls_stats.get("bls_power", 0)),
+                "bls_duration_days":    float(bls_stats.get("bls_duration_days", 0)),
+                "bls_score":            float(bls_score_val),
+                "period":               float(period),
+                "star_radius_solar":    float(srad),
+                "star_temperature_k":   float(steff),
+            }
+            input_data = pd.DataFrame([row_vals])[selected_features].astype(float)
+        else:
+            # Ancien modèle TSFRESH/KOI
+            features_df = run_feature_extraction(lc_clean, target_id, bls_stats=bls_stats)
+            input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid)
+
         score = float(model.predict_proba(input_data)[0][1])
         if hasattr(model, 'feature_importances_'):
             imp = model.feature_importances_
@@ -687,8 +718,31 @@ def analyze_stream():
             score = 0.5
             top_features = []
             if model and selected_features:
-                features_df = run_feature_extraction(lc_clean, target_id)
-                input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid)
+                _BLS_FEATURES = {"bls_snr", "bls_depth_ppm", "bls_transit_fraction",
+                                 "bls_power", "bls_duration_days", "bls_score",
+                                 "period", "star_radius_solar", "star_temperature_k"}
+                _uses_bls_model = all(f in _BLS_FEATURES for f in selected_features)
+                if _uses_bls_model:
+                    from src.p02_preprocessing import compute_transit_score
+                    bls_score_val = compute_transit_score(bls_stats)
+                    cat_feats = get_catalog_features_dict(target_id, kepid=resolved_kepid)
+                    srad  = cat_feats.get("koi_srad",  1.0) or 1.0
+                    steff = cat_feats.get("koi_steff", 5500.0) or 5500.0
+                    row_vals = {
+                        "bls_snr":              float(bls_stats.get("bls_snr", 0)),
+                        "bls_depth_ppm":        float(bls_stats.get("bls_depth_ppm", 0)),
+                        "bls_transit_fraction": float(bls_stats.get("bls_transit_fraction", 0)),
+                        "bls_power":            float(bls_stats.get("bls_power", 0)),
+                        "bls_duration_days":    float(bls_stats.get("bls_duration_days", 0)),
+                        "bls_score":            float(bls_score_val),
+                        "period":               float(period),
+                        "star_radius_solar":    float(srad),
+                        "star_temperature_k":   float(steff),
+                    }
+                    input_data = pd.DataFrame([row_vals])[selected_features].astype(float)
+                else:
+                    features_df = run_feature_extraction(lc_clean, target_id, bls_stats=bls_stats)
+                    input_data = build_input_vector(features_df, target_id, selected_features, resolved_kepid=resolved_kepid)
                 score = float(model.predict_proba(input_data)[0][1])
                 if hasattr(model, 'feature_importances_'):
                     imp = model.feature_importances_
@@ -1264,6 +1318,123 @@ def get_real_metadata(target_id):
         "note": "Métadonnées non trouvées dans le catalogue KOI.",
         "hint": "Utilisez un identifiant KIC (ex: KIC 11446443) pour des données complètes."
     }
+
+
+# =============================================================================
+# Star Info — NASA Exoplanet Archive
+# =============================================================================
+
+import re as _re
+import requests as _requests
+
+_star_info_cache = {}
+_STAR_INFO_TTL   = 3600 * 24  # 24 h
+
+_NASA_TAP = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
+
+
+def _hostname_from_target(target: str) -> str:
+    """Retire le suffixe de planète éventuel (ex: 'Kepler-452b' → 'Kepler-452')."""
+    t = target.strip()
+    t = _re.sub(r'(\d)\s*[b-z]$', r'\1', t, flags=_re.IGNORECASE)
+    return t
+
+
+def _query_nasa(adql: str, timeout: int = 8):
+    """Lance une requête ADQL sur le TAP NASA et retourne la liste de dicts."""
+    resp = _requests.get(_NASA_TAP, params={"query": adql, "format": "json"}, timeout=timeout)
+    resp.raise_for_status()
+    return resp.json() or []
+
+
+@app.route('/api/star_info', methods=['GET'])
+@token_required
+def get_star_info():
+    """
+    Retourne les données stellaires et planétaires depuis NASA Exoplanet Archive.
+    Paramètre GET : target (ex. 'Kepler-452', 'Kepler-452b', 'KIC 11446443')
+    """
+    target = request.args.get('target', '').strip()
+    if not target:
+        return jsonify({"error": "Paramètre 'target' requis"}), 400
+
+    cache_key = target.lower()
+    if cache_key in _star_info_cache:
+        entry = _star_info_cache[cache_key]
+        if time.time() - entry['ts'] < _STAR_INFO_TTL:
+            return jsonify(entry['data'])
+
+    hostname = _hostname_from_target(target)
+
+    result = {
+        "target":   target,
+        "hostname": hostname,
+        "stellar":  None,
+        "planets":  [],
+        "source":   None,
+    }
+
+    try:
+        # -- Données planétaires + stellaires (table ps, une ligne par planète) --
+        q_planets = (
+            "SELECT hostname, pl_name, pl_orbper, pl_rade, pl_eqt, pl_insol, "
+            "st_teff, st_rad, st_mass, st_lum, sy_dist, sy_kmag, "
+            "disc_year, disc_method "
+            f"FROM ps WHERE UPPER(hostname) = UPPER('{hostname}') "
+            "AND default_flag = 1"
+        )
+        rows = _query_nasa(q_planets)
+
+        if rows:
+            r0 = rows[0]
+            result["stellar"] = {
+                "teff":        r0.get("st_teff"),       # Température eff. (K)
+                "radius":      r0.get("st_rad"),         # Rayon (R☉)
+                "mass":        r0.get("st_mass"),        # Masse (M☉)
+                "luminosity":  r0.get("st_lum"),         # Luminosité (log L☉)
+                "distance_pc": r0.get("sy_dist"),        # Distance (pc)
+                "kmag":        r0.get("sy_kmag"),        # Magnitude K
+            }
+            result["planets"] = [
+                {
+                    "name":         r.get("pl_name"),
+                    "period_days":  r.get("pl_orbper"),
+                    "radius_earth": r.get("pl_rade"),
+                    "eq_temp":      r.get("pl_eqt"),
+                    "insolation":   r.get("pl_insol"),
+                    "disc_year":    r.get("disc_year"),
+                    "disc_method":  r.get("disc_method"),
+                }
+                for r in rows
+            ]
+            result["source"] = "NASA Exoplanet Archive"
+
+        else:
+            # Fallback : table stellarhosts (étoiles sans planète confirmée)
+            q_star = (
+                "SELECT hostname, st_teff, st_rad, st_mass, st_lum, sy_dist, sy_kmag "
+                f"FROM stellarhosts WHERE UPPER(hostname) = UPPER('{hostname}') "
+                "AND default_flag = 1"
+            )
+            stars = _query_nasa(q_star)
+            if stars:
+                s = stars[0]
+                result["stellar"] = {
+                    "teff":        s.get("st_teff"),
+                    "radius":      s.get("st_rad"),
+                    "mass":        s.get("st_mass"),
+                    "luminosity":  s.get("st_lum"),
+                    "distance_pc": s.get("sy_dist"),
+                    "kmag":        s.get("sy_kmag"),
+                }
+                result["source"] = "NASA Exoplanet Archive (stellar hosts)"
+
+    except Exception as exc:
+        print(f"[star_info] Erreur NASA API pour '{hostname}': {exc}")
+        # On ne lève pas — résultat vide renvoyé proprement
+
+    _star_info_cache[cache_key] = {"data": result, "ts": time.time()}
+    return jsonify(result)
 
 
 # =============================================================================

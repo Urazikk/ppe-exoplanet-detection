@@ -740,6 +740,125 @@ function SignalInsightsPanel({ data }) {
   );
 }
 
+/* ─── StarInfoPanel ──────────────────────────────────────────── */
+function StarInfoPanel({ target }) {
+  const [info,    setInfo]    = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!target) return;
+    setInfo(null);
+    setLoading(true);
+    authFetch(`${API_BASE}/api/star_info?target=${encodeURIComponent(target)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setInfo(d || null); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [target]);
+
+  if (loading) return (
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"18px 0",
+      color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace",fontSize:12}}>
+      <Loader2 size={14} style={{animation:"spin 1s linear infinite"}}/> Recherche NASA Exoplanet Archive…
+    </div>
+  );
+
+  if (!info || (!info.stellar && !info.planets?.length)) return null;
+
+  const s = info.stellar || {};
+  const distLy = s.distance_pc ? Math.round(s.distance_pc * 3.2616).toLocaleString() : null;
+
+  const stellarRows = [
+    s.teff        && { label:"Température",  value:`${Math.round(s.teff).toLocaleString()} K`,  color:"#f59e0b" },
+    s.radius      && { label:"Rayon",         value:`${s.radius.toFixed(2)} R☉`,                color:"#e0e8f5" },
+    s.mass        && { label:"Masse",         value:`${s.mass.toFixed(2)} M☉`,                  color:"#e0e8f5" },
+    distLy        && { label:"Distance",      value:`${distLy} al`,                              color:"#22d3ee" },
+    s.kmag        && { label:"Magnitude K",   value:s.kmag.toFixed(2),                           color:"rgba(160,180,220,0.7)" },
+  ].filter(Boolean);
+
+  return (
+    <Card style={{padding:24,marginTop:0}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <Star size={15} color="#638cff"/>
+          <span style={{fontSize:13,fontWeight:700,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif"}}>
+            Données stellaires — {info.hostname}
+          </span>
+        </div>
+        <span style={{fontSize:9,color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace"}}>
+          {info.source}
+        </span>
+      </div>
+
+      <div style={{display:"flex",gap:20,flexWrap:"wrap",alignItems:"flex-start"}}>
+
+        {/* Paramètres stellaires */}
+        {stellarRows.length > 0 && (
+          <div style={{flex:1,minWidth:200}}>
+            <div style={{fontSize:10,color:"rgba(160,180,220,0.4)",fontFamily:"'DM Mono',monospace",
+              textTransform:"uppercase",letterSpacing:1.4,marginBottom:12}}>Étoile hôte</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {stellarRows.map(row => (
+                <div key={row.label} style={{display:"flex",justifyContent:"space-between",
+                  padding:"8px 12px",background:"rgba(15,18,30,0.5)",borderRadius:8,
+                  border:"1px solid rgba(99,140,255,0.07)"}}>
+                  <span style={{fontSize:11,color:"rgba(160,180,220,0.45)",fontFamily:"'DM Mono',monospace"}}>{row.label}</span>
+                  <span style={{fontSize:11,fontWeight:600,color:row.color,fontFamily:"'DM Mono',monospace"}}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Planètes connues */}
+        {info.planets?.length > 0 && (
+          <div style={{flex:2,minWidth:260}}>
+            <div style={{fontSize:10,color:"rgba(160,180,220,0.4)",fontFamily:"'DM Mono',monospace",
+              textTransform:"uppercase",letterSpacing:1.4,marginBottom:12}}>
+              {info.planets.length} planète{info.planets.length>1?"s":""} confirmée{info.planets.length>1?"s":""}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {info.planets.map((p, i) => (
+                <div key={i} style={{
+                  padding:"10px 14px",background:"rgba(74,222,160,0.05)",
+                  borderRadius:8,border:"1px solid rgba(74,222,160,0.12)",
+                  display:"flex",flexWrap:"wrap",gap:12,alignItems:"center",
+                }}>
+                  <span style={{fontSize:13,fontWeight:600,color:"#4ade80",fontFamily:"'DM Mono',monospace",minWidth:110}}>
+                    {p.name}
+                  </span>
+                  <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                    {p.period_days != null && (
+                      <span style={{fontSize:11,color:"rgba(160,180,220,0.55)",fontFamily:"'DM Mono',monospace"}}>
+                        {p.period_days.toFixed(1)} j
+                      </span>
+                    )}
+                    {p.radius_earth != null && (
+                      <span style={{fontSize:11,color:"rgba(160,180,220,0.55)",fontFamily:"'DM Mono',monospace"}}>
+                        {p.radius_earth.toFixed(2)} R⊕
+                      </span>
+                    )}
+                    {p.eq_temp != null && (
+                      <span style={{fontSize:11,color:"#f59e0b",fontFamily:"'DM Mono',monospace"}}>
+                        {Math.round(p.eq_temp)} K
+                      </span>
+                    )}
+                    {p.disc_year && (
+                      <span style={{fontSize:10,color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace"}}>
+                        {p.disc_year}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function CharacterizationPanel({ data }) {
   if (!data) return null;
   const c = data.characterization;
@@ -817,6 +936,69 @@ const KOI_LABELS = {
   koi_fpflag_ec:      "Flag éphéméride",
 };
 
+/* Descriptions détaillées : comment chaque feature est calculée */
+const FEATURE_DESCRIPTIONS = {
+  // ── Paramètres orbitaux ──
+  koi_period:       "Période orbitale en jours. Calculée par l'algorithme BLS (Box Least Squares) qui balaie la courbe de lumière à la recherche du signal périodique le plus fort.",
+  koi_time0bk:      "Époque du premier transit (en jours BKJD). C'est le moment exact où le centre du premier transit a été observé par le télescope Kepler.",
+  koi_impact:       "Paramètre d'impact b ∈ [0, 1+Rp/R★]. Mesure à quelle hauteur la planète passe devant l'étoile : 0 = passage central, 1 = passage rasant. Influe sur la forme du creux de transit.",
+  koi_duration:     "Durée totale du transit en heures. Mesurée du premier contact externe au dernier contact externe. Dépend du rayon orbital, de la taille de l'étoile et du paramètre d'impact.",
+  koi_depth:        "Profondeur du transit en ppm (parties par million). Ratio de la surface de la planète sur la surface de l'étoile : δ = (Rp/R★)². Terre devant le Soleil ≈ 84 ppm, Jupiter ≈ 10 000 ppm.",
+  koi_model_snr:    "Rapport Signal/Bruit du modèle de transit. SNR = profondeur / bruit RMS × √(nb transits). Plus c'est élevé, plus le signal est fiable. En dessous de 7, le signal est ambigu.",
+
+  // ── Paramètres planétaires ──
+  koi_prad:         "Rayon estimé de la planète en rayons terrestres (R⊕). Déduit de la profondeur du transit : Rp = R★ × √δ. Nécessite le rayon de l'étoile hôte comme donnée d'entrée.",
+  koi_teq:          "Température d'équilibre de la planète en Kelvin. Calculée à partir de la luminosité de l'étoile, de la distance orbitale et d'un albédo supposé de 0.3 (Bond). Indique si la zone habitable est possible.",
+  koi_insol:        "Flux d'irradiation reçu par la planète, en unités terrestres (F⊕). Rapport de l'énergie reçue par la planète sur l'énergie reçue par la Terre. < 0.25 ou > 11 : zone hors habitable.",
+
+  // ── Paramètres stellaires ──
+  koi_steff:        "Température effective de l'étoile hôte en Kelvin. Déterminée par spectroscopie ou photométrie. Classe le type stellaire : O (>30 000 K), B, A, F, G (~5 780 K pour le Soleil), K, M (<3 500 K).",
+  koi_slogg:        "Gravité de surface de l'étoile (log g en cgs). Calculée à partir de la masse et du rayon stellaires : log g = log(GM/R²). Distingue naines (log g ≈ 4.5) de géantes (log g ≈ 2-3).",
+  koi_srad:         "Rayon de l'étoile hôte en rayons solaires (R☉). Déduit de la luminosité et de la température via la loi de Stefan-Boltzmann : L = 4πR²σT⁴. Crucial pour estimer Rp.",
+
+  // ── Flags de faux positifs ──
+  koi_fpflag_nt:    "Flag 'Non-Transit' : vaut 1 si le signal ne ressemble pas à un transit planétaire (pas la bonne forme en boîte). Peut indiquer une éclipse d'étoile binaire ou un artefact instrumental.",
+  koi_fpflag_ss:    "Flag 'Secondary Star' : vaut 1 si un transit secondaire est détecté à mi-période, signature typique d'une étoile binaire éclipsante. Un vrai transit planétaire n'a pas de transit secondaire significatif.",
+  koi_fpflag_co:    "Flag 'Centroid Offset' : vaut 1 si la source du transit est décalée du centre de l'étoile cible. Indique que le transit vient d'une étoile voisine contaminant le pixel Kepler.",
+  koi_fpflag_ec:    "Flag 'Ephemeris Contamination' : vaut 1 si la période du signal correspond à une éclipse connue dans le voisinage. Souvent dû à une étoile binaire brillante polluant le champ de vision.",
+  koi_kepmag:       "Magnitude Kepler de l'étoile hôte. Mesure la brillance apparente dans la bande photométrique du télescope Kepler (430–890 nm). Plus la valeur est faible, plus l'étoile est brillante. Influe directement sur le rapport signal/bruit des transits.",
+  glon:             "Longitude galactique en degrés (0–360°). Coordonnée qui indique la position de l'étoile dans le plan de la Voie Lactée. Utilisée pour estimer la densité stellaire environnante et le risque de contamination par des étoiles de fond.",
+  glat:             "Latitude galactique en degrés (-90° à +90°). Indique à quelle hauteur l'étoile se situe par rapport au plan galactique. Les étoiles à haute latitude galactique ont moins de contamination stellaire de fond, ce qui améliore la fiabilité des détections.",
+
+  // ── Features TSFRESH ──
+  mean:             "Moyenne arithmétique du flux sur la courbe repliée (phase folded). Une valeur proche de 1.0 indique un flux normalisé centré, sans dérive résiduelle après flattening.",
+  variance:         "Variance du flux : mesure la dispersion globale autour de la moyenne. Une forte variance peut indiquer un bruit élevé ou plusieurs signaux superposés.",
+  skewness:         "Asymétrie (skewness) de la distribution du flux. Un transit planétaire produit une asymétrie négative légère (creux vers le bas). Une forte asymétrie peut signaler un faux positif.",
+  kurtosis:         "Kurtosis (aplatissement) de la distribution du flux. Mesure si les valeurs extrêmes sont plus fréquentes qu'une gaussienne. Un transit net produit un kurtosis positif élevé.",
+  abs_energy:       "Énergie absolue : somme des carrés du flux. Proportionnelle à l'énergie totale du signal. Utile pour distinguer les étoiles variables des étoiles calmes.",
+  mean_abs_change:  "Variation absolue moyenne entre points consécutifs. Mesure la 'rugosité' de la courbe. Un transit propre a des flancs raides mais une base plate, produisant une valeur caractéristique.",
+  count_above_mean: "Nombre de points au-dessus de la moyenne. Dans un signal avec transit, la majorité des points sont au-dessus (flux = 1), seuls les points de transit sont en dessous.",
+  count_below_mean: "Nombre de points en-dessous de la moyenne. Directement lié au nombre de points dans le creux de transit. Plus ce nombre est concentré et régulier, plus le signal ressemble à un transit.",
+  longest_strike_below_mean: "Durée de la plus longue séquence continue sous la moyenne. Correspond directement à la largeur du transit dans la courbe repliée. Un transit planétaire a une durée caractéristique.",
+  longest_strike_above_mean: "Durée de la plus longue séquence continue au-dessus de la moyenne. Complémentaire du précédent : dans un transit, presque toute la courbe est au-dessus sauf le creux.",
+  sum_of_reoccurring_values: "Somme des valeurs qui apparaissent plus d'une fois. Indicateur de périodicité et de répétabilité du signal. Un vrai transit se répète identiquement à chaque période.",
+  ratio_beyond_r_sigma: "Fraction des points à plus de r×σ de la moyenne. Détecte les outliers et les signaux extrêmes. Un transit propre a peu de points hors des σ, contrairement au bruit stellaire.",
+  autocorrelation:  "Autocorrélation du flux à un lag donné. Mesure si le signal se ressemble à lui-même décalé dans le temps. Un transit périodique produit des pics d'autocorrélation nets aux multiples de la période.",
+  fft_coefficient:  "Coefficient de la transformée de Fourier (FFT) à une fréquence donnée. Décompose le signal en fréquences : un transit net produit des harmoniques claires à 1/T, 2/T, 3/T...",
+  cwt_coefficients: "Coefficients de la transformée en ondelettes continues (CWT). Analyse temps-fréquence qui localise les transitoires. Idéale pour détecter les transits de durée et amplitude variables.",
+  agg_linear_trend: "Pente de la tendance linéaire sur un agrégat de la courbe. Détecte les dérives lentes résiduelles après flattening ou les signaux non stationnaires.",
+  binned_entropy:   "Entropie calculée après binning du flux en intervalles. Mesure le 'désordre' du signal. Un transit produit une distribution non-uniforme → entropie basse. Un bruit blanc → entropie max.",
+  permutation_entropy: "Entropie de permutation : complexité des patterns locaux d'ordonnancement. Très sensible aux régularités cachées. Un transit crée des patterns d'ordre répétés détectables.",
+  sample_entropy:   "Entropie d'échantillon : probabilité que deux séquences similaires restent similaires en ajoutant un point. Faible pour un signal régulier comme un transit, élevée pour du bruit.",
+};
+
+function featureDescription(rawName) {
+  const key = (rawName || "").replace("flux__", "").replace("sci_", "");
+  if (FEATURE_DESCRIPTIONS[key]) return FEATURE_DESCRIPTIONS[key];
+  if (FEATURE_DESCRIPTIONS[rawName]) return FEATURE_DESCRIPTIONS[rawName];
+  // Retire _err1 / _err2 pour retomber sur la description de la feature parente
+  const base = key.replace(/_err[12]$/, "");
+  if (base !== key && FEATURE_DESCRIPTIONS[base]) return FEATURE_DESCRIPTIONS[base];
+  // Préfixe TSFRESH (séparé par __)
+  const prefix = key.split("__")[0];
+  return FEATURE_DESCRIPTIONS[prefix] || null;
+}
+
 function featureLabel(name) {
   const raw = (name||"").replace("flux__","").replace("sci_","");
   return KOI_LABELS[raw] || KOI_LABELS[name] || raw;
@@ -824,23 +1006,35 @@ function featureLabel(name) {
 
 function FeatureBars({ features }) {
   if (!features?.length) return null;
-  const mx=Math.max(...features.map(f=>f.weight||f.importance||0));
+  const mx = Math.max(...features.map(f => f.weight || f.importance || 0));
+  const [tooltip, setTooltip] = useState(null); // {text, x, y}
+
   return (
-    <div>
+    <div style={{position:"relative"}}>
       <h4 style={{fontSize:10,color:"rgba(160,180,220,0.5)",marginBottom:8,
         textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
         Top features (interprétabilité)
       </h4>
-      {features.map((f,i)=>{
-        const val=(f.weight??f.importance??0);
-        const pct=(val/mx)*100;
-        const name=featureLabel(f.name);
+
+      {features.map((f, i) => {
+        const val  = f.weight ?? f.importance ?? 0;
+        const pct  = (val / mx) * 100;
+        const name = featureLabel(f.name);
+        const desc = featureDescription(f.name);
         return (
-          <div key={i} style={{position:"relative",marginBottom:5}}>
+          <div key={i} style={{position:"relative", marginBottom:5}}
+            onMouseEnter={desc ? (e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setTooltip({ text: desc, rawName: f.name, x: r.left, y: r.bottom + 6 });
+            } : undefined}
+            onMouseLeave={() => setTooltip(null)}
+          >
             <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${pct}%`,
               background:"rgba(99,140,255,0.08)",borderRadius:6,transition:"width .4s"}}/>
             <div style={{position:"relative",display:"flex",justifyContent:"space-between",
-              padding:"5px 8px",fontSize:10,fontFamily:"'DM Mono',monospace"}}>
+              alignItems:"center", padding:"5px 8px",fontSize:10,fontFamily:"'DM Mono',monospace",
+              cursor: desc ? "help" : "default",
+            }}>
               <span style={{color:"rgba(160,180,220,0.7)",maxWidth:"75%",overflow:"hidden",
                 textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</span>
               <span style={{color:"#638cff"}}>{(val*100).toFixed(1)}%</span>
@@ -848,6 +1042,30 @@ function FeatureBars({ features }) {
           </div>
         );
       })}
+
+      {/* Tooltip portal */}
+      {tooltip && createPortal(
+        <div style={{
+          position:"fixed",
+          left: Math.min(tooltip.x, window.innerWidth - 340),
+          top:  tooltip.y,
+          width: 320,
+          background:"rgba(6,9,20,0.97)",
+          border:"1px solid rgba(99,140,255,0.3)",
+          borderRadius:10, padding:"12px 16px",
+          zIndex:99999,
+          boxShadow:"0 12px 40px rgba(0,0,0,0.7)",
+          pointerEvents:"none",
+        }}>
+          <div style={{fontSize:11,fontWeight:700,color:"#638cff",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
+            {featureLabel(tooltip.rawName)}
+          </div>
+          <div style={{fontSize:11,color:"rgba(200,215,240,0.75)",fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.7}}>
+            {tooltip.text}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -1367,6 +1585,76 @@ function FeatureBar({ f, mx2, hint }) {
   );
 }
 
+/* ─── MetricsFeatureBars (avec tooltip) ─────────────────────── */
+function MetricsFeatureBars({ features }) {
+  if (!features?.length) return null;
+  const mx2 = features[0]?.importance || 1;
+  const rankColors = ["#fbbf24","#94a3b8","#cd7c3a","#638cff","#638cff","#638cff","#638cff","#638cff"];
+  const gradients  = [
+    "linear-gradient(90deg,#fbbf24,#f59e0b)",
+    "linear-gradient(90deg,#94a3b8,#64748b)",
+    "linear-gradient(90deg,#cd7c3a,#b45309)",
+    "linear-gradient(90deg,#638cff,#8b5cf6)",
+  ];
+  const [tooltip, setTooltip] = useState(null);
+
+  return (
+    <div style={{position:"relative"}}>
+      {features.map((f, i) => {
+        const label = featureLabel(f.name);
+        const desc  = featureDescription(f.name);
+        return (
+          <div key={i} style={{marginBottom:8, cursor: desc ? "help" : "default"}}
+            onMouseEnter={desc ? e => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setTooltip({ text: desc, rawName: f.name, x: r.left, y: r.bottom + 6 });
+            } : undefined}
+            onMouseLeave={() => setTooltip(null)}
+          >
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3,gap:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                <span style={{fontSize:8,fontWeight:700,fontFamily:"'DM Mono',monospace",
+                  color:rankColors[i],flexShrink:0,width:16,textAlign:"center"}}>#{i+1}</span>
+                <span style={{color:"rgba(200,215,240,0.8)",fontSize:10,fontFamily:"'DM Mono',monospace",
+                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</span>
+              </div>
+              <span style={{color:rankColors[i],fontSize:10,fontFamily:"'DM Mono',monospace",
+                fontWeight:600,flexShrink:0}}>{(f.importance*100).toFixed(1)}%</span>
+            </div>
+            <div style={{height:5,borderRadius:3,background:"rgba(99,140,255,0.07)"}}>
+              <div style={{height:"100%",width:`${(f.importance/mx2)*100}%`,
+                background: gradients[Math.min(i, gradients.length-1)],
+                borderRadius:3,transition:"width .6s ease"}}/>
+            </div>
+          </div>
+        );
+      })}
+      {tooltip && createPortal(
+        <div style={{
+          position:"fixed",
+          left: Math.min(tooltip.x, window.innerWidth - 340),
+          top:  tooltip.y,
+          width: 320,
+          background:"rgba(6,9,20,0.97)",
+          border:"1px solid rgba(99,140,255,0.3)",
+          borderRadius:10, padding:"12px 16px",
+          zIndex:99999,
+          boxShadow:"0 12px 40px rgba(0,0,0,0.7)",
+          pointerEvents:"none",
+        }}>
+          <div style={{fontSize:11,fontWeight:700,color:"#638cff",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
+            {featureLabel(tooltip.rawName)}
+          </div>
+          <div style={{fontSize:11,color:"rgba(200,215,240,0.75)",fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.7}}>
+            {tooltip.text}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 /* ─── Catalog Tab ────────────────────────────────────────────── */
 function EnhancedMetricsTab() {
   const simpleMode = useContext(ModeContext);
@@ -1450,26 +1738,7 @@ function EnhancedMetricsTab() {
         {topFeats.length > 0 && (
           <Card style={{padding:"16px 20px"}}>
             <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",marginBottom:12}}>🔍 Ce que l'IA observe en priorité</div>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {topFeats.map((f,i)=>{
-                const label = featureLabel(f.name);
-                const pct = Math.round(f.importance*100);
-                const mx = topFeats[0]?.importance||1;
-                return (
-                  <div key={i}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:11,
-                      fontFamily:"'DM Mono',monospace",marginBottom:3}}>
-                      <span style={{color:"rgba(160,180,220,0.7)",textTransform:"capitalize"}}>{label}</span>
-                      <span style={{color:"#638cff"}}>{pct}%</span>
-                    </div>
-                    <div style={{height:6,borderRadius:3,background:"rgba(99,140,255,0.08)"}}>
-                      <div style={{height:"100%",width:`${(f.importance/mx)*100}%`,
-                        background:"linear-gradient(90deg,#638cff,#8b5cf6)",borderRadius:3}}/>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <MetricsFeatureBars features={topFeats}/>
           </Card>
         )}
       </div>
@@ -1571,38 +1840,9 @@ function EnhancedMetricsTab() {
           <FeatureImportanceHeader />
           <div style={{fontSize:10,color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace",
             marginBottom:10}}>
-            Plus la barre est longue, plus cette variable a influencé les décisions du modèle.
+            Plus la barre est longue, plus cette variable a influencé les décisions du modèle. Survolez une ligne pour en savoir plus.
           </div>
-          {(metrics.top_features||[]).slice(0,8).map((f,i)=>{
-            const mx2=metrics.top_features[0]?.importance||1;
-            const rankColors=["#fbbf24","#94a3b8","#cd7c3a","#638cff","#638cff","#638cff","#638cff","#638cff"];
-            const label = featureLabel(f.name);
-            return (
-              <div key={i} style={{marginBottom:8}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3,gap:8}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                    <span style={{
-                      fontSize:8,fontWeight:700,fontFamily:"'DM Mono',monospace",
-                      color:rankColors[i],flexShrink:0,
-                      width:16,textAlign:"center",
-                    }}>#{i+1}</span>
-                    <span style={{color:"rgba(200,215,240,0.8)",fontSize:10,fontFamily:"'DM Mono',monospace",
-                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</span>
-                  </div>
-                  <span style={{color:rankColors[i],fontSize:10,fontFamily:"'DM Mono',monospace",
-                    fontWeight:600,flexShrink:0}}>{(f.importance*100).toFixed(1)}%</span>
-                </div>
-                <div style={{height:5,borderRadius:3,background:"rgba(99,140,255,0.07)"}}>
-                  <div style={{height:"100%",width:`${(f.importance/mx2)*100}%`,
-                    background:i===0?"linear-gradient(90deg,#fbbf24,#f59e0b)":
-                               i===1?"linear-gradient(90deg,#94a3b8,#64748b)":
-                               i===2?"linear-gradient(90deg,#cd7c3a,#b45309)":
-                               "linear-gradient(90deg,#638cff,#8b5cf6)",
-                    borderRadius:3,transition:"width .6s ease"}}/>
-                </div>
-              </div>
-            );
-          })}
+          <MetricsFeatureBars features={(metrics.top_features||[]).slice(0,8)}/>
         </Card>
       </div>
 
@@ -2409,6 +2649,11 @@ function HistoryTab({ history, onClear, onAnalyze }) {
   const [confirming, setConfirming] = useState(false);
   const confirmTimer = useRef(null);
 
+  // Filters
+  const [search,    setSearch]    = useState("");
+  const [verdict,   setVerdict]   = useState("all"); // all | planet | fp | other
+  const [sortOrder, setSortOrder] = useState("desc"); // desc | asc
+
   const handleClear = async () => {
     if (!confirming) {
       setConfirming(true);
@@ -2420,89 +2665,198 @@ function HistoryTab({ history, onClear, onAnalyze }) {
     await onClear();
   };
 
+  const filtered = history
+    .filter(row => {
+      if (search && !row.target?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (verdict === "planet") return row.score >= 0.70;
+      if (verdict === "fp")     return row.score < 0.35;
+      if (verdict === "other")  return row.score >= 0.35 && row.score < 0.70;
+      return true;
+    })
+    .sort((a, b) => {
+      const da = new Date(a.date), db = new Date(b.date);
+      return sortOrder === "desc" ? db - da : da - db;
+    });
+
+  const exportCSV = () => {
+    const headers = ["Cible","Score (%)","Verdict","Période (j)","Mission","Date"];
+    const rows = filtered.map(r => [
+      r.target,
+      (r.score * 100).toFixed(1),
+      r.verdict,
+      r.period_days ?? "",
+      r.mission ?? "",
+      r.date ? new Date(r.date).toLocaleString() : "",
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8;" }));
+    a.download = `historique_exoplanetes_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  };
+
+  const VERDICT_TABS = [
+    { id:"all",    label:"Tout",          count: history.length },
+    { id:"planet", label:"Planètes",      count: history.filter(r=>r.score>=0.70).length },
+    { id:"fp",     label:"Faux positifs", count: history.filter(r=>r.score<0.35).length },
+    { id:"other",  label:"Candidats",     count: history.filter(r=>r.score>=0.35&&r.score<0.70).length },
+  ];
+
   if (!history.length) return (
     <div style={{padding:60,textAlign:"center",color:"rgba(160,180,220,0.25)",
       fontFamily:"'DM Mono',monospace",fontSize:12}}>
-      <Clock size={32} style={{marginBottom:12,opacity:.3,display:"block",margin:"0 auto 12px"}}/>
+      <Clock size={32} style={{opacity:.3,display:"block",margin:"0 auto 12px"}}/>
       Aucune analyse effectuée pour ce compte
     </div>
   );
 
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:10,animation:"fadeIn .5s ease-out"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{fontSize:10,color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace",
-          textTransform:"uppercase",letterSpacing:1.5}}>
-          {history.length} dernière{history.length>1?"s":""} analyse{history.length>1?"s":""}
+    <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .5s ease-out"}}>
+
+      {/* ── Barre de filtres ── */}
+      <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+        {/* Tabs verdict */}
+        <div style={{display:"flex",gap:2,background:"rgba(10,14,26,0.6)",borderRadius:9,padding:3,border:"1px solid rgba(99,140,255,0.1)"}}>
+          {VERDICT_TABS.map(t => (
+            <button key={t.id} onClick={()=>setVerdict(t.id)} style={{
+              padding:"5px 12px",borderRadius:7,fontSize:11,cursor:"pointer",border:"none",
+              fontFamily:"'DM Mono',monospace",transition:"all .15s",
+              background: verdict===t.id ? "rgba(99,140,255,0.18)" : "none",
+              color: verdict===t.id ? "#638cff" : "rgba(160,180,220,0.4)",
+              fontWeight: verdict===t.id ? 600 : 400,
+            }}>
+              {t.label}
+              <span style={{marginLeft:5,fontSize:9,opacity:.6}}>{t.count}</span>
+            </button>
+          ))}
         </div>
-        <button
-          onClick={handleClear}
-          style={{
-            padding:"5px 12px",borderRadius:7,fontSize:10,
-            fontFamily:"'DM Mono',monospace",cursor:"pointer",
-            background: confirming ? "rgba(248,113,113,0.12)" : "rgba(248,113,113,0.05)",
-            border: confirming ? "1px solid rgba(248,113,113,0.5)" : "1px solid rgba(248,113,113,0.15)",
-            color: confirming ? "#f87171" : "rgba(248,113,113,0.5)",
-            transition:"all .2s",
-          }}>
-          {confirming ? "⚠ Confirmer la suppression" : "🗑 Vider l'historique"}
+
+        {/* Recherche */}
+        <div style={{position:"relative",flex:1,minWidth:140}}>
+          <Search size={12} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(160,180,220,0.3)",pointerEvents:"none"}}/>
+          <input
+            value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Rechercher une étoile..."
+            style={{
+              width:"100%",padding:"7px 10px 7px 28px",
+              background:"rgba(10,14,26,0.6)",
+              border:"1px solid rgba(99,140,255,0.1)",
+              borderRadius:8,color:"#e0e8f5",outline:"none",
+              fontFamily:"'DM Mono',monospace",fontSize:12,
+              boxSizing:"border-box",
+            }}
+          />
+          {search && (
+            <button onClick={()=>setSearch("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"rgba(160,180,220,0.4)"}}>
+              <X size={12}/>
+            </button>
+          )}
+        </div>
+
+        {/* Tri */}
+        <button onClick={()=>setSortOrder(s=>s==="desc"?"asc":"desc")} style={{
+          padding:"7px 12px",borderRadius:8,fontSize:11,cursor:"pointer",
+          fontFamily:"'DM Mono',monospace",
+          background:"rgba(10,14,26,0.6)",
+          border:"1px solid rgba(99,140,255,0.1)",
+          color:"rgba(160,180,220,0.5)",
+          display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap",
+          transition:"all .15s",
+        }}>
+          <Clock size={12}/>{sortOrder==="desc"?"Plus récent":"Plus ancien"}
         </button>
       </div>
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Mono',monospace",fontSize:12}}>
-          <thead>
-            <tr style={{borderBottom:"1px solid rgba(99,140,255,0.1)"}}>
-              {(simpleMode?["Étoile","Résultat","Date",""]:["Cible","Score","Verdict","Période","Date",""]).map(h=>(
-                <th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,
-                  color:"rgba(160,180,220,0.4)",textTransform:"uppercase",letterSpacing:1.2,
-                  fontWeight:400}}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {history.map((row,i)=>{
-              const col=row.score>=0.70?"#4ade80":row.score>=0.35?"#fbbf24":"#f87171";
-              const emoji=row.score>=0.70?"🌍":row.score>=0.35?"🔶":"⭐";
-              return (
-                <tr key={i} style={{borderBottom:"1px solid rgba(99,140,255,0.05)",
-                  animation:"slideIn .3s ease-out"}}>
-                  <td style={{padding:"10px 12px",color:"#e0e8f5",fontWeight:500}}>{row.target}</td>
-                  {simpleMode?(
-                    <td style={{padding:"10px 12px",fontSize:18}}>{emoji}</td>
-                  ):(
-                    <>
-                      <td style={{padding:"10px 12px"}}>
-                        <span style={{color:col,fontWeight:600}}>{(row.score*100).toFixed(1)}%</span>
-                      </td>
-                      <td style={{padding:"10px 12px"}}>
-                        <span style={{padding:"2px 8px",borderRadius:4,fontSize:10,
-                          background:`${col}15`,border:`1px solid ${col}30`,color:col}}>
-                          {row.verdict}
-                        </span>
-                      </td>
-                      <td style={{padding:"10px 12px",color:"rgba(160,180,220,0.5)",fontSize:11}}>
-                        {row.period_days ? `${row.period_days} j` : "—"}
-                      </td>
-                    </>
-                  )}
-                  <td style={{padding:"10px 12px",color:"rgba(160,180,220,0.4)",fontSize:11}}>
-                    {formatHistoryDate(row.date)}
-                  </td>
-                  <td style={{padding:"10px 12px"}}>
-                    <button onClick={()=>onAnalyze(row.target)} style={{
-                      padding:"3px 10px",borderRadius:6,fontSize:9,cursor:"pointer",
-                      fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",
-                      background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
-                      color:"#638cff",display:"flex",alignItems:"center",gap:4}}>
-                      <ChevronRight size={9}/>{simpleMode?"Revoir":"Analyser"}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+
+      {/* ── Barre du bas : compteur + actions ── */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+        <div style={{fontSize:10,color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.2}}>
+          {filtered.length !== history.length
+            ? `${filtered.length} / ${history.length} résultat${filtered.length>1?"s":""}`
+            : `${history.length} analyse${history.length>1?"s":""}`}
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={exportCSV} style={{
+            padding:"5px 12px",borderRadius:7,fontSize:10,cursor:"pointer",
+            fontFamily:"'DM Mono',monospace",
+            background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
+            color:"#638cff",display:"flex",alignItems:"center",gap:5,transition:"all .2s",
+          }}>
+            <FileText size={11}/> Exporter CSV
+          </button>
+          <button onClick={handleClear} style={{
+            padding:"5px 12px",borderRadius:7,fontSize:10,
+            fontFamily:"'DM Mono',monospace",cursor:"pointer",
+            background: confirming?"rgba(248,113,113,0.12)":"rgba(248,113,113,0.05)",
+            border: confirming?"1px solid rgba(248,113,113,0.5)":"1px solid rgba(248,113,113,0.15)",
+            color: confirming?"#f87171":"rgba(248,113,113,0.5)",
+            transition:"all .2s",
+          }}>
+            {confirming ? "⚠ Confirmer" : "🗑 Vider"}
+          </button>
+        </div>
       </div>
+
+      {/* ── Table ── */}
+      {filtered.length === 0 ? (
+        <div style={{padding:"40px 0",textAlign:"center",color:"rgba(160,180,220,0.25)",fontFamily:"'DM Mono',monospace",fontSize:12}}>
+          Aucun résultat pour ces filtres.
+        </div>
+      ) : (
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Mono',monospace",fontSize:12}}>
+            <thead>
+              <tr style={{borderBottom:"1px solid rgba(99,140,255,0.1)"}}>
+                {(simpleMode?["Étoile","Résultat","Date",""]:["Cible","Score","Verdict","Période","Date",""]).map(h=>(
+                  <th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,
+                    color:"rgba(160,180,220,0.4)",textTransform:"uppercase",letterSpacing:1.2,
+                    fontWeight:400}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row,i)=>{
+                const col=row.score>=0.70?"#4ade80":row.score>=0.35?"#fbbf24":"#f87171";
+                const emoji=row.score>=0.70?"🌍":row.score>=0.35?"🔶":"⭐";
+                return (
+                  <tr key={i} style={{borderBottom:"1px solid rgba(99,140,255,0.05)"}}>
+                    <td style={{padding:"10px 12px",color:"#e0e8f5",fontWeight:500}}>{row.target}</td>
+                    {simpleMode?(
+                      <td style={{padding:"10px 12px",fontSize:18}}>{emoji}</td>
+                    ):(
+                      <>
+                        <td style={{padding:"10px 12px"}}>
+                          <span style={{color:col,fontWeight:600}}>{(row.score*100).toFixed(1)}%</span>
+                        </td>
+                        <td style={{padding:"10px 12px"}}>
+                          <span style={{padding:"2px 8px",borderRadius:4,fontSize:10,
+                            background:`${col}15`,border:`1px solid ${col}30`,color:col}}>
+                            {row.verdict}
+                          </span>
+                        </td>
+                        <td style={{padding:"10px 12px",color:"rgba(160,180,220,0.5)",fontSize:11}}>
+                          {row.period_days ? `${row.period_days} j` : "—"}
+                        </td>
+                      </>
+                    )}
+                    <td style={{padding:"10px 12px",color:"rgba(160,180,220,0.4)",fontSize:11}}>
+                      {formatHistoryDate(row.date)}
+                    </td>
+                    <td style={{padding:"10px 12px"}}>
+                      <button onClick={()=>onAnalyze(row.target)} style={{
+                        padding:"3px 10px",borderRadius:6,fontSize:9,cursor:"pointer",
+                        fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",
+                        background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
+                        color:"#638cff",display:"flex",alignItems:"center",gap:4}}>
+                        <ChevronRight size={9}/>{simpleMode?"Revoir":"Analyser"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -2749,7 +3103,33 @@ function DocTab() {
 }
 
 /* ─── Suggestion Sidebar ─────────────────────────────────────── */
+const TESS_TARGETS = [
+  { id: "TOI-700",   label: "TOI-700",   note: "zone hab." },
+  { id: "TOI-700d",  label: "TOI-700d",  note: "super-Terre" },
+  { id: "TOI-1338",  label: "TOI-1338",  note: "circumbinaire" },
+  { id: "TOI-1452",  label: "TOI-1452",  note: "océan possible" },
+  { id: "TOI-849",   label: "TOI-849",   note: "noyau planétaire" },
+  { id: "TOI-125",   label: "TOI-125",   note: "3 planètes" },
+  { id: "TOI-178",   label: "TOI-178",   note: "résonance orbitale" },
+  { id: "TOI-270",   label: "TOI-270",   note: "3 planètes" },
+  { id: "TOI-1266",  label: "TOI-1266",  note: "naine M" },
+  { id: "TOI-776",   label: "TOI-776",   note: "2 super-Terres" },
+];
+
 function SuggestionSidebar({ current, onPick }) {
+  const [section, setSection] = useState("kepler"); // kepler | tess | kic
+
+  const SectionBtn = ({ id, label, color }) => (
+    <button onClick={() => setSection(id)} style={{
+      flex: 1, padding: "5px 0", borderRadius: 6, border: "none", cursor: "pointer",
+      fontFamily: "'DM Mono',monospace", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.8,
+      background: section === id ? `${color}18` : "transparent",
+      color: section === id ? color : "rgba(160,180,220,0.35)",
+      borderBottom: section === id ? `2px solid ${color}` : "2px solid transparent",
+      transition: "all .15s",
+    }}>{label}</button>
+  );
+
   return (
     <div style={{ position: "sticky", top: 16, display: "flex", flexDirection: "column", gap: 8, maxHeight: "calc(100vh - 160px)" }}>
       <div style={{ fontSize: 10, fontFamily: "'DM Mono',monospace", color: "rgba(160,180,220,0.35)",
@@ -2757,49 +3137,84 @@ function SuggestionSidebar({ current, onPick }) {
         Suggestions
       </div>
 
-      {/* Kepler nommées */}
-      <Card style={{ padding: "10px 12px" }}>
-        <div style={{ fontSize: 9, color: "rgba(99,140,255,0.5)", textTransform: "uppercase",
-          letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
-          Kepler nommées
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {PRESET_TARGETS.map(p => (
-            <button key={p.id} onClick={() => onPick(p.id)} style={{
-              textAlign: "left", padding: "5px 8px", borderRadius: 6, border: "none",
-              background: current === p.id ? "rgba(99,140,255,0.15)" : "transparent",
-              color: current === p.id ? "#638cff" : "rgba(160,180,220,0.6)",
-              fontFamily: "'DM Mono',monospace", fontSize: 11, cursor: "pointer",
-              borderLeft: `2px solid ${current === p.id ? "#638cff" : "transparent"}`,
-              transition: "all 0.15s",
-            }}>
-              {p.label}
-            </button>
-          ))}
+      {/* Onglets mission */}
+      <Card style={{ padding: "6px 8px" }}>
+        <div style={{ display: "flex", gap: 2 }}>
+          <SectionBtn id="kepler" label="Kepler"  color="#638cff"/>
+          <SectionBtn id="tess"   label="TESS"    color="#22d3ee"/>
+          <SectionBtn id="kic"    label="KIC"     color="rgba(160,180,220,0.5)"/>
         </div>
       </Card>
 
+      {/* Kepler nommées */}
+      {section === "kepler" && (
+        <Card style={{ padding: "10px 12px" }}>
+          <div style={{ fontSize: 9, color: "rgba(99,140,255,0.5)", textTransform: "uppercase",
+            letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
+            Kepler nommées
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {PRESET_TARGETS.map(p => (
+              <button key={p.id} onClick={() => onPick(p.id)} style={{
+                textAlign: "left", padding: "5px 8px", borderRadius: 6, border: "none",
+                background: current === p.id ? "rgba(99,140,255,0.15)" : "transparent",
+                color: current === p.id ? "#638cff" : "rgba(160,180,220,0.6)",
+                fontFamily: "'DM Mono',monospace", fontSize: 11, cursor: "pointer",
+                borderLeft: `2px solid ${current === p.id ? "#638cff" : "transparent"}`,
+                transition: "all 0.15s",
+              }}>{p.label}</button>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* TESS */}
+      {section === "tess" && (
+        <Card style={{ padding: "10px 12px" }}>
+          <div style={{ fontSize: 9, color: "rgba(34,211,238,0.5)", textTransform: "uppercase",
+            letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
+            TESS — TOI confirmés
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {TESS_TARGETS.map(p => (
+              <button key={p.id} onClick={() => onPick(p.id)} style={{
+                textAlign: "left", padding: "5px 8px", borderRadius: 6, border: "none",
+                background: current === p.id ? "rgba(34,211,238,0.1)" : "transparent",
+                color: current === p.id ? "#22d3ee" : "rgba(160,180,220,0.6)",
+                fontFamily: "'DM Mono',monospace", fontSize: 11, cursor: "pointer",
+                borderLeft: `2px solid ${current === p.id ? "#22d3ee" : "transparent"}`,
+                transition: "all 0.15s",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <span>{p.label}</span>
+                <span style={{ fontSize: 9, color: "rgba(34,211,238,0.4)", fontStyle: "italic" }}>{p.note}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* KIC vérifiés — scrollable */}
-      <Card style={{ padding: "10px 12px", flex: 1, overflowY: "auto", minHeight: 0 }}>
-        <div style={{ fontSize: 9, color: "rgba(160,180,220,0.35)", textTransform: "uppercase",
-          letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
-          Catalogue KIC
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {VERIFIED_KIC_POOL.map(id => (
-            <button key={id} onClick={() => onPick(id)} style={{
-              textAlign: "left", padding: "4px 8px", borderRadius: 6, border: "none",
-              background: current === id ? "rgba(99,140,255,0.15)" : "transparent",
-              color: current === id ? "#638cff" : "rgba(160,180,220,0.45)",
-              fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
-              borderLeft: `2px solid ${current === id ? "#638cff" : "transparent"}`,
-              transition: "all 0.15s", whiteSpace: "nowrap",
-            }}>
-              {id}
-            </button>
-          ))}
-        </div>
-      </Card>
+      {section === "kic" && (
+        <Card style={{ padding: "10px 12px", flex: 1, overflowY: "auto", minHeight: 0 }}>
+          <div style={{ fontSize: 9, color: "rgba(160,180,220,0.35)", textTransform: "uppercase",
+            letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
+            Catalogue KIC
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {VERIFIED_KIC_POOL.map(id => (
+              <button key={id} onClick={() => onPick(id)} style={{
+                textAlign: "left", padding: "4px 8px", borderRadius: 6, border: "none",
+                background: current === id ? "rgba(99,140,255,0.15)" : "transparent",
+                color: current === id ? "#638cff" : "rgba(160,180,220,0.45)",
+                fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
+                borderLeft: `2px solid ${current === id ? "#638cff" : "transparent"}`,
+                transition: "all 0.15s", whiteSpace: "nowrap",
+              }}>{id}</button>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -3296,14 +3711,13 @@ function ComparisonTab() {
 function TourOverlay({ step, onNext, onSkip }) {
   const def = TOUR_STEPS[step];
   const [rect, setRect] = useState(null);
-  const PAD = 10;
+  const PAD = 12;
 
   useEffect(() => {
     if (!def.sel) { setRect(null); return; }
     const el = document.querySelector(def.sel);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      // Small delay to let scroll settle before measuring
       const t = setTimeout(() => setRect(el.getBoundingClientRect()), 120);
       return () => clearTimeout(t);
     }
@@ -3313,32 +3727,44 @@ function TourOverlay({ step, onNext, onSkip }) {
   const winW = window.innerWidth;
   const isCenter = !def.sel || !rect;
 
-  // Tooltip positioning relative to highlight box
   const tooltipW = 340;
   let ttop = 0, tleft = 0;
   if (!isCenter && rect) {
     ttop  = rect.bottom + PAD + 10;
     tleft = Math.max(12, Math.min(rect.left, winW - tooltipW - 12));
-    // If tooltip would go off bottom, put it above
-    if (ttop + 180 > window.innerHeight) ttop = rect.top - 180 - PAD;
+    if (ttop + 200 > window.innerHeight) ttop = rect.top - 200 - PAD;
   }
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:9990 }}>
-      {/* Dark overlay (non-interactive so clicks pass through to highlight) */}
-      <div style={{ position:"fixed", inset:0, background:"rgba(2,4,12,0.78)", pointerEvents:"all" }} />
+      {/* Backdrop sombre uniquement quand pas d'élément ciblé */}
+      {isCenter && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(2,4,12,0.85)", pointerEvents:"all" }} />
+      )}
 
-      {/* Highlight cutout */}
+      {/* Spotlight : le box-shadow crée la zone sombre AUTOUR de l'élément,
+          laissant l'élément lui-même pleinement visible et éclairé */}
       {rect && (
         <div style={{
           position:"fixed",
           left: rect.left - PAD, top: rect.top - PAD,
           width: rect.width + PAD*2, height: rect.height + PAD*2,
-          borderRadius: 10,
-          boxShadow: "0 0 0 9999px rgba(2,4,12,0.78), 0 0 0 2px rgba(99,140,255,0.9), 0 0 24px rgba(99,140,255,0.35)",
-          zIndex: 9995, pointerEvents:"none",
-          transition:"all .35s cubic-bezier(.4,0,.2,1)",
+          borderRadius: 12,
+          boxShadow: [
+            "0 0 0 9999px rgba(2,4,12,0.85)",
+            "0 0 0 2px rgba(99,140,255,1)",
+            "0 0 32px 8px rgba(99,140,255,0.55)",
+          ].join(", "),
+          zIndex: 9995,
+          pointerEvents: "none",
+          transition: "all .35s cubic-bezier(.4,0,.2,1)",
         }} />
+      )}
+
+      {/* Bloqueur de clics sur la zone sombre (passe à travers le spotlight) */}
+      {rect && (
+        <div style={{ position:"fixed", inset:0, zIndex:9994, pointerEvents:"all" }}
+          onClick={onNext} />
       )}
 
       {/* Tooltip */}
@@ -3384,273 +3810,581 @@ function TourOverlay({ step, onNext, onSkip }) {
   );
 }
 
+/* ─── Profile Nav Config ─────────────────────────────────────── */
+const PROFILE_NAV = [
+  {
+    id: "compte", label: "Compte", icon: User,
+    items: [
+      { id: "identite", label: "Identité" },
+      { id: "session",  label: "Session"  },
+    ]
+  },
+  {
+    id: "securite", label: "Identifiants", icon: Lock,
+    items: [
+      { id: "pseudo",      label: "Nom d'utilisateur" },
+      { id: "motdepasse",  label: "Mot de passe"      },
+    ]
+  },
+  {
+    id: "apparence", label: "Apparence", icon: Monitor,
+    items: [
+      { id: "avatar",    label: "Avatar"    },
+      { id: "affichage", label: "Affichage" },
+    ]
+  },
+  {
+    id: "donnees", label: "Données", icon: BarChart2,
+    items: [
+      { id: "stats",       label: "Statistiques" },
+      { id: "realisations",label: "Réalisations" },
+      { id: "csv",         label: "Imports CSV"  },
+    ]
+  },
+];
+
 /* ─── Profile Tab ────────────────────────────────────────────── */
 const AVATARS = [
-  { id: "rocket", icon: Rocket },
+  { id: "rocket",    icon: Rocket    },
   { id: "satellite", icon: Satellite },
-  { id: "moon", icon: Moon },
-  { id: "orbit", icon: Orbit },
-  { id: "ghost", icon: Ghost },
-  { id: "user", icon: User },
+  { id: "moon",      icon: Moon      },
+  { id: "orbit",     icon: Orbit     },
+  { id: "ghost",     icon: Ghost     },
+  { id: "user",      icon: User      },
 ];
 
 function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, setIsLightMode }) {
-  const simpleMode = useContext(ModeContext);
-  
-  const totalAnalyzed = history.length;
-  // Support both versions of spelling
-  const planetsFound = history.filter(h => h.verdict?.toLowerCase().includes("planète")).length;
-  const fpFound = history.filter(h => h.verdict?.toLowerCase().includes("faux positif")).length;
-  
-  // Custom CSV Logs
-  const csvLogs = history.filter(h => h.mission === "Custom CSV");
+  const [expandedSection, setExpandedSection] = useState("compte");
+  const [activeItem, setActiveItem]           = useState("identite");
 
-  // Avatar state
-  const [showAvatar, setShowAvatar] = useState(false);
+  // Stats
+  const totalAnalyzed  = history.length;
+  const planetsFound   = history.filter(h => h.verdict?.toLowerCase().includes("planète")).length;
+  const fpFound        = history.filter(h => h.verdict?.toLowerCase().includes("faux positif")).length;
+  const csvLogs        = history.filter(h => h.mission === "Custom CSV");
+  const detectionRate  = totalAnalyzed > 0 ? Math.round((planetsFound / totalAnalyzed) * 100) : 0;
+
   const CurrentIcon = AVATARS.find(a => a.id === authState?.avatar)?.icon || User;
-  
+
+  // Avatar
   const handleAvatarSelect = async (id) => {
-    setShowAvatar(false);
     try {
       const r = await authFetch(`${API_BASE}/api/auth/update_profile`, {
-        method: "POST",
-        body: JSON.stringify({ avatar: id })
+        method: "POST", body: JSON.stringify({ avatar: id })
       });
-      if (r.ok) {
-        setAuthState(prev => ({ ...prev, avatar: id }));
-      }
-    } catch(e) { console.error("Erreur màj avatar", e); }
+      if (r.ok) setAuthState(prev => ({ ...prev, avatar: id }));
+    } catch(e) { console.error(e); }
   };
 
-  // Password state
-  const [pwd, setPwd] = useState({ old: "", new: "" });
+  // Password
+  const [pwd, setPwd]           = useState({ old:"", new:"", showOld:false, showNew:false });
   const [pwdStatus, setPwdStatus] = useState(null);
-  
   const handleChangePwd = async (e) => {
-    e.preventDefault();
-    setPwdStatus(null);
+    e.preventDefault(); setPwdStatus(null);
     try {
       const r = await authFetch(`${API_BASE}/api/auth/change_password`, {
-        method: "POST",
-        body: JSON.stringify({ old_password: pwd.old, new_password: pwd.new })
+        method: "POST", body: JSON.stringify({ old_password: pwd.old, new_password: pwd.new })
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Erreur serveur");
-      setPwdStatus({ ok: true, msg: "Mot de passe modifié avec succès." });
-      setPwd({ old: "", new: "" });
-    } catch(e) { setPwdStatus({ ok: false, msg: e.message }); }
+      setPwdStatus({ ok:true, msg:"Mot de passe modifié avec succès." });
+      setPwd({ old:"", new:"", showOld:false, showNew:false });
+    } catch(e) { setPwdStatus({ ok:false, msg:e.message }); }
   };
 
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:24,animation:"fadeIn .5s ease-out"}}>
-      <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:20,fontWeight:700,color:"#e0e8f5",margin:0}}>
-        {simpleMode ? "👤 Mon Profil" : "Profil Utilisateur"}
-      </h2>
-      
-      <div style={{display:"flex",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
-        {/* Colonne Gauche : Identité & Badges */}
-        <div style={{flex:1,minWidth:250,display:"flex",flexDirection:"column",gap:16}}>
-          <Card style={{padding:32,display:"flex",flexDirection:"column",alignItems:"center",position:"relative"}}>
-            <button onClick={() => setShowAvatar(!showAvatar)} style={{
-               width:80,height:80,borderRadius:40,background:"linear-gradient(135deg,#638cff,#8b5cf6)",
-               display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,marginBottom:16,
-               boxShadow:"0 12px 24px rgba(99,140,255,0.2)",border:"2px solid rgba(255,255,255,0.1)",
-               cursor:"pointer",transition:"transform .2s"}}>
-              <CurrentIcon size={40} color="#fff"/>
-            </button>
-            
-            {showAvatar && (
-              <div style={{position:"absolute",top:100,background:"#0a0e1a",border:"1px solid rgba(99,140,255,0.2)",
-                  padding:12,borderRadius:12,display:"flex",gap:8,zIndex:20,boxShadow:"0 10px 30px rgba(0,0,0,0.5)"}}>
+  // Username
+  const [uname, setUname]             = useState("");
+  const [unameStatus, setUnameStatus] = useState(null);
+  const handleChangeUname = async (e) => {
+    e.preventDefault(); setUnameStatus(null);
+    if (!uname || uname.length < 3) return setUnameStatus({ ok:false, msg:"Pseudo trop court (min. 3 caractères)" });
+    try {
+      const r = await authFetch(`${API_BASE}/api/auth/change_username`, {
+        method: "POST", body: JSON.stringify({ new_username: uname })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Erreur serveur");
+      setUnameStatus({ ok:true, msg:"Pseudo modifié avec succès !" });
+      setAuthState(prev => ({ ...prev, username: uname, token: d.token }));
+      setUname("");
+    } catch(e) { setUnameStatus({ ok:false, msg:e.message }); }
+  };
+
+  const handleSectionClick = (sectionId) => {
+    if (expandedSection === sectionId) {
+      setExpandedSection(null);
+    } else {
+      setExpandedSection(sectionId);
+      const section = PROFILE_NAV.find(s => s.id === sectionId);
+      if (section?.items?.length) setActiveItem(section.items[0].id);
+    }
+  };
+
+  const achievements = [
+    { id:"novice",      label:"Novice",       icon:Star,      desc:"Première analyse effectuée",   unlocked:totalAnalyzed>=1,   color:"#638cff", current:Math.min(totalAnalyzed,1),   max:1   },
+    { id:"explorateur", label:"Explorateur",  icon:Globe,     desc:"10 analyses complétées",        unlocked:totalAnalyzed>=10,  color:"#a78bfa", current:Math.min(totalAnalyzed,10),  max:10  },
+    { id:"chasseur",    label:"Chasseur",     icon:Sparkles,  desc:"Première planète détectée",     unlocked:planetsFound>=1,    color:"#4ade80", current:Math.min(planetsFound,1),    max:1   },
+    { id:"veteran",     label:"Vétéran",      icon:Zap,       desc:"50 analyses complétées",        unlocked:totalAnalyzed>=50,  color:"#f59e0b", current:Math.min(totalAnalyzed,50),  max:50  },
+    { id:"chercheur",   label:"Chercheur",    icon:Telescope, desc:"5 planètes détectées",          unlocked:planetsFound>=5,    color:"#06b6d4", current:Math.min(planetsFound,5),    max:5   },
+    { id:"scientifique",label:"Scientifique", icon:Activity,  desc:"100 analyses complétées",       unlocked:totalAnalyzed>=100, color:"#ec4899", current:Math.min(totalAnalyzed,100), max:100 },
+  ];
+
+  // Shared styles
+  const inputStyle = {
+    width:"100%", padding:"10px 14px",
+    background:"rgba(15,18,30,0.8)",
+    border:"1px solid rgba(99,140,255,0.2)",
+    borderRadius:8, color:"#e0e8f5", outline:"none",
+    fontFamily:"'DM Mono',monospace", fontSize:13,
+    boxSizing:"border-box",
+  };
+  const labelStyle = {
+    display:"block", fontSize:11,
+    color:"rgba(160,180,220,0.5)",
+    marginBottom:6, fontFamily:"'DM Mono',monospace", letterSpacing:0.5,
+  };
+  const subTitleStyle = {
+    fontSize:11, color:"rgba(160,180,220,0.4)",
+    fontFamily:"'DM Mono',monospace",
+    textTransform:"uppercase", letterSpacing:1.5, marginBottom:6,
+  };
+  const StatusMsg = ({ status }) => !status ? null : (
+    <div style={{
+      padding:"10px 14px", marginBottom:12, fontSize:12, borderRadius:8,
+      background:status.ok?"rgba(74,222,160,0.1)":"rgba(248,113,113,0.1)",
+      color:status.ok?"#4ade80":"#f87171",
+      border:`1px solid ${status.ok?"rgba(74,222,160,0.3)":"rgba(248,113,113,0.3)"}`,
+      fontFamily:"'DM Mono',monospace",
+    }}>{status.msg}</div>
+  );
+
+  const renderContent = () => {
+    switch(activeItem) {
+
+      /* ── Identité ── */
+      case "identite": {
+        const rank = totalAnalyzed>=100?"Scientifique":totalAnalyzed>=50?"Vétéran":totalAnalyzed>=10?"Explorateur":totalAnalyzed>=1?"Novice":"Recrue";
+        return (
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:24,marginBottom:36,flexWrap:"wrap"}}>
+              <div style={{
+                width:88,height:88,borderRadius:"50%",
+                background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                boxShadow:"0 12px 32px rgba(99,140,255,0.3)",
+                border:"2px solid rgba(255,255,255,0.08)",flexShrink:0,
+              }}><CurrentIcon size={44} color="#fff"/></div>
+              <div>
+                <h2 style={{margin:0,fontFamily:"'Space Grotesk',sans-serif",fontSize:24,fontWeight:700,color:"#e0e8f5"}}>{authState.username}</h2>
+                <div style={{fontSize:12,color:"rgba(160,180,220,0.5)",fontFamily:"'DM Mono',monospace",marginTop:4}}>Explorateur stellaire</div>
+                <div style={{display:"flex",gap:6,marginTop:12,flexWrap:"wrap"}}>
+                  {achievements.filter(a=>a.unlocked).map(a => {
+                    const Icon = a.icon;
+                    return (
+                      <span key={a.id} style={{
+                        display:"inline-flex",alignItems:"center",gap:5,
+                        padding:"3px 10px",borderRadius:20,
+                        background:`${a.color}18`,border:`1px solid ${a.color}44`,
+                        fontSize:10,color:a.color,fontFamily:"'DM Mono',monospace",
+                      }}><Icon size={10}/>{a.label}</span>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {[
+                { label:"Identifiant",         value:authState.username, color:"#e0e8f5" },
+                { label:"Rang actuel",          value:rank,               color:"#638cff" },
+                { label:"Analyses réalisées",   value:`${totalAnalyzed} cibles`, color:"#e0e8f5" },
+                { label:"Planètes détectées",   value:`${planetsFound} planète${planetsFound!==1?"s":""}`, color:"#4ade80" },
+              ].map(item => (
+                <div key={item.label} style={{padding:"16px 20px",background:"rgba(15,18,30,0.6)",borderRadius:10,border:"1px solid rgba(99,140,255,0.08)"}}>
+                  <div style={subTitleStyle}>{item.label}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:item.color}}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      /* ── Session ── */
+      case "session":
+        return (
+          <div>
+            <p style={{color:"rgba(160,180,220,0.6)",fontFamily:"'DM Mono',monospace",fontSize:13,lineHeight:1.8,marginBottom:28}}>
+              Ta session est actuellement active. En te déconnectant, tu seras redirigé vers la page de connexion et toutes les données non sauvegardées seront perdues.
+            </p>
+            <div style={{padding:"20px 24px",background:"rgba(248,113,113,0.05)",border:"1px solid rgba(248,113,113,0.12)",borderRadius:12}}>
+              <div style={{fontSize:11,color:"rgba(248,113,113,0.6)",fontFamily:"'DM Mono',monospace",marginBottom:12,textTransform:"uppercase",letterSpacing:1}}>Session active</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                <div>
+                  <div style={{fontSize:14,color:"#e0e8f5",fontFamily:"'DM Mono',monospace",fontWeight:600}}>{authState.username}</div>
+                  <div style={{fontSize:11,color:"rgba(160,180,220,0.4)",marginTop:4}}>Connecté maintenant</div>
+                </div>
+                <button onClick={onLogout} style={{
+                  padding:"10px 20px",borderRadius:8,
+                  background:"rgba(248,113,113,0.1)",
+                  border:"1px solid rgba(248,113,113,0.3)",
+                  color:"#f87171",cursor:"pointer",
+                  fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
+                  display:"flex",alignItems:"center",gap:8,transition:"all .2s",
+                }}><LogOut size={16}/> Déconnexion</button>
+              </div>
+            </div>
+          </div>
+        );
+
+      /* ── Pseudo ── */
+      case "pseudo":
+        return (
+          <div style={{maxWidth:460}}>
+            <p style={{color:"rgba(160,180,220,0.6)",fontFamily:"'DM Mono',monospace",fontSize:13,lineHeight:1.8,marginBottom:20}}>
+              Ton nom d'utilisateur est visible dans ton profil. Il doit contenir au minimum 3 caractères.
+            </p>
+            <div style={{padding:"14px 18px",background:"rgba(15,18,30,0.6)",borderRadius:10,border:"1px solid rgba(99,140,255,0.08)",marginBottom:24}}>
+              <div style={subTitleStyle}>Pseudo actuel</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#638cff"}}>{authState.username}</div>
+            </div>
+            <StatusMsg status={unameStatus}/>
+            <form onSubmit={handleChangeUname} style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div>
+                <label style={labelStyle}>Nouveau pseudo</label>
+                <input type="text" value={uname} onChange={e=>setUname(e.target.value)}
+                  placeholder="Entrez votre nouveau pseudo..." style={inputStyle}/>
+              </div>
+              <button type="submit" style={{
+                padding:"12px 24px",borderRadius:8,
+                background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+                border:"none",color:"#fff",cursor:"pointer",
+                fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
+                alignSelf:"flex-start",transition:"all .2s",
+              }}>Changer le pseudo</button>
+            </form>
+          </div>
+        );
+
+      /* ── Mot de passe ── */
+      case "motdepasse":
+        return (
+          <div style={{maxWidth:460}}>
+            <p style={{color:"rgba(160,180,220,0.6)",fontFamily:"'DM Mono',monospace",fontSize:13,lineHeight:1.8,marginBottom:20}}>
+              Pour modifier ton mot de passe, saisis ton mot de passe actuel puis le nouveau souhaité.
+            </p>
+            <StatusMsg status={pwdStatus}/>
+            <form onSubmit={handleChangePwd} style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div>
+                <label style={labelStyle}>Mot de passe actuel</label>
+                <div style={{position:"relative"}}>
+                  <input type={pwd.showOld?"text":"password"} value={pwd.old}
+                    onChange={e=>setPwd(p=>({...p,old:e.target.value}))}
+                    placeholder="••••••••" style={{...inputStyle,paddingRight:44}}/>
+                  <button type="button" onClick={()=>setPwd(p=>({...p,showOld:!p.showOld}))}
+                    style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"rgba(160,180,220,0.4)"}}>
+                    {pwd.showOld?<EyeOff size={16}/>:<Eye size={16}/>}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Nouveau mot de passe</label>
+                <div style={{position:"relative"}}>
+                  <input type={pwd.showNew?"text":"password"} value={pwd.new}
+                    onChange={e=>setPwd(p=>({...p,new:e.target.value}))}
+                    placeholder="••••••••" style={{...inputStyle,paddingRight:44}}/>
+                  <button type="button" onClick={()=>setPwd(p=>({...p,showNew:!p.showNew}))}
+                    style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"rgba(160,180,220,0.4)"}}>
+                    {pwd.showNew?<EyeOff size={16}/>:<Eye size={16}/>}
+                  </button>
+                </div>
+              </div>
+              <button type="submit" style={{
+                padding:"12px 24px",borderRadius:8,
+                background:"linear-gradient(135deg,rgba(99,140,255,0.18),rgba(139,92,246,0.18))",
+                border:"1px solid rgba(99,140,255,0.4)",color:"#638cff",cursor:"pointer",
+                fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
+                alignSelf:"flex-start",transition:"all .2s",
+              }}>Modifier le mot de passe</button>
+            </form>
+          </div>
+        );
+
+      /* ── Avatar ── */
+      case "avatar":
+        return (
+          <div style={{display:"flex",gap:36,alignItems:"flex-start",flexWrap:"wrap"}}>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+              <div style={{
+                width:96,height:96,borderRadius:"50%",
+                background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                boxShadow:"0 12px 32px rgba(99,140,255,0.3)",
+                border:"2px solid rgba(255,255,255,0.08)",
+              }}><CurrentIcon size={50} color="#fff"/></div>
+              <div style={{fontSize:10,color:"rgba(160,180,220,0.4)",fontFamily:"'DM Mono',monospace"}}>Avatar actuel</div>
+            </div>
+            <div style={{flex:1}}>
+              <div style={subTitleStyle}>Choisir un avatar</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,maxWidth:300,marginTop:12}}>
                 {AVATARS.map(a => {
                   const Icon = a.icon;
+                  const isSel = authState?.avatar === a.id;
                   return (
-                    <button key={a.id} onClick={() => handleAvatarSelect(a.id)}
-                      style={{padding:8,borderRadius:8,background:authState?.avatar===a.id?"rgba(99,140,255,0.2)":"transparent",
-                      border:"none",cursor:"pointer",color:authState?.avatar===a.id?"#638cff":"#e0e8f5"}}>
-                      <Icon size={20}/>
+                    <button key={a.id} onClick={()=>handleAvatarSelect(a.id)} style={{
+                      padding:20,borderRadius:12,cursor:"pointer",
+                      background:isSel?"linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))":"rgba(15,18,30,0.6)",
+                      border:isSel?"2px solid rgba(99,140,255,0.6)":"2px solid rgba(255,255,255,0.05)",
+                      display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all .2s",
+                    }}>
+                      <Icon size={28} color={isSel?"#638cff":"rgba(160,180,220,0.55)"}/>
+                      <span style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:isSel?"#638cff":"rgba(160,180,220,0.35)",textTransform:"capitalize"}}>{a.id}</span>
                     </button>
                   );
                 })}
               </div>
-            )}
-
-            <h3 style={{fontSize:22,margin:0,fontFamily:"'Space Grotesk',sans-serif",color:"#e0e8f5"}}>{authState.username}</h3>
-            <div style={{fontSize:12,color:"rgba(160,180,220,0.5)",fontFamily:"'DM Mono',monospace",marginTop:6}}>
-              Explorateur stellaire
             </div>
-            
-            <button onClick={onLogout} style={{
-              marginTop:32,padding:"10px 20px",borderRadius:9,background:"rgba(248,113,113,0.1)",
-              border:"1px solid rgba(248,113,113,0.25)",color:"#f87171",display:"flex",alignItems:"center",
-              gap:8,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
-              transition:"all .2s"}}>
-              <LogOut size={16}/> Déconnexion
-            </button>
-          </Card>
-
-          {/* Hauts Faits & Accessibilité */}
-          <div style={{display:"flex",flexDirection:"column",gap:16}}>
-            <Card style={{padding:24}}>
-               <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:16,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>Hauts Faits</h3>
-               <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,background:totalAnalyzed>=1?"rgba(99,140,255,0.1)":"rgba(15,18,30,0.5)",border:totalAnalyzed>=1?"1px solid rgba(99,140,255,0.3)":"1px solid rgba(255,255,255,0.05)",opacity:totalAnalyzed>=1?1:0.4}}>
-                     <Star size={16} color={totalAnalyzed>=1?"#638cff":"#888"}/> <span style={{fontSize:12}}>Novice</span>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,background:totalAnalyzed>=10?"rgba(167,139,250,0.1)":"rgba(15,18,30,0.5)",border:totalAnalyzed>=10?"1px solid rgba(167,139,250,0.3)":"1px solid rgba(255,255,255,0.05)",opacity:totalAnalyzed>=10?1:0.4}}>
-                     <Globe size={16} color={totalAnalyzed>=10?"#a78bfa":"#888"}/> <span style={{fontSize:12}}>Explorateur</span>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,background:planetsFound>=1?"rgba(74,222,160,0.1)":"rgba(15,18,30,0.5)",border:planetsFound>=1?"1px solid rgba(74,222,160,0.3)":"1px solid rgba(255,255,255,0.05)",opacity:planetsFound>=1?1:0.4}}>
-                     <Sparkles size={16} color={planetsFound>=1?"#4ade80":"#888"}/> <span style={{fontSize:12}}>Chasseur</span>
-                  </div>
-               </div>
-            </Card>
-
-            <Card style={{padding:24}}>
-               <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:16,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>Accessibilité</h3>
-               <button onClick={()=>setIsLightMode(!isLightMode)} style={{
-                  width:"100%",padding:"12px",borderRadius:8,background:isLightMode?"rgba(99,140,255,0.2)":"rgba(15,18,30,0.5)",
-                  border:isLightMode?"1px solid rgba(99,140,255,0.4)":"1px solid rgba(255,255,255,0.05)",
-                  color:"#e0e8f5",display:"flex",alignItems:"center",gap:12,cursor:"pointer",
-                  fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,transition:"all .2s"
-               }}>
-                  <Monitor size={18} color={isLightMode?"#638cff":"#888"}/> 
-                  {isLightMode ? "Désactiver le Mode Jour" : "Activer le Mode Jour"}
-               </button>
-               <div style={{fontSize:10,color:"rgba(160,180,220,0.5)",marginTop:8}}>
-                  Applique une inversion visuelle pour améliorer le contraste en plein jour.
-               </div>
-            </Card>
           </div>
-        </div>
+        );
 
-        {/* Colonne Droite : Stats, Mdp & Logs CSV */}
-        <div style={{flex:2,minWidth:300,display:"flex",flexDirection:"column",gap:16}}>
-          <Card style={{padding:32}}>
-            <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:20,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>
-              {simpleMode ? "Statistiques de découverte" : "Statistiques d'analyse"}
-            </h3>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:16}}>
-              <div style={{background:"rgba(15,18,30,0.5)",borderRadius:12,padding:20,textAlign:"center",border:"1px solid rgba(99,140,255,0.1)"}}>
-                <div style={{fontSize:32,fontWeight:700,color:"#638cff",fontFamily:"'DM Mono',monospace"}}>{totalAnalyzed}</div>
-                <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:6}}>{simpleMode?"Étoiles scannées":"Cibles analysées"}</div>
-              </div>
-              <div style={{background:"rgba(15,18,30,0.5)",borderRadius:12,padding:20,textAlign:"center",border:"1px solid #4ade8030"}}>
-                <div style={{fontSize:32,fontWeight:700,color:"#4ade80",fontFamily:"'DM Mono',monospace"}}>{planetsFound}</div>
-                <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:6}}>Planètes probables</div>
-              </div>
-              <div style={{background:"rgba(15,18,30,0.5)",borderRadius:12,padding:20,textAlign:"center",border:"1px solid #f8717130"}}>
-                <div style={{fontSize:32,fontWeight:700,color:"#f87171",fontFamily:"'DM Mono',monospace"}}>{fpFound}</div>
-                <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:6}}>Faux positifs écartés</div>
+      /* ── Affichage ── */
+      case "affichage":
+        return (
+          <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:480}}>
+            <p style={{color:"rgba(160,180,220,0.6)",fontFamily:"'DM Mono',monospace",fontSize:13,lineHeight:1.8,margin:0}}>
+              Personnalise l'affichage de l'interface pour un meilleur confort visuel.
+            </p>
+            <div style={{padding:"18px 22px",background:"rgba(15,18,30,0.6)",borderRadius:12,border:"1px solid rgba(99,140,255,0.08)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16}}>
+                <div>
+                  <div style={{fontSize:14,color:"#e0e8f5",fontFamily:"'DM Mono',monospace",fontWeight:600}}>Mode Jour</div>
+                  <div style={{fontSize:11,color:"rgba(160,180,220,0.4)",marginTop:4}}>Inversion visuelle pour plein soleil</div>
+                </div>
+                <button onClick={()=>setIsLightMode(!isLightMode)} style={{
+                  width:48,height:26,borderRadius:13,cursor:"pointer",border:"none",
+                  background:isLightMode?"#638cff":"rgba(255,255,255,0.1)",
+                  position:"relative",transition:"background .25s",flexShrink:0,padding:0,
+                }}>
+                  <div style={{
+                    width:20,height:20,borderRadius:"50%",background:"#fff",
+                    position:"absolute",top:3,transition:"left .25s",
+                    left:isLightMode?24:3,
+                    boxShadow:"0 1px 4px rgba(0,0,0,0.35)",
+                  }}/>
+                </button>
               </div>
             </div>
-          </Card>
+          </div>
+        );
 
-          <Card style={{padding:32}}>
-            <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:16,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>Sécurité & Compte</h3>
-            
-            {/* Nouveau Pseudo */}
-            <div style={{marginBottom:24}}>
-               <label style={{display:"block",fontSize:10,color:"rgba(160,180,220,0.5)",marginBottom:6}}>Changer de mot de passe</label>
-               {pwdStatus && (
-                 <div style={{padding:10,marginBottom:12,fontSize:12,borderRadius:8,
-                   background:pwdStatus.ok?"rgba(74,222,160,0.1)":"rgba(248,113,113,0.1)",
-                   color:pwdStatus.ok?"#4ade80":"#f87171",border:`1px solid ${pwdStatus.ok?"rgba(74,222,160,0.3)":"rgba(248,113,113,0.3)"}`}}>
-                   {pwdStatus.msg}
-                 </div>
-               )}
-               <form onSubmit={handleChangePwd} style={{display:"flex",gap:12,alignItems:"flex-end",flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:150}}>
-                    <input type="password" placeholder="Ancien mot de passe" value={pwd.old} onChange={e=>setPwd(p=>({...p,old:e.target.value}))}
-                      style={{width:"100%",padding:10,background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.2)",
-                      borderRadius:8,color:"#fff",outline:"none",fontFamily:"'DM Mono',monospace",fontSize:12}}/>
-                  </div>
-                  <div style={{flex:1,minWidth:150}}>
-                    <input type="password" placeholder="Nouveau mot de passe" value={pwd.new} onChange={e=>setPwd(p=>({...p,new:e.target.value}))}
-                      style={{width:"100%",padding:10,background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.2)",
-                      borderRadius:8,color:"#fff",outline:"none",fontFamily:"'DM Mono',monospace",fontSize:12}}/>
-                  </div>
-                  <button type="submit" style={{padding:"11px 16px",background:"#638cff",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:600}}>
-                    Modifier
-                  </button>
-               </form>
+      /* ── Statistiques ── */
+      case "stats":
+        return (
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:16,marginBottom:24}}>
+              {[
+                { val:totalAnalyzed, label:"Cibles analysées",        color:"#638cff", bg:"rgba(99,140,255,0.08)",  border:"rgba(99,140,255,0.15)"  },
+                { val:planetsFound,  label:"Planètes probables",       color:"#4ade80", bg:"rgba(74,222,160,0.08)",  border:"rgba(74,222,160,0.15)"  },
+                { val:fpFound,       label:"Faux positifs écartés",    color:"#f87171", bg:"rgba(248,113,113,0.08)", border:"rgba(248,113,113,0.15)" },
+                { val:`${detectionRate}%`, label:"Taux de détection",  color:"#f59e0b", bg:"rgba(245,158,11,0.08)",  border:"rgba(245,158,11,0.15)"  },
+              ].map(s => (
+                <div key={s.label} style={{background:s.bg,borderRadius:12,padding:24,border:`1px solid ${s.border}`,textAlign:"center"}}>
+                  <div style={{fontSize:36,fontWeight:700,color:s.color,fontFamily:"'DM Mono',monospace"}}>{s.val}</div>
+                  <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:6}}>{s.label}</div>
+                </div>
+              ))}
             </div>
-
-            <div style={{height:1,background:"rgba(255,255,255,0.05)",margin:"20px 0"}}></div>
-
-            <ChangeUsernameForm authState={authState} setAuthState={setAuthState} />
-          </Card>
-
-          {csvLogs.length > 0 && (
-            <Card style={{padding:32}}>
-              <h3 style={{fontSize:13,color:"rgba(160,180,220,0.5)",marginBottom:16,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5}}>Logs import CSV</h3>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {csvLogs.map((log,i) => (
-                   <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:"rgba(15,18,30,0.5)",borderRadius:8,border:"1px solid rgba(255,255,255,0.05)"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:12}}>
-                        <FileText size={14} color="rgba(160,180,220,0.5)"/>
-                        <span style={{fontSize:13,fontFamily:"'DM Mono',monospace",color:"#e0e8f5"}}>{log.target}</span>
-                      </div>
-                      <div style={{display:"flex",alignItems:"center",gap:16}}>
-                        <span style={{fontSize:11,color:"rgba(160,180,220,0.5)"}}>{new Date(log.date).toLocaleDateString()}</span>
-                        <span style={{fontSize:11,padding:"3px 8px",borderRadius:4,
-                           background:log.verdict==="Planète probable"?"rgba(74,222,160,0.15)":"rgba(248,113,113,0.15)",
-                           color:log.verdict==="Planète probable"?"#4ade80":"#f87171"}}>{log.verdict}</span>
-                      </div>
-                   </div>
-                ))}
+            {totalAnalyzed > 0 && (
+              <div style={{padding:"18px 22px",background:"rgba(15,18,30,0.6)",borderRadius:12,border:"1px solid rgba(99,140,255,0.08)"}}>
+                <div style={subTitleStyle}>Répartition des résultats</div>
+                <div style={{display:"flex",height:8,borderRadius:4,overflow:"hidden",marginTop:12,gap:1}}>
+                  <div style={{flex:planetsFound,background:"#4ade80",minWidth:planetsFound>0?4:0,transition:"flex .5s ease"}}/>
+                  <div style={{flex:fpFound,background:"#f87171",minWidth:fpFound>0?4:0,transition:"flex .5s ease"}}/>
+                  <div style={{flex:Math.max(0,totalAnalyzed-planetsFound-fpFound),background:"rgba(160,180,220,0.12)"}}/>
+                </div>
+                <div style={{display:"flex",gap:16,marginTop:10,flexWrap:"wrap"}}>
+                  <span style={{fontSize:11,color:"#4ade80",fontFamily:"'DM Mono',monospace"}}>● Planètes {planetsFound}</span>
+                  <span style={{fontSize:11,color:"#f87171",fontFamily:"'DM Mono',monospace"}}>● Faux positifs {fpFound}</span>
+                  <span style={{fontSize:11,color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace"}}>● Autres {Math.max(0,totalAnalyzed-planetsFound-fpFound)}</span>
+                </div>
               </div>
-            </Card>
-          )}
+            )}
+          </div>
+        );
 
-        </div>
-      </div>
-    </div>
-  );
-}
+      /* ── Réalisations ── */
+      case "realisations":
+        return (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {achievements.map(a => {
+              const Icon = a.icon;
+              const pct  = a.max > 1 ? Math.round((a.current/a.max)*100) : a.unlocked ? 100 : 0;
+              return (
+                <div key={a.id} style={{
+                  padding:"14px 18px",borderRadius:12,
+                  background:a.unlocked?"rgba(15,18,30,0.7)":"rgba(10,14,26,0.4)",
+                  border:a.unlocked?`1px solid ${a.color}30`:"1px solid rgba(255,255,255,0.04)",
+                  opacity:a.unlocked?1:0.55,transition:"opacity .2s",
+                }}>
+                  <div style={{display:"flex",alignItems:"center",gap:14}}>
+                    <div style={{
+                      width:42,height:42,borderRadius:10,flexShrink:0,
+                      background:a.unlocked?`${a.color}18`:"rgba(15,18,30,0.5)",
+                      border:a.unlocked?`1px solid ${a.color}40`:"1px solid rgba(255,255,255,0.05)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                    }}><Icon size={20} color={a.unlocked?a.color:"rgba(160,180,220,0.25)"}/></div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}>
+                        <span style={{fontSize:14,fontWeight:600,color:a.unlocked?"#e0e8f5":"rgba(160,180,220,0.35)",fontFamily:"'Space Grotesk',sans-serif"}}>{a.label}</span>
+                        <span style={{fontSize:10,color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace"}}>{a.current}/{a.max}</span>
+                      </div>
+                      <div style={{fontSize:11,color:"rgba(160,180,220,0.38)",fontFamily:"'DM Mono',monospace",marginBottom:a.max>1?8:0}}>{a.desc}</div>
+                      {a.max > 1 && (
+                        <div style={{height:3,borderRadius:2,background:"rgba(255,255,255,0.05)",overflow:"hidden"}}>
+                          <div style={{width:`${pct}%`,height:"100%",background:a.unlocked?a.color:"rgba(160,180,220,0.15)",borderRadius:2,transition:"width .6s ease"}}/>
+                        </div>
+                      )}
+                    </div>
+                    {a.unlocked && <CheckCircle2 size={18} color={a.color} style={{flexShrink:0}}/>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
 
-/* ─── Change Username Component ──────────────────────────────── */
-function ChangeUsernameForm({ authState, setAuthState }) {
-  const [uname, setUname] = useState("");
-  const [status, setStatus] = useState(null);
+      /* ── Imports CSV ── */
+      case "csv":
+        return csvLogs.length === 0 ? (
+          <div style={{textAlign:"center",padding:"56px 0",color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace",fontSize:13}}>
+            Aucun import CSV pour le moment.
+          </div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {csvLogs.map((log,i) => (
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:"rgba(15,18,30,0.6)",borderRadius:10,border:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <FileText size={14} color="rgba(160,180,220,0.4)"/>
+                  <span style={{fontSize:13,fontFamily:"'DM Mono',monospace",color:"#e0e8f5"}}>{log.target}</span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <span style={{fontSize:11,color:"rgba(160,180,220,0.4)"}}>{new Date(log.date).toLocaleDateString()}</span>
+                  <span style={{
+                    fontSize:11,padding:"3px 10px",borderRadius:20,
+                    background:log.verdict==="Planète probable"?"rgba(74,222,160,0.1)":"rgba(248,113,113,0.1)",
+                    color:log.verdict==="Planète probable"?"#4ade80":"#f87171",
+                    border:log.verdict==="Planète probable"?"1px solid rgba(74,222,160,0.2)":"1px solid rgba(248,113,113,0.2)",
+                    fontFamily:"'DM Mono',monospace",
+                  }}>{log.verdict}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setStatus(null);
-    if (!uname || uname.length < 3) return setStatus({ok:false, msg:"Pseudo trop court"});
-    try {
-      const r = await authFetch(`${API_BASE}/api/auth/change_username`, {
-        method: "POST",
-        body: JSON.stringify({ new_username: uname })
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Erreur serveur");
-      setStatus({ ok: true, msg: "Pseudo modifié !" });
-      setAuthState(prev => ({ ...prev, username: uname, token: d.token }));
-      setUname("");
-    } catch(e) { setStatus({ ok: false, msg: e.message }); }
+      default: return null;
+    }
   };
 
+  const activeItemLabel    = PROFILE_NAV.flatMap(s=>s.items).find(i=>i.id===activeItem)?.label || "";
+  const activeSectionLabel = PROFILE_NAV.find(s=>s.items.some(i=>i.id===activeItem))?.label || "";
+
   return (
-    <div>
-       <label style={{display:"block",fontSize:10,color:"rgba(160,180,220,0.5)",marginBottom:6}}>Changer de pseudo</label>
-       {status && (
-         <div style={{padding:8,marginBottom:12,fontSize:11,borderRadius:6,
-           background:status.ok?"rgba(74,222,160,0.1)":"rgba(248,113,113,0.1)",
-           color:status.ok?"#4ade80":"#f87171",border:`1px solid ${status.ok?"rgba(74,222,160,0.3)":"rgba(248,113,113,0.3)"}`}}>
-           {status.msg}
-         </div>
-       )}
-       <form onSubmit={handleSubmit} style={{display:"flex",gap:12,alignItems:"flex-end"}}>
-          <div style={{flex:1}}>
-            <input type="text" placeholder="Nouveau pseudo" value={uname} onChange={e=>setUname(e.target.value)}
-              style={{width:"100%",padding:10,background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.2)",
-              borderRadius:8,color:"#fff",outline:"none",fontFamily:"'DM Mono',monospace",fontSize:12}}/>
+    <div style={{
+      display:"flex", minHeight:600,
+      background:"rgba(5,8,18,0.5)",
+      borderRadius:16,
+      border:"1px solid rgba(99,140,255,0.08)",
+      overflow:"hidden",
+      animation:"fadeIn .5s ease-out",
+    }}>
+      {/* ── Sidebar ── */}
+      <div style={{
+        width:228, flexShrink:0,
+        borderRight:"1px solid rgba(99,140,255,0.07)",
+        display:"flex", flexDirection:"column",
+        background:"rgba(4,6,15,0.6)",
+      }}>
+        {/* Mini user card */}
+        <div style={{
+          padding:"22px 18px",
+          borderBottom:"1px solid rgba(99,140,255,0.07)",
+          display:"flex",alignItems:"center",gap:12,
+        }}>
+          <div style={{
+            width:42,height:42,borderRadius:"50%",flexShrink:0,
+            background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            boxShadow:"0 4px 12px rgba(99,140,255,0.22)",
+          }}><CurrentIcon size={22} color="#fff"/></div>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{authState.username}</div>
+            <div style={{fontSize:10,color:"rgba(160,180,220,0.38)",fontFamily:"'DM Mono',monospace",marginTop:1}}>Explorateur stellaire</div>
           </div>
-          <button type="submit" style={{padding:"11px 16px",background:"#8b5cf6",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:600}}>
-            Modifier
-          </button>
-       </form>
+        </div>
+
+        {/* Nav */}
+        <nav style={{flex:1,padding:"6px 0",overflowY:"auto"}}>
+          {PROFILE_NAV.map(section => {
+            const SIcon      = section.icon;
+            const isExpanded = expandedSection === section.id;
+            return (
+              <div key={section.id}>
+                <button onClick={()=>handleSectionClick(section.id)} style={{
+                  width:"100%",display:"flex",alignItems:"center",gap:10,
+                  padding:"9px 18px",background:"none",border:"none",cursor:"pointer",
+                  color:isExpanded?"#e0e8f5":"rgba(160,180,220,0.45)",
+                  fontFamily:"'DM Mono',monospace",fontSize:12,
+                  fontWeight:isExpanded?600:400,textAlign:"left",transition:"color .15s",
+                }}>
+                  <SIcon size={14} style={{flexShrink:0}}/>
+                  <span style={{flex:1}}>{section.label}</span>
+                  <ChevronRight size={12} style={{
+                    transform:isExpanded?"rotate(90deg)":"rotate(0deg)",
+                    transition:"transform .2s",
+                    color:"rgba(160,180,220,0.22)",
+                  }}/>
+                </button>
+                {isExpanded && section.items.map(item => (
+                  <button key={item.id} onClick={()=>setActiveItem(item.id)} style={{
+                    width:"100%",display:"flex",alignItems:"center",
+                    padding:"7px 18px 7px 42px",
+                    background:activeItem===item.id?"rgba(99,140,255,0.09)":"none",
+                    border:"none",
+                    borderLeft:activeItem===item.id?"2px solid #638cff":"2px solid transparent",
+                    cursor:"pointer",
+                    color:activeItem===item.id?"#638cff":"rgba(160,180,220,0.4)",
+                    fontFamily:"'DM Mono',monospace",fontSize:12,
+                    textAlign:"left",transition:"all .15s",
+                  }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* ── Content ── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
+        {/* Breadcrumb */}
+        <div style={{
+          padding:"16px 30px",
+          borderBottom:"1px solid rgba(99,140,255,0.07)",
+          display:"flex",alignItems:"center",gap:8,
+        }}>
+          <span style={{fontSize:11,color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace"}}>{activeSectionLabel}</span>
+          <ChevronRight size={11} color="rgba(160,180,220,0.18)"/>
+          <span style={{fontSize:11,color:"rgba(160,180,220,0.65)",fontFamily:"'DM Mono',monospace",fontWeight:600}}>{activeItemLabel}</span>
+        </div>
+
+        {/* Title + page content */}
+        <div style={{flex:1,padding:"26px 30px",overflowY:"auto"}}>
+          <h2 style={{margin:"0 0 4px",fontFamily:"'Space Grotesk',sans-serif",fontSize:20,fontWeight:700,color:"#e0e8f5"}}>{activeItemLabel}</h2>
+          <div style={{height:1,background:"rgba(99,140,255,0.07)",margin:"14px 0 22px"}}/>
+          {renderContent()}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3700,6 +4434,7 @@ export default function ExoPlanetDashboard() {
   const [aData,setAData]=useState(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState(null);
+  const [nasaStarInfo,setNasaStarInfo]=useState(null);
   const [progress,setProgress]=useState({visible:false,stepIdx:0,pct:0,waiting:false});
   const [history,setHistory]=useState([]);
   const [status,setStatus]=useState(null);
@@ -3755,6 +4490,11 @@ export default function ExoPlanetDashboard() {
       if(!r.ok) throw new Error(d.error||"Erreur serveur");
       endProgress();
       setAData(d);
+      setNasaStarInfo(null);
+      authFetch(`${API_BASE}/api/star_info?target=${encodeURIComponent(d.target)}`)
+        .then(r=>r.ok?r.json():null)
+        .then(info=>{ if(info?.planets?.length) setNasaStarInfo(info); })
+        .catch(()=>{});
       setHistory(h=>[{target:d.target,score:d.score,verdict:d.verdict,
         period_days:d.period_days,mission:d.mission,date:new Date().toISOString()},
         ...h].slice(0,50));
@@ -4109,11 +4849,12 @@ export default function ExoPlanetDashboard() {
                     </div>
 
                     <Card glow style={{padding:0,overflow:"hidden"}}>
-                      <div style={{height:380,borderRadius:14}}><OrbitalViewer3D data={aData}/></div>
+                      <div style={{height:380,borderRadius:14}}><OrbitalViewer3D data={aData} nasaPlanets={nasaStarInfo?.planets}/></div>
                     </Card>
                   </div>
 
                   {aData&&<SignalInsightsPanel data={aData}/>}
+                  {aData&&<StarInfoPanel target={target}/>}
                 </>
               )}
 

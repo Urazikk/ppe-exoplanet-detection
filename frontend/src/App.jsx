@@ -1914,6 +1914,7 @@ function CatalogTab({ onAnalyze }) {
   const [maxSnr, setMaxSnr] = useState("");
   const [minPeriod, setMinPeriod] = useState("");
   const [maxPeriod, setMaxPeriod] = useState("");
+  const [mission, setMission] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [sug, setSug] = useState([]);
   const [showSug, setShowSug] = useState(false);
@@ -1939,6 +1940,7 @@ function CatalogTab({ onAnalyze }) {
           page, limit: 20,
           sort_by: sortBy, sort_dir: sortDir,
           label,
+          ...(mission !== "all" && { mission }),
           ...(search && { search }),
           ...(minSnr && { min_snr: minSnr }),
           ...(maxSnr && { max_snr: maxSnr }),
@@ -2127,6 +2129,24 @@ function CatalogTab({ onAnalyze }) {
               ))}
             </div>
 
+            {/* Mission filter */}
+            <div style={{ display: "flex", gap: 4 }}>
+              {[
+                { val: "all",    label: "Toutes missions" },
+                { val: "Kepler", label: "Kepler" },
+                { val: "TESS",   label: "TESS" },
+              ].map(opt => (
+                <button key={opt.val} onClick={() => { setMission(opt.val); setPage(1); setFetchTrigger(t => t+1); }} style={{
+                  padding: "6px 10px", borderRadius: 7, fontSize: 10, cursor: "pointer",
+                  fontFamily: "'DM Mono',monospace",
+                  background: mission === opt.val ? (opt.val === "TESS" ? "rgba(34,211,238,0.12)" : opt.val === "Kepler" ? "rgba(167,139,250,0.12)" : "rgba(99,140,255,0.15)") : "rgba(15,18,30,0.5)",
+                  border: `1px solid ${mission === opt.val ? (opt.val === "TESS" ? "rgba(34,211,238,0.35)" : opt.val === "Kepler" ? "rgba(167,139,250,0.35)" : "rgba(99,140,255,0.3)") : "rgba(99,140,255,0.08)"}`,
+                  color: mission === opt.val ? (opt.val === "TESS" ? "#22d3ee" : opt.val === "Kepler" ? "#a78bfa" : "#638cff") : "rgba(160,180,220,0.45)" }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
             {/* Sort */}
             <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{
               padding: "6px 10px", borderRadius: 7, fontSize: 10, background: "rgba(15,18,30,0.8)",
@@ -2222,8 +2242,8 @@ function CatalogTab({ onAnalyze }) {
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(99,140,255,0.1)" }}>
                   {(simpleMode
-                    ? [{l:"KIC ID",k:null},{l:"Type",k:null},{l:"Période",k:"period"},{l:"SNR",k:"snr"},{l:"",k:null}]
-                    : [{l:"KIC ID",k:null},{l:"Label",k:null},{l:"Période (j)",k:"period"},{l:"SNR",k:"snr"},{l:"Profondeur (ppm)",k:"depth"},{l:"Score BLS",k:"score"},{l:"Points",k:null},{l:"",k:null}]
+                    ? [{l:"ID",k:null},{l:"Type",k:null},{l:"Période",k:"period"},{l:"SNR",k:"snr"},{l:"",k:null}]
+                    : [{l:"ID",k:null},{l:"Label",k:null},{l:"Période (j)",k:"period"},{l:"SNR",k:"snr"},{l:"Profondeur (ppm)",k:"depth"},{l:"Score BLS",k:"score"},{l:"Points",k:null},{l:"",k:null}]
                   ).map(col => (
                     <th key={col.l} onClick={col.k ? () => {
                       if (sortBy === col.k) setSortDir(d => d === "desc" ? "asc" : "desc");

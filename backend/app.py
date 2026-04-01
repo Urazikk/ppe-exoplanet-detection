@@ -1031,10 +1031,13 @@ def get_catalog_stars():
     max_snr = request.args.get('max_snr', None)
     min_period = request.args.get('min_period', None)
     max_period = request.args.get('max_period', None)
+    mission_filter = request.args.get('mission', None)
 
     data = _catalog_cache_index[:]
 
     # filters
+    if mission_filter:
+        data = [s for s in data if s.get('mission', '').lower() == mission_filter.lower()]
     if search:
         q = search.lower()
         data = [s for s in data if

@@ -1285,36 +1285,72 @@ def _extract_kepid_from_lc(lc):
     return None
 
 
+def _resolve_tess_row(target_id):
+    """
+    Résout une cible TESS vers une ligne du tess_catalog_df.
+    Accepte : 'TIC 231670397', 'TOI 104.01', 'TOI 104' (premier candidat).
+    Retourne une Series pandas ou None.
+    """
+    if tess_catalog_df is None:
+        return None
+    tid = str(target_id).upper()
+
+    # Format TIC XXXXXXX
+    if "TIC" in tid:
+        try:
+            tic_id = int(tid.replace("TIC", "").strip())
+            m = tess_catalog_df[tess_catalog_df['tid'] == tic_id]
+            return m.iloc[0] if len(m) > 0 else None
+        except (ValueError, TypeError):
+            pass
+
+    # Format TOI XXX.XX ou TOI XXX
+    if "TOI" in tid:
+        try:
+            toi_str = tid.replace("TOI", "").strip()
+            toi_val = float(toi_str)
+            m = tess_catalog_df[tess_catalog_df['toi'] == toi_val]
+            if len(m) > 0:
+                return m.iloc[0]
+            # Fallback : chercher par numéro de système (ex: TOI 104 → 104.01, 104.02…)
+            toi_system = float(int(toi_val))
+            m2 = tess_catalog_df[
+                (tess_catalog_df['toi'] >= toi_system) &
+                (tess_catalog_df['toi'] < toi_system + 1)
+            ]
+            return m2.iloc[0] if len(m2) > 0 else None
+        except (ValueError, TypeError):
+            pass
+
+    return None
+
+
 def get_catalog_features_dict(target_id, kepid=None):
     """
     Retourne un dict des features physiques du catalogue KOI ou TESS TOI pour une cible.
     Accepte soit un kepid entier (prioritaire), soit un target_id string.
     Retourne {} si la cible est introuvable (les features seront mis à 0).
     """
-    # --- Lookup TESS TOI ---
-    if tess_catalog_df is not None and "TIC" in str(target_id).upper():
-        try:
-            tic_id = int(str(target_id).upper().replace("TIC", "").strip())
-            tess_match = tess_catalog_df[tess_catalog_df['tid'] == tic_id]
-            if len(tess_match) > 0:
-                row = tess_match.iloc[0]
-                feats = {}
-                for col in tess_catalog_df.columns:
-                    v = row.get(col)
-                    if pd.notna(v) and isinstance(v, (int, float, np.number)):
-                        feats[col] = float(v)
-                if 'ra' in row and 'dec' in row and pd.notna(row.get('ra')) and pd.notna(row.get('dec')):
-                    try:
-                        from astropy.coordinates import SkyCoord
-                        import astropy.units as u
-                        coords = SkyCoord(ra=row['ra']*u.deg, dec=row['dec']*u.deg, frame='icrs')
-                        feats['glon'] = float(coords.galactic.l.degree)
-                        feats['glat'] = float(coords.galactic.b.degree)
-                    except Exception:
-                        pass
-                return feats
-        except (ValueError, TypeError):
-            pass
+    # --- Lookup TESS TOI (TIC XXXXXXX ou TOI XXX.XX) ---
+    tid_upper = str(target_id).upper()
+    if "TIC" in tid_upper or "TOI" in tid_upper:
+        row = _resolve_tess_row(target_id)
+        if row is not None:
+            feats = {}
+            for col in tess_catalog_df.columns:
+                v = row.get(col)
+                if pd.notna(v) and isinstance(v, (int, float, np.number)):
+                    feats[col] = float(v)
+            if 'ra' in row and 'dec' in row and pd.notna(row.get('ra')) and pd.notna(row.get('dec')):
+                try:
+                    from astropy.coordinates import SkyCoord
+                    import astropy.units as u
+                    coords = SkyCoord(ra=row['ra']*u.deg, dec=row['dec']*u.deg, frame='icrs')
+                    feats['glon'] = float(coords.galactic.l.degree)
+                    feats['glat'] = float(coords.galactic.b.degree)
+                except Exception:
+                    pass
+            return feats
 
     # --- Lookup Kepler KOI ---
     if catalog_df is None:
@@ -1545,15 +1581,13 @@ def get_real_metadata(target_id, resolved_kepid=None):
     Gère : KIC XXXXXXX, Kepler-XXX (par nom), TIC XXXXXXX (TESS TOI).
     resolved_kepid : KIC ID déjà résolu par Lightkurve (prioritaire).
     """
-    # ── Lookup TESS TOI ─────────────────────────────────────────────────────
-    if tess_catalog_df is not None and "TIC" in str(target_id).upper():
-        try:
-            tic_id = int(str(target_id).upper().replace("TIC", "").strip())
-            tess_match = tess_catalog_df[tess_catalog_df['tid'] == tic_id]
-            if len(tess_match) > 0:
-                row = tess_match.iloc[0]
-                return {
-                    "tic_id": tic_id,
+    # ── Lookup TESS TOI (TIC XXXXXXX ou TOI XXX.XX) ─────────────────────────
+    tid_upper = str(target_id).upper()
+    if "TIC" in tid_upper or "TOI" in tid_upper:
+        row = _resolve_tess_row(target_id)
+        if row is not None:
+            return {
+                    "tic_id": int(row['tid']) if pd.notna(row.get('tid')) else None,
                     "toi": str(row['toi']) if pd.notna(row.get('toi')) else None,
                     "star_temperature_k": int(row['koi_steff']) if pd.notna(row.get('koi_steff')) else None,
                     "star_radius_solar": round(float(row['koi_srad']), 3) if pd.notna(row.get('koi_srad')) else None,
@@ -1564,8 +1598,6 @@ def get_real_metadata(target_id, resolved_kepid=None):
                     "catalog_planet_radius": round(float(row['koi_prad']), 2) if pd.notna(row.get('koi_prad')) else None,
                     "source": "NASA Exoplanet Archive (TESS TOI)"
                 }
-        except (ValueError, TypeError):
-            pass
 
     # ── Lookup Kepler KOI ────────────────────────────────────────────────────
     if catalog_df is None:

@@ -110,13 +110,41 @@ const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
   ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-thumb { background: rgba(99,140,255,.2); border-radius: 3px; }
-  @keyframes twinkle  { 0%{opacity:.1} 100%{opacity:.65} }
+  ::-webkit-scrollbar-thumb { background: rgba(91,141,239,.15); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(91,141,239,.3); }
+  @keyframes twinkle  { 0%{opacity:.08} 100%{opacity:.6} }
   @keyframes spin     { 100%{transform:rotate(360deg)} }
   @keyframes fadeIn   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   @keyframes slideIn  { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes pulse    { 0%,100%{box-shadow:0 0 18px rgba(99,140,255,.08)} 50%{box-shadow:0 0 36px rgba(99,140,255,.18)} }
+  @keyframes pulse    { 0%,100%{box-shadow:0 0 18px rgba(91,141,239,.06)} 50%{box-shadow:0 0 36px rgba(91,141,239,.15)} }
   @keyframes breathe  { 0%,100%{opacity:.4} 50%{opacity:1} }
+  @keyframes stellar-glow {
+    0%,100%{box-shadow:0 0 20px rgba(240,192,64,.2),0 0 40px rgba(240,192,64,.08)}
+    50%{box-shadow:0 0 30px rgba(240,192,64,.35),0 0 60px rgba(240,192,64,.12)}
+  }
+  @keyframes transit-orbit {
+    0%  {transform:translate(calc(-50% + 60px),-50%);opacity:0}
+    15% {opacity:1}
+    50% {transform:translate(-50%,-50%);opacity:1}
+    85% {opacity:1}
+    100%{transform:translate(calc(-50% - 60px),-50%);opacity:0}
+  }
+  @keyframes mini-orbit {
+    0%  {top:2px;left:50%;opacity:0.8}
+    25% {top:50%;left:calc(100% - 2px);opacity:1}
+    50% {top:calc(100% - 2px);left:50%;opacity:0.8}
+    75% {top:50%;left:2px;opacity:1}
+    100%{top:2px;left:50%;opacity:0.8}
+  }
+  @keyframes gradient-shift {
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+  }
+  @keyframes nebula-drift {
+    0%,100%{opacity:.03;transform:scale(1)}
+    50%{opacity:.06;transform:scale(1.1)}
+  }
 `;
 
 /* ─── StarField ──────────────────────────────────────────────── */
@@ -147,7 +175,7 @@ function Card({ children, style={}, glow=false, onClick }) {
   return (
     <div onClick={onClick} style={{
       background:"rgba(10,13,22,0.75)", backdropFilter:"blur(16px)",
-      border:"1px solid rgba(99,140,255,0.1)", borderRadius:14, padding:16,
+      border:"1px solid rgba(91,141,239,0.1)", borderRadius:14, padding:16,
       animation: glow ? "pulse 6s ease-in-out infinite" : undefined,
       ...style,
     }}>
@@ -161,26 +189,26 @@ function ProgressPanel({ progress }) {
   if (!progress?.visible) return null;
   const { stepIdx, pct, waiting } = progress;
   const isComplete = pct >= 100;
-  const col = isComplete ? "#4ade80" : "#638cff";
+  const col = isComplete ? "#34d399" : "#5b8def";
   return (
     <Card style={{ animation:"fadeIn .4s ease-out" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           {isComplete
-            ? <CheckCircle2 size={14} style={{color:"#4ade80"}}/>
-            : <Loader2 size={14} style={{color:"#638cff", animation:"spin 1s linear infinite"}}/>
+            ? <CheckCircle2 size={14} style={{color:"#34d399"}}/>
+            : <Loader2 size={14} style={{color:"#5b8def", animation:"spin 1s linear infinite"}}/>
           }
-          <span style={{fontSize:12, fontWeight:600, color:"#e0e8f5", fontFamily:"'Space Grotesk',sans-serif"}}>
+          <span style={{fontSize:12, fontWeight:600, color:"#e4e8f7", fontFamily:"'Space Grotesk',sans-serif"}}>
             Pipeline d'analyse
           </span>
         </div>
         <span style={{fontSize:18, fontWeight:700, fontFamily:"'DM Mono',monospace", color:col}}>{pct}%</span>
       </div>
 
-      <div style={{height:4, borderRadius:2, background:"rgba(99,140,255,0.1)", marginBottom:12, overflow:"hidden"}}>
+      <div style={{height:4, borderRadius:2, background:"rgba(91,141,239,0.1)", marginBottom:12, overflow:"hidden"}}>
         <div style={{
           height:"100%", width:`${pct}%`, borderRadius:2,
-          background:`linear-gradient(90deg,${col},${isComplete?"#22d3ee":"#8b5cf6"})`,
+          background:`linear-gradient(90deg,${col},${isComplete?"#7c3aed":"#7c3aed"})`,
           transition:"width 0.5s cubic-bezier(0.22,1,0.36,1)",
           boxShadow:`0 0 10px ${col}40`,
         }}/>
@@ -190,13 +218,13 @@ function ProgressPanel({ progress }) {
         {ANALYSIS_STEPS.map((s,i) => {
           const done = i < stepIdx;
           const active = i === stepIdx;
-          const c = done?"#4ade80" : active?"#638cff":"rgba(160,180,220,0.2)";
+          const c = done?"#34d399" : active?"#5b8def":"rgba(160,180,220,0.2)";
           return (
             <div key={s.key} style={{
               display:"flex", alignItems:"center", gap:4,
               padding:"3px 9px", borderRadius:6, fontSize:10,
               fontFamily:"'DM Mono',monospace", color:c,
-              background: done?"rgba(74,222,160,0.08)": active?"rgba(99,140,255,0.1)":"rgba(15,18,30,0.5)",
+              background: done?"rgba(52,211,153,0.08)": active?"rgba(91,141,239,0.1)":"rgba(15,18,30,0.5)",
               border:`1px solid ${c}25`,
             }}>
               <span>{done ? "✓" : `0${i+1}`}</span> {s.label}
@@ -208,8 +236,8 @@ function ProgressPanel({ progress }) {
       {waiting && !isComplete && (
         <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,
           padding:"6px 12px",borderRadius:8,
-          background:"rgba(99,140,255,0.05)",border:"1px solid rgba(99,140,255,0.1)"}}>
-          <div style={{width:6,height:6,borderRadius:"50%",background:"#638cff",
+          background:"rgba(91,141,239,0.05)",border:"1px solid rgba(91,141,239,0.1)"}}>
+          <div style={{width:6,height:6,borderRadius:"50%",background:"#5b8def",
             animation:"breathe 1.5s ease-in-out infinite",flexShrink:0}}/>
           <span style={{fontSize:11,color:"rgba(160,180,220,0.6)",
             fontFamily:"'DM Mono',monospace",animation:"breathe 1.5s ease-in-out infinite"}}>
@@ -267,7 +295,7 @@ function LightCurveCanvas({ data, score, isLoading }) {
     const toY = f => p.top + pH - ((f - fMin) / fRange) * pH;
 
     // Grid
-    ctx.strokeStyle = "rgba(99,140,255,0.05)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(91,141,239,0.05)"; ctx.lineWidth = 1;
     for (let i = 0; i <= 5; i++) { const y = p.top + (pH / 5) * i; ctx.beginPath(); ctx.moveTo(p.left, y); ctx.lineTo(W - p.right, y); ctx.stroke(); }
     for (let i = 0; i <= 6; i++) { const x = p.left + (pW / 6) * i; ctx.beginPath(); ctx.moveTo(x, p.top); ctx.lineTo(x, H - p.bottom); ctx.stroke(); }
 
@@ -285,7 +313,7 @@ function LightCurveCanvas({ data, score, isLoading }) {
     const cxFull = toX(tc.time);
     if (cxFull >= p.left && cxFull <= W - p.right) {
       const grd = ctx.createRadialGradient(cxFull, toY(tc.flux), 0, cxFull, toY(tc.flux), 90);
-      grd.addColorStop(0, "rgba(99,140,255,0.07)"); grd.addColorStop(1, "rgba(99,140,255,0)");
+      grd.addColorStop(0, "rgba(91,141,239,0.07)"); grd.addColorStop(1, "rgba(91,141,239,0)");
       ctx.fillStyle = grd; ctx.fillRect(p.left, p.top, pW, pH);
     }
 
@@ -294,8 +322,8 @@ function LightCurveCanvas({ data, score, isLoading }) {
     ctx.beginPath(); ctx.rect(p.left, p.top, pW, pH); ctx.clip();
 
     const vis = Math.floor(data.length * progress);
-    const pc = score >= 0.70 ? "rgba(74,222,160,0.65)" : score >= 0.35 ? "rgba(251,191,36,0.65)" : "rgba(248,113,113,0.65)";
-    const gc = score >= 0.70 ? "rgba(74,222,160,0.14)" : score >= 0.35 ? "rgba(251,191,36,0.14)" : "rgba(248,113,113,0.14)";
+    const pc = score >= 0.70 ? "rgba(52,211,153,0.65)" : score >= 0.35 ? "rgba(251,191,36,0.65)" : "rgba(248,113,113,0.65)";
+    const gc = score >= 0.70 ? "rgba(52,211,153,0.14)" : score >= 0.35 ? "rgba(251,191,36,0.14)" : "rgba(248,113,113,0.14)";
     for (let i = 0; i < vis; i++) {
       const x = toX(data[i].time), y = toY(data[i].flux);
       ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = gc; ctx.fill();
@@ -304,9 +332,9 @@ function LightCurveCanvas({ data, score, isLoading }) {
     ctx.restore();
 
     if (progress >= 1 && cxFull >= p.left && cxFull <= W - p.right) {
-      ctx.setLineDash([3, 4]); ctx.strokeStyle = "rgba(99,140,255,0.35)"; ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]); ctx.strokeStyle = "rgba(91,141,239,0.35)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(cxFull, p.top); ctx.lineTo(cxFull, H - p.bottom); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(99,140,255,0.9)"; ctx.font = "9px 'DM Mono',monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(91,141,239,0.9)"; ctx.font = "9px 'DM Mono',monospace"; ctx.textAlign = "center";
       ctx.fillText("\u25bc Transit", cxFull, p.top - 8);
     }
   }, [data, score, viewport, dataRanges]);
@@ -412,14 +440,48 @@ function LightCurveCanvas({ data, score, isLoading }) {
       {isLoading && (
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
           background: "rgba(7,9,15,0.75)", zIndex: 10, borderRadius: 12, gap: 10 }}>
-          <Loader2 size={28} style={{ color: "#638cff", animation: "spin 1s linear infinite" }} />
-          <span style={{ color: "#638cff", fontFamily: "'DM Mono',monospace", fontSize: 13 }}>Analyse en cours…</span>
+          <Loader2 size={28} style={{ color: "#5b8def", animation: "spin 1s linear infinite" }} />
+          <span style={{ color: "#5b8def", fontFamily: "'DM Mono',monospace", fontSize: 13 }}>Analyse en cours…</span>
         </div>
       )}
       {(!data || data.length === 0) && !isLoading && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-          color: "rgba(160,180,220,0.3)", fontFamily: "'DM Mono',monospace", fontSize: 13, gap: 8 }}>
-          <Telescope size={20} style={{ opacity: .4 }} /> Entrez un identifiant stellaire pour commencer
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection:"column",
+          alignItems: "center", justifyContent: "center", gap: 12 }}>
+          {/* Animated stellar system illustration */}
+          <svg width="120" height="80" viewBox="0 0 120 80" style={{opacity:0.5}}>
+            {/* Central star */}
+            <circle cx="60" cy="40" r="12" fill="url(#starGrad)" opacity="0.8">
+              <animate attributeName="r" values="11;13;11" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            {/* Star glow */}
+            <circle cx="60" cy="40" r="20" fill="none" stroke="rgba(240,192,64,0.15)" strokeWidth="1">
+              <animate attributeName="r" values="18;22;18" dur="3s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.3;0.1;0.3" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            {/* Orbit path */}
+            <ellipse cx="60" cy="40" rx="45" ry="12" fill="none" stroke="rgba(91,141,239,0.15)" strokeWidth="0.5" strokeDasharray="3,3"/>
+            {/* Orbiting planet */}
+            <circle r="4" fill="#1e2d4a" stroke="rgba(91,141,239,0.3)" strokeWidth="0.5">
+              <animateMotion dur="5s" repeatCount="indefinite" path="M 15,0 A 45,12 0 1 1 14.9,0.1"/>
+            </circle>
+            {/* Gradient definition */}
+            <defs>
+              <radialGradient id="starGrad" cx="0.4" cy="0.4">
+                <stop offset="0%" stopColor="#fff8e1"/>
+                <stop offset="50%" stopColor="#f0c040"/>
+                <stop offset="100%" stopColor="#e8a020"/>
+              </radialGradient>
+            </defs>
+          </svg>
+          <div style={{textAlign:"center"}}>
+            <div style={{color:"rgba(160,180,220,0.4)",fontFamily:"'Space Grotesk',sans-serif",
+              fontSize:13,fontWeight:600,marginBottom:4}}>
+              Pointez votre telescope
+            </div>
+            <div style={{color:"rgba(160,180,220,0.25)",fontFamily:"'DM Mono',monospace",fontSize:11}}>
+              Entrez un identifiant stellaire pour detecter des exoplanetes
+            </div>
+          </div>
         </div>
       )}
 
@@ -429,21 +491,21 @@ function LightCurveCanvas({ data, score, isLoading }) {
           {isZoomed && (
             <>
               <div style={{ padding: "2px 8px", borderRadius: 5, fontSize: 10, fontFamily: "'DM Mono',monospace",
-                color: "#638cff", background: "rgba(99,140,255,0.12)", border: "1px solid rgba(99,140,255,0.25)",
+                color: "#5b8def", background: "rgba(91,141,239,0.12)", border: "1px solid rgba(91,141,239,0.25)",
                 backdropFilter: "blur(6px)" }}>
                 ×{zoomLevel}
               </div>
               <button onClick={resetZoom} style={{ pointerEvents: "all", display: "flex", alignItems: "center", gap: 4,
-                padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(99,140,255,0.25)",
+                padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(91,141,239,0.25)",
                 background: "rgba(9,12,22,0.82)", backdropFilter: "blur(8px)",
-                color: "#638cff", fontSize: 10, fontFamily: "'DM Mono',monospace", cursor: "pointer" }}>
+                color: "#5b8def", fontSize: 10, fontFamily: "'DM Mono',monospace", cursor: "pointer" }}>
                 <RotateCcw size={10} /> Reset
               </button>
             </>
           )}
           {!isZoomed && (
             <div style={{ padding: "2px 8px", borderRadius: 5, fontSize: 9, fontFamily: "'DM Mono',monospace",
-              color: "rgba(160,180,220,0.3)", background: "rgba(9,12,22,0.6)", border: "1px solid rgba(99,140,255,0.08)",
+              color: "rgba(160,180,220,0.3)", background: "rgba(9,12,22,0.6)", border: "1px solid rgba(91,141,239,0.08)",
               backdropFilter: "blur(4px)" }}>
               Molette pour zoomer · Glisser pour naviguer
             </div>
@@ -461,7 +523,7 @@ function LightCurveCanvas({ data, score, isLoading }) {
       />
       {tooltip && (
         <div style={{ position: "absolute", left: tooltip.x + 12, top: tooltip.y - 42,
-          background: "rgba(12,16,28,0.96)", border: "1px solid rgba(99,140,255,0.3)",
+          background: "rgba(12,16,28,0.96)", border: "1px solid rgba(91,141,239,0.3)",
           borderRadius: 8, padding: "6px 10px", pointerEvents: "none",
           fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#a0b4dc", zIndex: 20 }}>
           <div>Phase: <span style={{ color: "#fff" }}>{tooltip.time.toFixed(4)}</span></div>
@@ -473,7 +535,7 @@ function LightCurveCanvas({ data, score, isLoading }) {
 }
 
 /* ─── ScoreGauge ─────────────────────────────────────────────── */
-function ScoreGauge({ score, size=160 }) {
+function ScoreGauge({ score, size=160, scoreStd=null }) {
   const [a,setA]=useState(0);
   useEffect(()=>{
     let f; const s=performance.now();
@@ -483,14 +545,15 @@ function ScoreGauge({ score, size=160 }) {
   },[score]);
 
   const r=size/2-16, c=Math.PI*r, off=c*(1-a);
-  const col=a>=0.70?"#4ade80":a>=0.35?"#fbbf24":"#f87171";
+  const col=a>=0.70?"#34d399":a>=0.35?"#fbbf24":"#f87171";
   const verdict=a>=0.85?"Exoplanète très probable":a>=0.70?"Exoplanète probable":a>=0.55?"Candidat à confirmer":a>=0.35?"Indéterminé":a>=0.15?"Probable faux positif":"Faux positif très probable";
+  const ciPct = scoreStd != null ? Math.round(scoreStd * 100) : null;
 
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
       <svg width={size} height={size/2+22} viewBox={`0 0 ${size} ${size/2+22}`}>
         <path d={`M 16 ${size/2} A ${r} ${r} 0 0 1 ${size-16} ${size/2}`}
-          fill="none" stroke="rgba(99,140,255,0.1)" strokeWidth="10" strokeLinecap="round"/>
+          fill="none" stroke="rgba(91,141,239,0.1)" strokeWidth="10" strokeLinecap="round"/>
         <path d={`M 16 ${size/2} A ${r} ${r} 0 0 1 ${size-16} ${size/2}`}
           fill="none" stroke={col} strokeWidth="10" strokeLinecap="round"
           strokeDasharray={c} strokeDashoffset={off}
@@ -504,13 +567,20 @@ function ScoreGauge({ score, size=160 }) {
         color:col,background:`${col}15`,border:`1px solid ${col}35`}}>
         {verdict}
       </div>
+      {ciPct != null && (
+        <div style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:"rgba(160,180,220,0.5)",
+          background:"rgba(91,141,239,0.05)",border:"1px solid rgba(91,141,239,0.12)",
+          borderRadius:6,padding:"2px 10px",letterSpacing:0.3}}>
+          IC 95% : {(a*100).toFixed(1)}% ± {ciPct}%
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── Characterization Panel ─────────────────────────────────── */
 function getScoreTone(score=0.5) {
-  if (score >= 0.70) return { primary:"#4ade80", secondary:"#22d3ee", glow:"rgba(74,222,128,0.3)" };
+  if (score >= 0.70) return { primary:"#34d399", secondary:"#7c3aed", glow:"rgba(52,211,153,0.3)" };
   if (score >= 0.35) return { primary:"#fbbf24", secondary:"#f97316", glow:"rgba(251,191,36,0.28)" };
   return { primary:"#f87171", secondary:"#fb7185", glow:"rgba(248,113,113,0.28)" };
 }
@@ -535,7 +605,7 @@ function PlanetPreviewPanel({ data }) {
         <div>
           <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:4,
             textTransform:"uppercase",letterSpacing:1.5}}>Apercu orbital</h3>
-          <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif"}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#e4e8f7",fontFamily:"'Space Grotesk',sans-serif"}}>
             {hasData ? data.target : "Planete analysee"}
           </div>
         </div>
@@ -554,9 +624,9 @@ function PlanetPreviewPanel({ data }) {
         borderRadius:14,
         overflow:"hidden",
         background:`radial-gradient(circle at 32% 38%, ${tone.glow}, transparent 35%),
-          radial-gradient(circle at 70% 18%, rgba(99,140,255,0.12), transparent 24%),
+          radial-gradient(circle at 70% 18%, rgba(91,141,239,0.12), transparent 24%),
           linear-gradient(180deg, rgba(8,11,20,0.96), rgba(5,8,16,0.88))`,
-        border:"1px solid rgba(99,140,255,0.08)",
+        border:"1px solid rgba(91,141,239,0.08)",
       }}>
         <div style={{position:"absolute", inset:0, opacity:0.32}}>
           {Array.from({ length: 28 }, (_, i) => (
@@ -594,7 +664,7 @@ function PlanetPreviewPanel({ data }) {
           transform:"translate(-50%, -50%)",
           borderRadius:"50%",
           border:"1px solid rgba(160,180,220,0.16)",
-          boxShadow:"inset 0 0 40px rgba(99,140,255,0.03)",
+          boxShadow:"inset 0 0 40px rgba(91,141,239,0.03)",
         }}/>
 
         <div style={{
@@ -680,14 +750,14 @@ function SignalInsightsPanel({ data }) {
         ? `La baisse de luminosite se repete environ tous les ${data.period_days} jours.`
         : "La periode sera visible des que le repliement de la courbe est disponible.",
       icon:Orbit,
-      color:"#638cff",
+      color:"#5b8def",
     },
     {
       label:"Profondeur du transit",
       value:c.transit_depth_ppm ? `${c.transit_depth_ppm.toLocaleString()} ppm` : "n/d",
       text:depthText,
       icon:TrendingUp,
-      color:"#22d3ee",
+      color:"#7c3aed",
     },
     {
       label:"Qualite du signal",
@@ -701,7 +771,7 @@ function SignalInsightsPanel({ data }) {
       value:m.known_disposition || "Non renseigne",
       text:nasaText,
       icon:BookOpen,
-      color:"#4ade80",
+      color:"#34d399",
     },
   ];
 
@@ -711,7 +781,7 @@ function SignalInsightsPanel({ data }) {
         <div>
           <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:4,
             textTransform:"uppercase",letterSpacing:1.5}}>Lecture des donnees</h3>
-          <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif"}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#e4e8f7",fontFamily:"'Space Grotesk',sans-serif"}}>
             Ce que racontent les chiffres
           </div>
         </div>
@@ -722,7 +792,7 @@ function SignalInsightsPanel({ data }) {
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10}}>
         {cards.map((item)=>(
           <div key={item.label} style={{padding:"12px 12px 10px",borderRadius:12,
-            background:"rgba(99,140,255,0.04)",border:"1px solid rgba(99,140,255,0.08)"}}>
+            background:"rgba(91,141,239,0.04)",border:"1px solid rgba(91,141,239,0.08)"}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
               <div style={{width:28,height:28,borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",
                 background:`${item.color}16`,border:`1px solid ${item.color}30`}}>
@@ -732,7 +802,7 @@ function SignalInsightsPanel({ data }) {
                 {item.label}
               </div>
             </div>
-            <div style={{fontSize:18,fontWeight:700,color:"#e0e8f5",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
+            <div style={{fontSize:18,fontWeight:700,color:"#e4e8f7",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
               {item.value}
             </div>
             <div style={{fontSize:11,color:"rgba(160,180,220,0.56)",lineHeight:1.55}}>
@@ -774,9 +844,9 @@ function StarInfoPanel({ target }) {
 
   const stellarRows = [
     s.teff        && { label:"Température",  value:`${Math.round(s.teff).toLocaleString()} K`,  color:"#f59e0b" },
-    s.radius      && { label:"Rayon",         value:`${s.radius.toFixed(2)} R☉`,                color:"#e0e8f5" },
-    s.mass        && { label:"Masse",         value:`${s.mass.toFixed(2)} M☉`,                  color:"#e0e8f5" },
-    distLy        && { label:"Distance",      value:`${distLy} al`,                              color:"#22d3ee" },
+    s.radius      && { label:"Rayon",         value:`${s.radius.toFixed(2)} R☉`,                color:"#e4e8f7" },
+    s.mass        && { label:"Masse",         value:`${s.mass.toFixed(2)} M☉`,                  color:"#e4e8f7" },
+    distLy        && { label:"Distance",      value:`${distLy} al`,                              color:"#7c3aed" },
     s.kmag        && { label:"Magnitude K",   value:s.kmag.toFixed(2),                           color:"rgba(160,180,220,0.7)" },
   ].filter(Boolean);
 
@@ -785,8 +855,8 @@ function StarInfoPanel({ target }) {
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:8}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <Star size={15} color="#638cff"/>
-          <span style={{fontSize:13,fontWeight:700,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif"}}>
+          <Star size={15} color="#5b8def"/>
+          <span style={{fontSize:13,fontWeight:700,color:"#e4e8f7",fontFamily:"'Space Grotesk',sans-serif"}}>
             Données stellaires — {info.hostname}
           </span>
         </div>
@@ -806,7 +876,7 @@ function StarInfoPanel({ target }) {
               {stellarRows.map(row => (
                 <div key={row.label} style={{display:"flex",justifyContent:"space-between",
                   padding:"8px 12px",background:"rgba(15,18,30,0.5)",borderRadius:8,
-                  border:"1px solid rgba(99,140,255,0.07)"}}>
+                  border:"1px solid rgba(91,141,239,0.07)"}}>
                   <span style={{fontSize:11,color:"rgba(160,180,220,0.45)",fontFamily:"'DM Mono',monospace"}}>{row.label}</span>
                   <span style={{fontSize:11,fontWeight:600,color:row.color,fontFamily:"'DM Mono',monospace"}}>{row.value}</span>
                 </div>
@@ -825,11 +895,11 @@ function StarInfoPanel({ target }) {
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {info.planets.map((p, i) => (
                 <div key={i} style={{
-                  padding:"10px 14px",background:"rgba(74,222,160,0.05)",
-                  borderRadius:8,border:"1px solid rgba(74,222,160,0.12)",
+                  padding:"10px 14px",background:"rgba(52,211,153,0.05)",
+                  borderRadius:8,border:"1px solid rgba(52,211,153,0.12)",
                   display:"flex",flexWrap:"wrap",gap:12,alignItems:"center",
                 }}>
-                  <span style={{fontSize:13,fontWeight:600,color:"#4ade80",fontFamily:"'DM Mono',monospace",minWidth:110}}>
+                  <span style={{fontSize:13,fontWeight:600,color:"#34d399",fontFamily:"'DM Mono',monospace",minWidth:110}}>
                     {p.name}
                   </span>
                   <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
@@ -889,11 +959,11 @@ function CharacterizationPanel({ data }) {
       {rows.map((r,i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:8,
           padding:"7px 10px",borderRadius:8,
-          background:"rgba(99,140,255,0.04)",border:"1px solid rgba(99,140,255,0.08)"}}>
-          <r.icon size={12} style={{color:"rgba(99,140,255,0.5)",flexShrink:0}}/>
+          background:"rgba(91,141,239,0.04)",border:"1px solid rgba(91,141,239,0.08)"}}>
+          <r.icon size={12} style={{color:"rgba(91,141,239,0.5)",flexShrink:0}}/>
           <div>
             <div style={{fontSize:9,color:"rgba(160,180,220,0.45)",textTransform:"uppercase",letterSpacing:1}}>{r.label}</div>
-            <div style={{fontSize:12,color:"#e0e8f5",marginTop:1}}>{r.val??'—'}</div>
+            <div style={{fontSize:12,color:"#e4e8f7",marginTop:1}}>{r.val??'—'}</div>
           </div>
         </div>
       ))}
@@ -947,53 +1017,73 @@ const KOI_LABELS = {
 
 /* Descriptions détaillées : comment chaque feature est calculée */
 const FEATURE_DESCRIPTIONS = {
-  // ── Paramètres orbitaux ──
-  koi_period:       "Période orbitale en jours. Calculée par l'algorithme BLS (Box Least Squares) qui balaie la courbe de lumière à la recherche du signal périodique le plus fort.",
-  koi_time0bk:      "Époque du premier transit (en jours BKJD). C'est le moment exact où le centre du premier transit a été observé par le télescope Kepler.",
-  koi_impact:       "Paramètre d'impact b ∈ [0, 1+Rp/R★]. Mesure à quelle hauteur la planète passe devant l'étoile : 0 = passage central, 1 = passage rasant. Influe sur la forme du creux de transit.",
-  koi_duration:     "Durée totale du transit en heures. Mesurée du premier contact externe au dernier contact externe. Dépend du rayon orbital, de la taille de l'étoile et du paramètre d'impact.",
-  koi_depth:        "Profondeur du transit en ppm (parties par million). Ratio de la surface de la planète sur la surface de l'étoile : δ = (Rp/R★)². Terre devant le Soleil ≈ 84 ppm, Jupiter ≈ 10 000 ppm.",
-  koi_model_snr:    "Rapport Signal/Bruit du modèle de transit. SNR = profondeur / bruit RMS × √(nb transits). Plus c'est élevé, plus le signal est fiable. En dessous de 7, le signal est ambigu.",
+  // ── BLS — Box Least Squares (Kepler + TESS) ──
+  bls_period:       "Période orbitale en jours détectée par BLS (Box Least Squares). L'algorithme balaye la courbe de lumière sur une grille de périodes et sélectionne celle qui maximise le rapport signal/bruit du creux en forme de boîte. Utilisé pour Kepler et TESS.",
+  bls_duration:     "Durée du transit en jours telle qu'estimée par BLS. Correspond au temps pendant lequel la planète occulte partiellement l'étoile, du premier au dernier contact. Dépend du rayon orbital, de la taille de l'étoile et de l'inclinaison.",
+  bls_depth:        "Profondeur du transit en flux relatif (ou ppm). Rapport de la surface occultée sur la surface totale de l'étoile : δ = (Rp/R★)². Terre devant le Soleil ≈ 84 ppm, Jupiter ≈ 10 000 ppm. Feature clé pour estimer la taille de la planète.",
+  bls_depth_ppm:    "Profondeur du transit exprimée en parties par million (ppm). Même grandeur que bls_depth mais normalisée pour faciliter la comparaison entre étoiles de luminosités différentes.",
+  bls_snr:          "Rapport Signal/Bruit (SNR) du meilleur signal BLS. SNR = profondeur / bruit RMS × √(nb transits observés). Un SNR > 7 est généralement requis pour considérer un signal comme détectable. En dessous de 5 : résultat peu fiable.",
+  bls_score:        "Score de qualité BLS normalisé entre 0 et 1. Combine le SNR et la cohérence de la forme du signal. Plus le score est proche de 1, plus le signal ressemble à un transit planétaire propre.",
+  bls_t0:           "Époque du premier transit (T0) en jours BJD. Temps du centre du premier transit observé. Avec la période, permet de prédire tous les transits futurs et passés pour valider la périodicité.",
+
+  // ── Paramètres orbitaux (Kepler/KOI) ──
+  koi_period:       "Période orbitale en jours (catalogue KOI Kepler). Estimée par BLS sur les données PDC-SAP de Kepler, puis raffinée par modélisation de transit. Précision typique : < 0.001 jour.",
+  koi_time0bk:      "Époque du premier transit en BKJD (Barycentric Kepler Julian Date). Instant exact du centre du premier transit observé par Kepler. Permet de propager l'éphéméride sur toute la mission.",
+  koi_impact:       "Paramètre d'impact b ∈ [0, 1+Rp/R★]. Distance entre le centre de l'étoile et la trajectoire de la planète en unités de rayon stellaire. b=0 : transit central, b→1 : transit rasant. Influe fortement sur la forme et la durée du creux.",
+  koi_duration:     "Durée totale du transit en heures (Kepler). Du premier au dernier contact externe. Dépend du rayon orbital (loi de Kepler), de l'inclinaison et des rayons des deux corps.",
+  koi_depth:        "Profondeur du transit Kepler en ppm. Ratio de la surface planétaire sur la surface stellaire : δ = (Rp/R★)². Directement utilisé pour estimer le rayon de la planète via koi_prad.",
+  koi_model_snr:    "SNR du modèle de transit ajusté par DV (Data Validation) de Kepler. Plus fiable que le SNR BLS car basé sur un modèle Mandel-Agol ajusté. Valeur < 7 : signal ambigu, > 15 : signal robuste.",
 
   // ── Paramètres planétaires ──
-  koi_prad:         "Rayon estimé de la planète en rayons terrestres (R⊕). Déduit de la profondeur du transit : Rp = R★ × √δ. Nécessite le rayon de l'étoile hôte comme donnée d'entrée.",
-  koi_teq:          "Température d'équilibre de la planète en Kelvin. Calculée à partir de la luminosité de l'étoile, de la distance orbitale et d'un albédo supposé de 0.3 (Bond). Indique si la zone habitable est possible.",
-  koi_insol:        "Flux d'irradiation reçu par la planète, en unités terrestres (F⊕). Rapport de l'énergie reçue par la planète sur l'énergie reçue par la Terre. < 0.25 ou > 11 : zone hors habitable.",
+  koi_prad:         "Rayon estimé de la planète en rayons terrestres (R⊕). Calculé via : Rp = R★ × √δ. La précision dépend directement de la connaissance du rayon stellaire. Super-Terres : 1–2 R⊕, Neptunes : 2–6 R⊕, Jupiters : > 10 R⊕.",
+  koi_teq:          "Température d'équilibre planétaire en Kelvin. Estimée par : Teq = T★ × (R★/2a)^0.5 × (1-A)^0.25, avec A=0.3 (albédo Bond). Zone habitable approximative : 200–300 K selon le type stellaire.",
+  koi_insol:        "Irradiation reçue par la planète en flux terrestres (S⊕). S = L★ / (4πa²) normalisé par la valeur terrestre. Zone habitable optimiste : 0.25 < S < 11 S⊕. Feature importante pour la classification habitabilité.",
 
   // ── Paramètres stellaires ──
-  koi_steff:        "Température effective de l'étoile hôte en Kelvin. Déterminée par spectroscopie ou photométrie. Classe le type stellaire : O (>30 000 K), B, A, F, G (~5 780 K pour le Soleil), K, M (<3 500 K).",
-  koi_slogg:        "Gravité de surface de l'étoile (log g en cgs). Calculée à partir de la masse et du rayon stellaires : log g = log(GM/R²). Distingue naines (log g ≈ 4.5) de géantes (log g ≈ 2-3).",
-  koi_srad:         "Rayon de l'étoile hôte en rayons solaires (R☉). Déduit de la luminosité et de la température via la loi de Stefan-Boltzmann : L = 4πR²σT⁴. Crucial pour estimer Rp.",
+  koi_steff:        "Température effective de l'étoile hôte en Kelvin. Déterminée par spectroscopie ou photométrie SED. Classification : M < 3 900 K, K 3 900–5 200 K, G 5 200–6 000 K (Soleil : 5 778 K), F 6 000–7 500 K. Influe sur le contraste du transit.",
+  koi_slogg:        "Gravité de surface stellaire log g (cm/s²). log g = log(GM★/R★²). Naines principales : 4.0–4.8, Sous-géantes : 3.5–4.0, Géantes : < 3.5. Utile pour rejeter les faux positifs liés aux géantes contaminantes.",
+  koi_srad:         "Rayon de l'étoile hôte en rayons solaires (R☉). Déduit de la luminosité et de T_eff via L = 4πR²σT⁴. Paramètre crucial : une erreur sur R★ se répercute directement sur l'estimation de Rp.",
+  star_teff:        "Température effective de l'étoile (TESS/TIC). Équivalent de koi_steff pour les cibles TESS. Issu du catalogue TIC v8 (TESS Input Catalog), dérivé de la photométrie multi-bande ou de Gaia.",
+  star_logg:        "Gravité de surface de l'étoile (TESS/TIC). Même interprétation que koi_slogg. Permet de distinguer les naines M (cibles privilégiées de TESS pour les super-Terres) des géantes.",
+  star_radius:      "Rayon stellaire en R☉ (TESS/TIC). Estimé à partir de Gaia DR3 (parallaxe + luminosité) ou du catalogue TIC. Précision typique : 5–10% pour les étoiles brillantes de TESS.",
 
-  // ── Flags de faux positifs ──
-  koi_fpflag_nt:    "Flag 'Non-Transit' : vaut 1 si le signal ne ressemble pas à un transit planétaire (pas la bonne forme en boîte). Peut indiquer une éclipse d'étoile binaire ou un artefact instrumental.",
-  koi_fpflag_ss:    "Flag 'Secondary Star' : vaut 1 si un transit secondaire est détecté à mi-période, signature typique d'une étoile binaire éclipsante. Un vrai transit planétaire n'a pas de transit secondaire significatif.",
-  koi_fpflag_co:    "Flag 'Centroid Offset' : vaut 1 si la source du transit est décalée du centre de l'étoile cible. Indique que le transit vient d'une étoile voisine contaminant le pixel Kepler.",
-  koi_fpflag_ec:    "Flag 'Ephemeris Contamination' : vaut 1 si la période du signal correspond à une éclipse connue dans le voisinage. Souvent dû à une étoile binaire brillante polluant le champ de vision.",
-  koi_kepmag:       "Magnitude Kepler de l'étoile hôte. Mesure la brillance apparente dans la bande photométrique du télescope Kepler (430–890 nm). Plus la valeur est faible, plus l'étoile est brillante. Influe directement sur le rapport signal/bruit des transits.",
-  glon:             "Longitude galactique en degrés (0–360°). Coordonnée qui indique la position de l'étoile dans le plan de la Voie Lactée. Utilisée pour estimer la densité stellaire environnante et le risque de contamination par des étoiles de fond.",
-  glat:             "Latitude galactique en degrés (-90° à +90°). Indique à quelle hauteur l'étoile se situe par rapport au plan galactique. Les étoiles à haute latitude galactique ont moins de contamination stellaire de fond, ce qui améliore la fiabilité des détections.",
+  // ── Flags de faux positifs (Kepler) ──
+  koi_fpflag_nt:    "Flag 'Non-Transit Shape' : 1 si la forme du signal ne correspond pas à un transit planétaire en boîte (trapèze asymétrique, pentes incompatibles). Signature typique d'une étoile binaire éclipsante ou d'un artefact instrumental.",
+  koi_fpflag_ss:    "Flag 'Significant Secondary' : 1 si un transit secondaire significatif est détecté à mi-période. Un transit planétaire n'a pas de transit secondaire (la planète n'émet pas de lumière propre). Signature forte d'une binaire éclipsante.",
+  koi_fpflag_co:    "Flag 'Centroid Offset' : 1 si le centroïde du flux se déplace pendant le transit, indiquant que la source est une étoile voisine dans le pixel Kepler (~4 arcsec) et non la cible. Test de contamination critique pour Kepler.",
+  koi_fpflag_ec:    "Flag 'Ephemeris Contamination' : 1 si la période du signal correspond à une éclipse connue dans un rayon de 2 arcsec. La longue PSF de Kepler peut contaminer une cible avec une binaire brillante voisine.",
+  koi_kepmag:       "Magnitude Kepler de l'étoile (bande 430–890 nm). Kp < 12 : étoile brillante, SNR élevé, bonne détection. Kp > 15 : étoile faible, bruit de photon dominant. Feature indirecte de la qualité de la courbe de lumière.",
 
-  // ── Features TSFRESH ──
-  mean:             "Moyenne arithmétique du flux sur la courbe repliée (phase folded). Une valeur proche de 1.0 indique un flux normalisé centré, sans dérive résiduelle après flattening.",
-  variance:         "Variance du flux : mesure la dispersion globale autour de la moyenne. Une forte variance peut indiquer un bruit élevé ou plusieurs signaux superposés.",
-  skewness:         "Asymétrie (skewness) de la distribution du flux. Un transit planétaire produit une asymétrie négative légère (creux vers le bas). Une forte asymétrie peut signaler un faux positif.",
-  kurtosis:         "Kurtosis (aplatissement) de la distribution du flux. Mesure si les valeurs extrêmes sont plus fréquentes qu'une gaussienne. Un transit net produit un kurtosis positif élevé.",
-  abs_energy:       "Énergie absolue : somme des carrés du flux. Proportionnelle à l'énergie totale du signal. Utile pour distinguer les étoiles variables des étoiles calmes.",
-  mean_abs_change:  "Variation absolue moyenne entre points consécutifs. Mesure la 'rugosité' de la courbe. Un transit propre a des flancs raides mais une base plate, produisant une valeur caractéristique.",
-  count_above_mean: "Nombre de points au-dessus de la moyenne. Dans un signal avec transit, la majorité des points sont au-dessus (flux = 1), seuls les points de transit sont en dessous.",
-  count_below_mean: "Nombre de points en-dessous de la moyenne. Directement lié au nombre de points dans le creux de transit. Plus ce nombre est concentré et régulier, plus le signal ressemble à un transit.",
-  longest_strike_below_mean: "Durée de la plus longue séquence continue sous la moyenne. Correspond directement à la largeur du transit dans la courbe repliée. Un transit planétaire a une durée caractéristique.",
-  longest_strike_above_mean: "Durée de la plus longue séquence continue au-dessus de la moyenne. Complémentaire du précédent : dans un transit, presque toute la courbe est au-dessus sauf le creux.",
-  sum_of_reoccurring_values: "Somme des valeurs qui apparaissent plus d'une fois. Indicateur de périodicité et de répétabilité du signal. Un vrai transit se répète identiquement à chaque période.",
-  ratio_beyond_r_sigma: "Fraction des points à plus de r×σ de la moyenne. Détecte les outliers et les signaux extrêmes. Un transit propre a peu de points hors des σ, contrairement au bruit stellaire.",
-  autocorrelation:  "Autocorrélation du flux à un lag donné. Mesure si le signal se ressemble à lui-même décalé dans le temps. Un transit périodique produit des pics d'autocorrélation nets aux multiples de la période.",
-  fft_coefficient:  "Coefficient de la transformée de Fourier (FFT) à une fréquence donnée. Décompose le signal en fréquences : un transit net produit des harmoniques claires à 1/T, 2/T, 3/T...",
-  cwt_coefficients: "Coefficients de la transformée en ondelettes continues (CWT). Analyse temps-fréquence qui localise les transitoires. Idéale pour détecter les transits de durée et amplitude variables.",
-  agg_linear_trend: "Pente de la tendance linéaire sur un agrégat de la courbe. Détecte les dérives lentes résiduelles après flattening ou les signaux non stationnaires.",
-  binned_entropy:   "Entropie calculée après binning du flux en intervalles. Mesure le 'désordre' du signal. Un transit produit une distribution non-uniforme → entropie basse. Un bruit blanc → entropie max.",
-  permutation_entropy: "Entropie de permutation : complexité des patterns locaux d'ordonnancement. Très sensible aux régularités cachées. Un transit crée des patterns d'ordre répétés détectables.",
-  sample_entropy:   "Entropie d'échantillon : probabilité que deux séquences similaires restent similaires en ajoutant un point. Faible pour un signal régulier comme un transit, élevée pour du bruit.",
+  // ── Coordonnées galactiques ──
+  glon:             "Longitude galactique en degrés (0–360°). Position dans le plan de la Voie Lactée. Régions proches du centre galactique (glon ≈ 0°) ont une densité stellaire plus élevée, augmentant le risque de contamination.",
+  glat:             "Latitude galactique en degrés (-90° à +90°). Hauteur au-dessus du plan galactique. glat élevée → moins d'étoiles de fond → moins de faux positifs par contamination. Le champ principal Kepler est à glat ≈ +13°.",
+
+  // ── Features TSFRESH — Statistiques de base ──
+  mean:             "Moyenne du flux sur la courbe repliée (phase-folded). Valeur nominale ≈ 1.0 après normalisation. Un écart significatif indique une dérive résiduelle ou une étoile variable non corrigée par le flattening.",
+  variance:         "Variance du flux : dispersion quadratique autour de la moyenne. Forte variance → bruit élevé ou variabilité stellaire intrinsèque (pulsations, taches). Feature de qualité du signal brut.",
+  skewness:         "Asymétrie (3ème moment) de la distribution de flux. Un transit crée une queue négative : skewness légèrement négatif. Une forte asymétrie positive peut trahir une étoile variable ou un faux positif.",
+  kurtosis:         "Kurtosis (4ème moment) : aplatissement de la distribution. Un transit net génère un pic de kurtosis positif (distribution leptokurtique) car la majorité du flux est concentrée autour de 1.0 avec quelques points très bas.",
+  abs_energy:       "Énergie absolue : Σ(flux²). Proportionnelle à la puissance totale du signal. Permet de distinguer les étoiles calmes (abs_energy ≈ N × 1.0) des variables (abs_energy élevée).",
+  mean_abs_change:  "Variation absolue moyenne entre points consécutifs : mean(|f[i+1] - f[i]|). Mesure la rugosité locale de la courbe. Un transit propre a des flancs raides (forte variation) mais une base et un plateau plats.",
+
+  // ── Features TSFRESH — Comptages ──
+  count_above_mean: "Nombre de points au-dessus de la moyenne. Dans un signal transit propre : la grande majorité (>90%) des points est à flux ≈ 1.0, au-dessus de la moyenne légèrement abaissée par le creux.",
+  count_below_mean: "Nombre de points sous la moyenne. Directement proportionnel au nombre de points dans le creux de transit. Un transit étroit (planète petite) donne peu de points sous la moyenne.",
+  longest_strike_below_mean: "Longueur de la plus longue séquence continue sous la moyenne. Dans la courbe repliée, correspond à la durée du transit en nombre de points. Feature très discriminante pour séparer transits (séquence courte et nette) du bruit.",
+  longest_strike_above_mean: "Longueur de la plus longue séquence continue au-dessus de la moyenne. Complémentaire : dans un signal transit, presque toute la courbe est au-dessus sauf le creux. Un bruit aléatoire donne des séquences plus courtes.",
+  sum_of_reoccurring_values: "Somme des valeurs de flux qui se répètent exactement. Indicateur indirect de quantification ou de répétabilité du signal. Un transit périodique produit des flux similaires à chaque répétition.",
+  ratio_beyond_r_sigma: "Fraction des points à plus de r×σ de la moyenne (r typiquement 1 ou 2). Détecte les outliers et les pics extrêmes. Un transit planétaire produit des points clairement sous -2σ, mais peu de points au-delà de +2σ.",
+
+  // ── Features TSFRESH — Analyse fréquentielle ──
+  autocorrelation:  "Autocorrélation du flux à un décalage temporel (lag) donné. Mesure la similitude du signal avec lui-même décalé. Un transit périodique produit des pics d'autocorrélation aux multiples de la période, signature d'un signal régulier.",
+  fft_coefficient:  "Coefficient complexe de la FFT (Fast Fourier Transform) à une fréquence donnée. Décompose le signal en composantes sinusoïdales. Un transit présente des harmoniques nettes à f=1/P, 2/P, 3/P... reflétant sa forme en créneau.",
+  cwt_coefficients: "Coefficients de la transformée en ondelettes continues (CWT, Morlet). Analyse temps-fréquence multi-résolution. Localise précisément les transitoires dans le temps ET la fréquence. Robuste aux variations d'amplitude entre transits.",
+  agg_linear_trend: "Pente de la tendance linéaire sur un segment agrégé de la courbe. Détecte les dérives lentes non corrigées par le flattening (ex : activité stellaire résiduelle, systematic du satellite). Doit être proche de zéro pour un bon signal.",
+
+  // ── Features TSFRESH — Entropies ──
+  binned_entropy:   "Entropie de Shannon après discrétisation du flux en bins. Mesure le désordre statistique de la distribution. Transit propre → distribution bimodale (plateau + creux) → entropie réduite. Bruit gaussien → entropie maximale.",
+  permutation_entropy: "Entropie de permutation : complexité des patterns locaux d'ordonnancement sur fenêtres glissantes. Très sensible aux structures cachées. Un transit crée des patterns d'ordre répétés (montée, plateau, descente) détectables même en présence de bruit.",
+  sample_entropy:   "Entropie d'échantillon : probabilité que deux séquences de longueur m restent similaires en passant à m+1. Faible pour un signal régulier et périodique (transit), élevée pour un bruit aléatoire. Robuste aux artefacts de longueur finie.",
 };
 
 function featureDescription(rawName) {
@@ -1039,14 +1129,14 @@ function FeatureBars({ features }) {
             onMouseLeave={() => setTooltip(null)}
           >
             <div style={{position:"absolute",left:0,top:0,bottom:0,width:`${pct}%`,
-              background:"rgba(99,140,255,0.08)",borderRadius:6,transition:"width .4s"}}/>
+              background:"rgba(91,141,239,0.08)",borderRadius:6,transition:"width .4s"}}/>
             <div style={{position:"relative",display:"flex",justifyContent:"space-between",
               alignItems:"center", padding:"5px 8px",fontSize:10,fontFamily:"'DM Mono',monospace",
               cursor: desc ? "help" : "default",
             }}>
               <span style={{color:"rgba(160,180,220,0.7)",maxWidth:"75%",overflow:"hidden",
                 textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</span>
-              <span style={{color:"#638cff"}}>{(val*100).toFixed(1)}%</span>
+              <span style={{color:"#5b8def"}}>{(val*100).toFixed(1)}%</span>
             </div>
           </div>
         );
@@ -1060,13 +1150,13 @@ function FeatureBars({ features }) {
           top:  tooltip.y,
           width: 320,
           background:"rgba(6,9,20,0.97)",
-          border:"1px solid rgba(99,140,255,0.3)",
+          border:"1px solid rgba(91,141,239,0.3)",
           borderRadius:10, padding:"12px 16px",
           zIndex:99999,
           boxShadow:"0 12px 40px rgba(0,0,0,0.7)",
           pointerEvents:"none",
         }}>
-          <div style={{fontSize:11,fontWeight:700,color:"#638cff",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#5b8def",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
             {featureLabel(tooltip.rawName)}
           </div>
           <div style={{fontSize:11,color:"rgba(200,215,240,0.75)",fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.7}}>
@@ -1092,9 +1182,9 @@ function StatusDots({ status }) {
       {items.map((it,i)=>(
         <div key={i} style={{display:"flex",alignItems:"center",gap:3,
           padding:"3px 8px",borderRadius:6,fontSize:10,fontFamily:"'DM Mono',monospace",
-          background:it.ok?"rgba(74,222,160,0.06)":"rgba(248,113,113,0.06)",
-          border:`1px solid ${it.ok?"rgba(74,222,160,0.15)":"rgba(248,113,113,0.15)"}`,
-          color:it.ok?"#4ade80":"#f87171"}}>
+          background:it.ok?"rgba(52,211,153,0.06)":"rgba(248,113,113,0.06)",
+          border:`1px solid ${it.ok?"rgba(52,211,153,0.15)":"rgba(248,113,113,0.15)"}`,
+          color:it.ok?"#34d399":"#f87171"}}>
           {it.ok?<CheckCircle2 size={9}/>:<AlertTriangle size={9}/>} {it.l}
         </div>
       ))}
@@ -1128,11 +1218,11 @@ function MetricStatCard({ stat }) {
       onFocus={showTip}     onBlur={hideTip} tabIndex={0}>
       <Card style={{padding:"14px 16px",textAlign:"center",cursor:"help"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:2}}>
-          <div style={{fontSize:11,color:"#e0e8f5"}}>{stat.label}</div>
-          <Info size={11} style={{color:"rgba(99,140,255,0.6)"}}/>
+          <div style={{fontSize:11,color:"#e4e8f7"}}>{stat.label}</div>
+          <Info size={11} style={{color:"rgba(91,141,239,0.6)"}}/>
         </div>
         <div style={{fontSize:22,fontWeight:700,fontFamily:"'DM Mono',monospace",
-          color:"#638cff",marginBottom:2}}>
+          color:"#5b8def",marginBottom:2}}>
           {stat.val}
         </div>
         <div style={{fontSize:10,color:"rgba(160,180,220,0.4)"}}>{stat.sub}</div>
@@ -1146,7 +1236,7 @@ function MetricStatCard({ stat }) {
           padding:"10px 13px",
           borderRadius:10,
           background:"rgba(8,12,22,0.97)",
-          border:"1px solid rgba(99,140,255,0.28)",
+          border:"1px solid rgba(91,141,239,0.28)",
           color:"rgba(224,232,245,0.88)",
           fontSize:10.5,
           lineHeight:1.62,
@@ -1167,10 +1257,36 @@ function MetricsTab() {
   const [metrics,setMetrics]=useState(null);
   const [loading,setLoading]=useState(true);
   const [err,setErr]=useState(null);
+  const [refreshStatus,setRefreshStatus]=useState(null);
+  const [refreshLoading,setRefreshLoading]=useState(false);
+  const pollRef = useRef(null);
+
+  const pollRefreshStatus = () => {
+    authFetch(`${API_BASE}/api/admin/refresh-catalog`)
+      .then(r=>r.json())
+      .then(s=>{
+        setRefreshStatus(s);
+        if(s.state==="running"){
+          pollRef.current = setTimeout(pollRefreshStatus, 2000);
+        }
+      })
+      .catch(()=>{});
+  };
+
+  const handleRefresh = () => {
+    setRefreshLoading(true);
+    authFetch(`${API_BASE}/api/admin/refresh-catalog`,{method:"POST"})
+      .then(r=>r.json())
+      .then(()=>{ pollRefreshStatus(); })
+      .catch(e=>setRefreshStatus({state:"error",message:String(e)}))
+      .finally(()=>setRefreshLoading(false));
+  };
 
   useEffect(()=>{
     authFetch(`${API_BASE}/api/metrics`)
       .then(r=>r.json()).then(setMetrics).catch(e=>setErr(e.message)).finally(()=>setLoading(false));
+    pollRefreshStatus();
+    return ()=>{ if(pollRef.current) clearTimeout(pollRef.current); };
   },[]);
 
   if(loading) return (
@@ -1209,8 +1325,8 @@ function MetricsTab() {
         {statCards.map((s,i)=>(
           <Card key={i} style={{padding:"14px 16px",textAlign:"center"}}>
             <div style={{fontSize:22,fontWeight:700,fontFamily:"'DM Mono',monospace",
-              color:"#638cff",marginBottom:2}}>{s.val}</div>
-            <div style={{fontSize:11,color:"#e0e8f5",marginBottom:2}}>{s.label}</div>
+              color:"#5b8def",marginBottom:2}}>{s.val}</div>
+            <div style={{fontSize:11,color:"#e4e8f7",marginBottom:2}}>{s.label}</div>
             <div style={{fontSize:10,color:"rgba(160,180,220,0.4)"}}>{s.sub}</div>
           </Card>
         ))}
@@ -1221,12 +1337,12 @@ function MetricsTab() {
         <Card>
           <ConfusionMatrixHeader />
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,maxWidth:260,margin:"0 auto"}}>
-            {[{v:tn,l:"Vrais Négatifs",c:"#4ade80"},{v:fp,l:"Faux Positifs",c:"#f87171"},
-              {v:fn,l:"Faux Négatifs",c:"#f87171"},{v:tp,l:"Vrais Positifs",c:"#4ade80"}]
+            {[{v:tn,l:"Vrais Négatifs",c:"#34d399"},{v:fp,l:"Faux Positifs",c:"#f87171"},
+              {v:fn,l:"Faux Négatifs",c:"#f87171"},{v:tp,l:"Vrais Positifs",c:"#34d399"}]
             .map((cell,i)=>(
               <div key={i} style={{
                 padding:"14px 10px",borderRadius:10,textAlign:"center",
-                background:`rgba(${cell.c==="#4ade80"?"74,222,160":"248,113,113"},${0.05+(cell.v/cmMax)*0.15})`,
+                background:`rgba(${cell.c==="#34d399"?"74,222,160":"248,113,113"},${0.05+(cell.v/cmMax)*0.15})`,
                 border:`1px solid ${cell.c}25`,
               }}>
                 <div style={{fontSize:28,fontWeight:700,fontFamily:"'DM Mono',monospace",color:cell.c}}>{cell.v}</div>
@@ -1306,9 +1422,9 @@ function MetricsTab() {
         </h3>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {[
-            {label:"Accuracy", val:metrics.cv_accuracy_mean, std:metrics.cv_accuracy_std, col:"#638cff"},
-            {label:"F1-Score", val:metrics.cv_f1_mean,       std:metrics.cv_f1_std,       col:"#8b5cf6"},
-            {label:"AUC-ROC",  val:metrics.cv_auc_mean,      std:metrics.cv_auc_std,      col:"#22d3ee"},
+            {label:"Accuracy", val:metrics.cv_accuracy_mean, std:metrics.cv_accuracy_std, col:"#5b8def"},
+            {label:"F1-Score", val:metrics.cv_f1_mean,       std:metrics.cv_f1_std,       col:"#7c3aed"},
+            {label:"AUC-ROC",  val:metrics.cv_auc_mean,      std:metrics.cv_auc_std,      col:"#7c3aed"},
           ].map((row,i)=>(
             <div key={i}>
               <div style={{display:"flex",justifyContent:"space-between",
@@ -1316,7 +1432,7 @@ function MetricsTab() {
                 <span style={{color:"rgba(160,180,220,0.7)"}}>{row.label}</span>
                 <span style={{color:row.col}}>{(row.val*100).toFixed(1)}% ± {(row.std*100).toFixed(1)}%</span>
               </div>
-              <div style={{position:"relative",height:8,borderRadius:4,background:"rgba(99,140,255,0.08)"}}>
+              <div style={{position:"relative",height:8,borderRadius:4,background:"rgba(91,141,239,0.08)"}}>
                 {/* std range */}
                 <div style={{
                   position:"absolute",height:"100%",
@@ -1331,6 +1447,55 @@ function MetricsTab() {
               </div>
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* Admin : Refresh TESS Catalog */}
+      <Card>
+        <h3 style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginBottom:12,
+          textTransform:"uppercase",letterSpacing:1.5,fontFamily:"'DM Mono',monospace"}}>
+          Administration — Catalogue TESS
+        </h3>
+        <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshLoading || refreshStatus?.state==="running"}
+            style={{
+              padding:"8px 18px",borderRadius:8,border:"1px solid rgba(34,211,238,0.35)",
+              background:"rgba(34,211,238,0.08)",color:"#7c3aed",
+              fontFamily:"'DM Mono',monospace",fontSize:12,fontWeight:600,
+              cursor:(refreshLoading||refreshStatus?.state==="running")?"not-allowed":"pointer",
+              opacity:(refreshLoading||refreshStatus?.state==="running")?0.5:1,
+              transition:"all .2s",
+            }}
+          >
+            {(refreshLoading||refreshStatus?.state==="running")
+              ? <span style={{display:"flex",alignItems:"center",gap:6}}>
+                  <Loader2 size={12} style={{animation:"spin 1s linear infinite"}}/> Mise a jour...
+                </span>
+              : "Rafraichir le catalogue TESS"
+            }
+          </button>
+          {refreshStatus && (
+            <div style={{fontSize:11,fontFamily:"'DM Mono',monospace",
+              color: refreshStatus.state==="done" ? "#34d399"
+                   : refreshStatus.state==="error" ? "#f87171"
+                   : refreshStatus.state==="running" ? "#fbbf24"
+                   : "rgba(160,180,220,0.5)"}}>
+              {refreshStatus.state==="done" && <span>Catalogue mis a jour — {refreshStatus.message}</span>}
+              {refreshStatus.state==="error" && <span>Erreur : {refreshStatus.message}</span>}
+              {refreshStatus.state==="running" && <span>{refreshStatus.message || "Telechargement en cours..."}</span>}
+              {refreshStatus.state==="idle" && <span>Aucune mise a jour en cours.</span>}
+              {refreshStatus.finished_at && (
+                <span style={{color:"rgba(160,180,220,0.35)",marginLeft:8}}>
+                  ({new Date(refreshStatus.finished_at).toLocaleTimeString()})
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <div style={{marginTop:8,fontSize:10,color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace"}}>
+          Telecharge les dernieres donnees TOI depuis NASA TAP et recharge le catalogue sans redemarrer le serveur.
         </div>
       </Card>
     </div>
@@ -1363,12 +1528,12 @@ function FeatureImportanceHeader() {
         style={{
           display:"flex",alignItems:"center",justifyContent:"center",
           width:17,height:17,borderRadius:"50%",cursor:"help",flexShrink:0,
-          background:"rgba(99,140,255,0.12)",border:"1px solid rgba(99,140,255,0.3)",
-          color:"#638cff",fontSize:10,fontWeight:700,fontFamily:"'DM Mono',monospace",
+          background:"rgba(91,141,239,0.12)",border:"1px solid rgba(91,141,239,0.3)",
+          color:"#5b8def",fontSize:10,fontWeight:700,fontFamily:"'DM Mono',monospace",
           transition:"background .2s",
           userSelect:"none",
         }}
-        onMouseEnter2={e => { e.currentTarget.style.background = "rgba(99,140,255,0.22)"; onEnter(); }}
+        onMouseEnter2={e => { e.currentTarget.style.background = "rgba(91,141,239,0.22)"; onEnter(); }}
       >
         <Info size={10} />
       </div>
@@ -1383,15 +1548,15 @@ function FeatureImportanceHeader() {
           padding:"18px 20px",
           borderRadius:14,
           background:"rgba(7,10,20,0.98)",
-          border:"1px solid rgba(99,140,255,0.32)",
+          border:"1px solid rgba(91,141,239,0.32)",
           zIndex:2147483647,
-          boxShadow:"0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,140,255,0.1)",
+          boxShadow:"0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(91,141,239,0.1)",
           pointerEvents:"none",
           backdropFilter:"blur(14px)",
           fontFamily:"'DM Mono',monospace",
           animation:"fadeIn .18s ease-out",
         }}>
-          <div style={{fontSize:11,fontWeight:700,color:"#638cff",marginBottom:10,
+          <div style={{fontSize:11,fontWeight:700,color:"#5b8def",marginBottom:10,
             textTransform:"uppercase",letterSpacing:1.2}}>
             Qu'est-ce que l'importance des features ?
           </div>
@@ -1410,10 +1575,10 @@ function FeatureImportanceHeader() {
               { icon:"🔗", label:"Coherence physique", text:"Le ratio rayon planete / rayon etoile (ratio_prad_srad) verifie que la geometrie est coherente : une planete plus grande que son etoile est physiquement impossible et trahit un faux positif." },
             ].map((r,i) => (
               <div key={i} style={{display:"flex",gap:9,padding:"7px 9px",borderRadius:8,
-                background:"rgba(99,140,255,0.04)",border:"1px solid rgba(99,140,255,0.08)"}}>
+                background:"rgba(91,141,239,0.04)",border:"1px solid rgba(91,141,239,0.08)"}}>
                 <span style={{fontSize:14,flexShrink:0}}>{r.icon}</span>
                 <div>
-                  <div style={{fontSize:9.5,fontWeight:600,color:"#638cff",marginBottom:2,
+                  <div style={{fontSize:9.5,fontWeight:600,color:"#5b8def",marginBottom:2,
                     textTransform:"uppercase",letterSpacing:0.8}}>{r.label}</div>
                   <div style={{fontSize:10,color:"rgba(200,215,240,0.75)",lineHeight:1.55}}>{r.text}</div>
                 </div>
@@ -1453,8 +1618,8 @@ function ConfusionMatrixHeader() {
         style={{
           display:"flex",alignItems:"center",justifyContent:"center",
           width:17,height:17,borderRadius:"50%",cursor:"help",flexShrink:0,
-          background:"rgba(99,140,255,0.12)",border:"1px solid rgba(99,140,255,0.3)",
-          color:"#638cff",transition:"background .2s",userSelect:"none",
+          background:"rgba(91,141,239,0.12)",border:"1px solid rgba(91,141,239,0.3)",
+          color:"#5b8def",transition:"background .2s",userSelect:"none",
         }}
       >
         <Info size={10} />
@@ -1470,15 +1635,15 @@ function ConfusionMatrixHeader() {
           padding:"18px 20px",
           borderRadius:14,
           background:"rgba(7,10,20,0.98)",
-          border:"1px solid rgba(99,140,255,0.32)",
+          border:"1px solid rgba(91,141,239,0.32)",
           zIndex:2147483647,
-          boxShadow:"0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,140,255,0.1)",
+          boxShadow:"0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(91,141,239,0.1)",
           pointerEvents:"none",
           backdropFilter:"blur(14px)",
           fontFamily:"'DM Mono',monospace",
           animation:"fadeIn .18s ease-out",
         }}>
-          <div style={{fontSize:11,fontWeight:700,color:"#638cff",marginBottom:10,
+          <div style={{fontSize:11,fontWeight:700,color:"#5b8def",marginBottom:10,
             textTransform:"uppercase",letterSpacing:1.2}}>
             Qu'est-ce que la matrice de confusion ?
           </div>
@@ -1490,18 +1655,18 @@ function ConfusionMatrixHeader() {
           {/* Visual 2x2 grid explanation */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
             {[
-              { label:"Vrai Negatif (TN)", color:"#4ade80",
+              { label:"Vrai Negatif (TN)", color:"#34d399",
                 text:"L'etoile n'a pas d'exoplanete et le modele le dit correctement. Pas de transit — bonne detection.", icon:"✅" },
               { label:"Faux Positif (FP)", color:"#f87171",
                 text:"Le modele croit detecter une exoplanete, mais c'est une erreur (binaire a eclipse, bruit stellaire…). Alarme injustifiee.", icon:"⚠️" },
               { label:"Faux Negatif (FN)", color:"#f87171",
                 text:"Une vraie exoplanete existe, mais le modele l'a ratee. C'est la pire erreur pour la recherche : on passe a cote d'une decouverte.", icon:"❌" },
-              { label:"Vrai Positif (TP)", color:"#4ade80",
+              { label:"Vrai Positif (TP)", color:"#34d399",
                 text:"Une vraie exoplanete est correctement detectee. C'est le resultat ideal que l'on cherche a maximiser.", icon:"🌍" },
             ].map((cell, i) => (
               <div key={i} style={{
                 padding:"9px 11px",borderRadius:9,
-                background:`rgba(${cell.color==="#4ade80"?"74,222,128":"248,113,113"},0.06)`,
+                background:`rgba(${cell.color==="#34d399"?"74,222,128":"248,113,113"},0.06)`,
                 border:`1px solid ${cell.color}30`,
               }}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
@@ -1515,12 +1680,12 @@ function ConfusionMatrixHeader() {
           </div>
 
           <div style={{padding:"9px 11px",borderRadius:9,
-            background:"rgba(99,140,255,0.05)",border:"1px solid rgba(99,140,255,0.12)",
+            background:"rgba(91,141,239,0.05)",border:"1px solid rgba(91,141,239,0.12)",
             marginBottom:10}}>
-            <div style={{fontSize:9.5,fontWeight:700,color:"#638cff",marginBottom:5,
+            <div style={{fontSize:9.5,fontWeight:700,color:"#5b8def",marginBottom:5,
               textTransform:"uppercase",letterSpacing:0.8}}>Ce que le modele optimise</div>
             <div style={{fontSize:10,color:"rgba(200,215,240,0.72)",lineHeight:1.6}}>
-              Un modele parfait aurait <span style={{color:"#4ade80"}}>0 FP</span> et <span style={{color:"#4ade80"}}>0 FN</span>.
+              Un modele parfait aurait <span style={{color:"#34d399"}}>0 FP</span> et <span style={{color:"#34d399"}}>0 FN</span>.
               En pratique, on cherche un equilibre : trop de FP = beaucoup de fausses alertes a verifier,
               trop de FN = on rate des exoplanetes reelles. Le F1-Score mesure cet equilibre.
             </div>
@@ -1560,13 +1725,13 @@ function FeatureBar({ f, mx2, hint }) {
       <div style={{display:"flex",justifyContent:"space-between",
         fontSize:10,fontFamily:"'DM Mono',monospace",marginBottom:3}}>
         <span style={{color:"rgba(160,180,220,0.8)",maxWidth:"78%",overflow:"hidden",
-          textOverflow:"ellipsis",whiteSpace:"nowrap",borderBottom:"1px dashed rgba(99,140,255,0.3)"}}
+          textOverflow:"ellipsis",whiteSpace:"nowrap",borderBottom:"1px dashed rgba(91,141,239,0.3)"}}
         >{displayName}</span>
-        <span style={{color:"#638cff",fontWeight:600}}>{(f.importance*100).toFixed(1)}%</span>
+        <span style={{color:"#5b8def",fontWeight:600}}>{(f.importance*100).toFixed(1)}%</span>
       </div>
-      <div style={{height:5,borderRadius:3,background:"rgba(99,140,255,0.08)"}}>
+      <div style={{height:5,borderRadius:3,background:"rgba(91,141,239,0.08)"}}>
         <div style={{height:"100%",width:`${(f.importance/mx2)*100}%`,
-          background:"linear-gradient(90deg,#638cff,#8b5cf6)",borderRadius:3,
+          background:"linear-gradient(90deg,#5b8def,#7c3aed)",borderRadius:3,
           transition:"width .4s cubic-bezier(.22,1,.36,1)"}}/>
       </div>
       {showHint && (
@@ -1576,7 +1741,7 @@ function FeatureBar({ f, mx2, hint }) {
           padding:"9px 12px",
           borderRadius:9,
           background:"rgba(8,12,22,0.97)",
-          border:"1px solid rgba(99,140,255,0.28)",
+          border:"1px solid rgba(91,141,239,0.28)",
           color:"rgba(224,232,245,0.88)",
           fontSize:10.5,lineHeight:1.62,
           zIndex:9999,
@@ -1584,7 +1749,7 @@ function FeatureBar({ f, mx2, hint }) {
           pointerEvents:"none",
           backdropFilter:"blur(8px)",
         }}>
-          <div style={{fontWeight:600,color:"#638cff",marginBottom:4,fontSize:10}}>
+          <div style={{fontWeight:600,color:"#5b8def",marginBottom:4,fontSize:10}}>
             {displayName}
           </div>
           {hint}
@@ -1598,12 +1763,12 @@ function FeatureBar({ f, mx2, hint }) {
 function MetricsFeatureBars({ features }) {
   if (!features?.length) return null;
   const mx2 = features[0]?.importance || 1;
-  const rankColors = ["#fbbf24","#94a3b8","#cd7c3a","#638cff","#638cff","#638cff","#638cff","#638cff"];
+  const rankColors = ["#fbbf24","#94a3b8","#cd7c3a","#5b8def","#5b8def","#5b8def","#5b8def","#5b8def"];
   const gradients  = [
     "linear-gradient(90deg,#fbbf24,#f59e0b)",
     "linear-gradient(90deg,#94a3b8,#64748b)",
     "linear-gradient(90deg,#cd7c3a,#b45309)",
-    "linear-gradient(90deg,#638cff,#8b5cf6)",
+    "linear-gradient(90deg,#5b8def,#7c3aed)",
   ];
   const [tooltip, setTooltip] = useState(null);
 
@@ -1630,7 +1795,7 @@ function MetricsFeatureBars({ features }) {
               <span style={{color:rankColors[i],fontSize:10,fontFamily:"'DM Mono',monospace",
                 fontWeight:600,flexShrink:0}}>{(f.importance*100).toFixed(1)}%</span>
             </div>
-            <div style={{height:5,borderRadius:3,background:"rgba(99,140,255,0.07)"}}>
+            <div style={{height:5,borderRadius:3,background:"rgba(91,141,239,0.07)"}}>
               <div style={{height:"100%",width:`${(f.importance/mx2)*100}%`,
                 background: gradients[Math.min(i, gradients.length-1)],
                 borderRadius:3,transition:"width .6s ease"}}/>
@@ -1645,13 +1810,13 @@ function MetricsFeatureBars({ features }) {
           top:  tooltip.y,
           width: 320,
           background:"rgba(6,9,20,0.97)",
-          border:"1px solid rgba(99,140,255,0.3)",
+          border:"1px solid rgba(91,141,239,0.3)",
           borderRadius:10, padding:"12px 16px",
           zIndex:99999,
           boxShadow:"0 12px 40px rgba(0,0,0,0.7)",
           pointerEvents:"none",
         }}>
-          <div style={{fontSize:11,fontWeight:700,color:"#638cff",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#5b8def",fontFamily:"'DM Mono',monospace",marginBottom:6}}>
             {featureLabel(tooltip.rawName)}
           </div>
           <div style={{fontSize:11,color:"rgba(200,215,240,0.75)",fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.7}}>
@@ -1699,27 +1864,27 @@ function EnhancedMetricsTab() {
     const topFeats = (metrics.top_features||[]).slice(0,5);
     return (
       <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .5s ease-out"}}>
-        <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:15,fontWeight:700,color:"#e0e8f5",marginBottom:0}}>
+        <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:15,fontWeight:700,color:"#e4e8f7",marginBottom:0}}>
           🤖 Notre intelligence artificielle
         </h2>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12}}>
           <Card style={{padding:"18px 20px",textAlign:"center"}}>
             <div style={{fontSize:34,marginBottom:6}}>🎯</div>
-            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#4ade80"}}>
+            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#34d399"}}>
               {acc != null ? `${acc}%` : "—"}
             </div>
             <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:4}}>de bonnes réponses</div>
           </Card>
           <Card style={{padding:"18px 20px",textAlign:"center"}}>
             <div style={{fontSize:34,marginBottom:6}}>⭐</div>
-            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#638cff"}}>
+            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#5b8def"}}>
               {total > 0 ? total.toLocaleString() : "—"}
             </div>
             <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:4}}>étoiles analysées pour s'entraîner</div>
           </Card>
           <Card style={{padding:"18px 20px",textAlign:"center"}}>
             <div style={{fontSize:34,marginBottom:6}}>✅</div>
-            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#4ade80"}}>
+            <div style={{fontSize:28,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",color:"#34d399"}}>
               {correctOn10 != null ? `${correctOn10}/10` : "—"}
             </div>
             <div style={{fontSize:11,color:"rgba(160,180,220,0.5)",marginTop:4}}>bons résultats sur 10 analyses</div>
@@ -1729,24 +1894,24 @@ function EnhancedMetricsTab() {
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <Card style={{padding:"16px 20px"}}>
             <div style={{fontSize:20,marginBottom:6}}>🔭</div>
-            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",marginBottom:6}}>Quand l'IA dit "planète"…</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#e4e8f7",marginBottom:6}}>Quand l'IA dit "planète"…</div>
             <p style={{fontSize:12,color:"rgba(200,215,240,0.65)",lineHeight:1.7,margin:0}}>
-              Elle a raison <strong style={{color:"#4ade80"}}>{prec != null ? `${prec}%` : "—"}</strong> du temps.
+              Elle a raison <strong style={{color:"#34d399"}}>{prec != null ? `${prec}%` : "—"}</strong> du temps.
               {prec != null && prec >= 80 ? " Très peu de fausses alertes !" : prec != null && prec >= 60 ? " Assez fiable." : ""}
             </p>
           </Card>
           <Card style={{padding:"16px 20px"}}>
             <div style={{fontSize:20,marginBottom:6}}>🌍</div>
-            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",marginBottom:6}}>Planètes réelles trouvées</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#e4e8f7",marginBottom:6}}>Planètes réelles trouvées</div>
             <p style={{fontSize:12,color:"rgba(200,215,240,0.65)",lineHeight:1.7,margin:0}}>
-              Sur 10 vraies planètes, l'IA en détecte <strong style={{color:"#4ade80"}}>{rec != null ? `${Math.round(rec/10)}` : "—"}</strong> et en rate <strong style={{color:"#fbbf24"}}>{rec != null ? `${10-Math.round(rec/10)}` : "—"}</strong>.
+              Sur 10 vraies planètes, l'IA en détecte <strong style={{color:"#34d399"}}>{rec != null ? `${Math.round(rec/10)}` : "—"}</strong> et en rate <strong style={{color:"#fbbf24"}}>{rec != null ? `${10-Math.round(rec/10)}` : "—"}</strong>.
             </p>
           </Card>
         </div>
 
         {topFeats.length > 0 && (
           <Card style={{padding:"16px 20px"}}>
-            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",marginBottom:12}}>🔍 Ce que l'IA observe en priorité</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#e4e8f7",marginBottom:12}}>🔍 Ce que l'IA observe en priorité</div>
             <MetricsFeatureBars features={topFeats}/>
           </Card>
         )}
@@ -1826,12 +1991,12 @@ function EnhancedMetricsTab() {
         <Card>
           <ConfusionMatrixHeader />
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,maxWidth:260,margin:"0 auto"}}>
-            {[{v:tn,l:"Vrais Negatifs",c:"#4ade80"},{v:fp,l:"Faux Positifs",c:"#f87171"},
-              {v:fn,l:"Faux Negatifs",c:"#f87171"},{v:tp,l:"Vrais Positifs",c:"#4ade80"}]
+            {[{v:tn,l:"Vrais Negatifs",c:"#34d399"},{v:fp,l:"Faux Positifs",c:"#f87171"},
+              {v:fn,l:"Faux Negatifs",c:"#f87171"},{v:tp,l:"Vrais Positifs",c:"#34d399"}]
             .map((cell,i)=>(
               <div key={i} style={{
                 padding:"14px 10px",borderRadius:10,textAlign:"center",
-                background:`rgba(${cell.c==="#4ade80"?"74,222,160":"248,113,113"},${0.05+(cell.v/cmMax)*0.15})`,
+                background:`rgba(${cell.c==="#34d399"?"74,222,160":"248,113,113"},${0.05+(cell.v/cmMax)*0.15})`,
                 border:`1px solid ${cell.c}25`,
               }}>
                 <div style={{fontSize:28,fontWeight:700,fontFamily:"'DM Mono',monospace",color:cell.c}}>{cell.v}</div>
@@ -1862,9 +2027,9 @@ function EnhancedMetricsTab() {
         </h3>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {[
-            {label:"Accuracy", val:metrics.cv_accuracy_mean, std:metrics.cv_accuracy_std, col:"#638cff"},
-            {label:"F1-Score", val:metrics.cv_f1_mean,       std:metrics.cv_f1_std,       col:"#8b5cf6"},
-            {label:"AUC-ROC",  val:metrics.cv_auc_mean,      std:metrics.cv_auc_std,      col:"#22d3ee"},
+            {label:"Accuracy", val:metrics.cv_accuracy_mean, std:metrics.cv_accuracy_std, col:"#5b8def"},
+            {label:"F1-Score", val:metrics.cv_f1_mean,       std:metrics.cv_f1_std,       col:"#7c3aed"},
+            {label:"AUC-ROC",  val:metrics.cv_auc_mean,      std:metrics.cv_auc_std,      col:"#7c3aed"},
           ].map((row,i)=>(
             <div key={i}>
               <div style={{display:"flex",justifyContent:"space-between",
@@ -1872,7 +2037,7 @@ function EnhancedMetricsTab() {
                 <span style={{color:"rgba(160,180,220,0.7)"}}>{row.label}</span>
                 <span style={{color:row.col}}>{(row.val*100).toFixed(1)}% +/- {(row.std*100).toFixed(1)}%</span>
               </div>
-              <div style={{position:"relative",height:8,borderRadius:4,background:"rgba(99,140,255,0.08)"}}>
+              <div style={{position:"relative",height:8,borderRadius:4,background:"rgba(91,141,239,0.08)"}}>
                 <div style={{
                   position:"absolute",height:"100%",
                   left:`${Math.max(0,(row.val-row.std)*100)}%`,
@@ -1990,8 +2155,8 @@ function CatalogTab({ onAnalyze }) {
     if (f) setUploadFile(f);
   };
 
-  const labelColor = (l) => l === 1 ? "#4ade80" : "#f87171";
-  const snrColor = (snr) => snr >= 10 ? "#4ade80" : snr >= 5 ? "#fbbf24" : "#f87171";
+  const labelColor = (l) => l === 1 ? "#34d399" : "#f87171";
+  const snrColor = (snr) => snr >= 10 ? "#34d399" : snr >= 5 ? "#fbbf24" : "#f87171";
 
   const SORT_OPTIONS = [
     { value: "snr",    label: "SNR" },
@@ -2012,9 +2177,9 @@ function CatalogTab({ onAnalyze }) {
           <button key={s.id} onClick={() => setActiveSection(s.id)} style={{
             padding: "7px 16px", borderRadius: 8, fontSize: 11, cursor: "pointer",
             fontFamily: "'DM Mono',monospace",
-            background: activeSection === s.id ? "rgba(99,140,255,0.15)" : "rgba(15,18,30,0.5)",
-            border: `1px solid ${activeSection === s.id ? "rgba(99,140,255,0.35)" : "rgba(99,140,255,0.08)"}`,
-            color: activeSection === s.id ? "#638cff" : "rgba(160,180,220,0.5)",
+            background: activeSection === s.id ? "rgba(91,141,239,0.15)" : "rgba(15,18,30,0.5)",
+            border: `1px solid ${activeSection === s.id ? "rgba(91,141,239,0.35)" : "rgba(91,141,239,0.08)"}`,
+            color: activeSection === s.id ? "#5b8def" : "rgba(160,180,220,0.5)",
           }}>{s.label}</button>
         ))}
       </div>
@@ -2033,7 +2198,7 @@ function CatalogTab({ onAnalyze }) {
               ].map((s, i) => (
                 <Card key={i} style={{ padding: "12px 14px", textAlign: "center" }}>
                   <div style={{ fontSize: 20, marginBottom: 4 }}>{s.emoji}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#e0e8f5", fontFamily: "'Space Grotesk',sans-serif" }}>{s.val}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#e4e8f7", fontFamily: "'Space Grotesk',sans-serif" }}>{s.val}</div>
                   <div style={{ fontSize: 9, color: "rgba(160,180,220,0.4)", marginTop: 2, fontFamily: "'DM Mono',monospace" }}>{s.label}</div>
                 </Card>
               ))}
@@ -2045,9 +2210,9 @@ function CatalogTab({ onAnalyze }) {
             {/* Search input + Autocomplete */}
             <div style={{ flex: 1, minWidth: 180, position: "relative" }} ref={sugRef}>
               <div style={{ display: "flex", alignItems: "center",
-                background: "rgba(15,18,30,0.8)", border: "1px solid rgba(99,140,255,0.15)",
+                background: "rgba(15,18,30,0.8)", border: "1px solid rgba(91,141,239,0.15)",
                 borderRadius: 9, overflow: "hidden" }}>
-                <Search size={12} style={{ color: "rgba(99,140,255,0.4)", marginLeft: 10, flexShrink: 0 }} />
+                <Search size={12} style={{ color: "rgba(91,141,239,0.4)", marginLeft: 10, flexShrink: 0 }} />
                 <input
                   value={search}
                   onChange={e => {
@@ -2077,7 +2242,7 @@ function CatalogTab({ onAnalyze }) {
                   onFocus={() => { if(sug.length > 0) setShowSug(true); }}
                   placeholder={simpleMode ? "Rechercher une étoile…" : "Kepler-10, KIC 11446…"}
                   style={{ flex: 1, padding: "8px 10px", background: "transparent", border: "none",
-                    outline: "none", color: "#e0e8f5", fontFamily: "'DM Mono',monospace", fontSize: 11 }} />
+                    outline: "none", color: "#e4e8f7", fontFamily: "'DM Mono',monospace", fontSize: 11 }} />
                 {search && <button onClick={() => { setSearch(""); setSug([]); setShowSug(false); }} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(160,180,220,0.4)", padding: "0 8px" }}><X size={11} /></button>}
               </div>
 
@@ -2085,7 +2250,7 @@ function CatalogTab({ onAnalyze }) {
               {showSug && sug.length > 0 && (
                 <div style={{
                   position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
-                  background: "rgba(8,11,22,0.97)", border: "1px solid rgba(99,140,255,0.2)",
+                  background: "rgba(8,11,22,0.97)", border: "1px solid rgba(91,141,239,0.2)",
                   borderRadius: 9, overflow: "hidden", zIndex: 200,
                   boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
                 }}>
@@ -2095,10 +2260,10 @@ function CatalogTab({ onAnalyze }) {
                       style={{
                         padding: "8px 12px", cursor: "pointer", fontSize: 11,
                         fontFamily: "'DM Mono',monospace",
-                        background: activeSug === i ? "rgba(99,140,255,0.12)" : "transparent",
-                        color: activeSug === i ? "#638cff" : "rgba(200,215,240,0.75)",
+                        background: activeSug === i ? "rgba(91,141,239,0.12)" : "transparent",
+                        color: activeSug === i ? "#5b8def" : "rgba(200,215,240,0.75)",
                         display: "flex", alignItems: "center", gap: 8,
-                        borderBottom: i < sug.length - 1 ? "1px solid rgba(99,140,255,0.06)" : "none",
+                        borderBottom: i < sug.length - 1 ? "1px solid rgba(91,141,239,0.06)" : "none",
                         transition: "background .1s",
                       }}
                       onMouseEnter={() => setActiveSug(i)}
@@ -2121,9 +2286,9 @@ function CatalogTab({ onAnalyze }) {
                 <button key={opt.val} onClick={() => setLabel(opt.val)} style={{
                   padding: "6px 10px", borderRadius: 7, fontSize: 10, cursor: "pointer",
                   fontFamily: "'DM Mono',monospace",
-                  background: label === opt.val ? "rgba(99,140,255,0.15)" : "rgba(15,18,30,0.5)",
-                  border: `1px solid ${label === opt.val ? "rgba(99,140,255,0.3)" : "rgba(99,140,255,0.08)"}`,
-                  color: label === opt.val ? "#638cff" : "rgba(160,180,220,0.45)" }}>
+                  background: label === opt.val ? "rgba(91,141,239,0.15)" : "rgba(15,18,30,0.5)",
+                  border: `1px solid ${label === opt.val ? "rgba(91,141,239,0.3)" : "rgba(91,141,239,0.08)"}`,
+                  color: label === opt.val ? "#5b8def" : "rgba(160,180,220,0.45)" }}>
                   {opt.label}
                 </button>
               ))}
@@ -2139,9 +2304,9 @@ function CatalogTab({ onAnalyze }) {
                 <button key={opt.val} onClick={() => { setMission(opt.val); setPage(1); setFetchTrigger(t => t+1); }} style={{
                   padding: "6px 10px", borderRadius: 7, fontSize: 10, cursor: "pointer",
                   fontFamily: "'DM Mono',monospace",
-                  background: mission === opt.val ? (opt.val === "TESS" ? "rgba(34,211,238,0.12)" : opt.val === "Kepler" ? "rgba(167,139,250,0.12)" : "rgba(99,140,255,0.15)") : "rgba(15,18,30,0.5)",
-                  border: `1px solid ${mission === opt.val ? (opt.val === "TESS" ? "rgba(34,211,238,0.35)" : opt.val === "Kepler" ? "rgba(167,139,250,0.35)" : "rgba(99,140,255,0.3)") : "rgba(99,140,255,0.08)"}`,
-                  color: mission === opt.val ? (opt.val === "TESS" ? "#22d3ee" : opt.val === "Kepler" ? "#a78bfa" : "#638cff") : "rgba(160,180,220,0.45)" }}>
+                  background: mission === opt.val ? (opt.val === "TESS" ? "rgba(34,211,238,0.12)" : opt.val === "Kepler" ? "rgba(167,139,250,0.12)" : "rgba(91,141,239,0.15)") : "rgba(15,18,30,0.5)",
+                  border: `1px solid ${mission === opt.val ? (opt.val === "TESS" ? "rgba(34,211,238,0.35)" : opt.val === "Kepler" ? "rgba(167,139,250,0.35)" : "rgba(91,141,239,0.3)") : "rgba(91,141,239,0.08)"}`,
+                  color: mission === opt.val ? (opt.val === "TESS" ? "#7c3aed" : opt.val === "Kepler" ? "#a78bfa" : "#5b8def") : "rgba(160,180,220,0.45)" }}>
                   {opt.label}
                 </button>
               ))}
@@ -2150,14 +2315,14 @@ function CatalogTab({ onAnalyze }) {
             {/* Sort */}
             <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{
               padding: "6px 10px", borderRadius: 7, fontSize: 10, background: "rgba(15,18,30,0.8)",
-              border: "1px solid rgba(99,140,255,0.15)", color: "rgba(160,180,220,0.7)",
+              border: "1px solid rgba(91,141,239,0.15)", color: "rgba(160,180,220,0.7)",
               fontFamily: "'DM Mono',monospace", cursor: "pointer" }}>
               {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{simpleMode ? `Trier par ${o.label}` : `↕ ${o.label}`}</option>)}
             </select>
 
             <button onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")} title="Inverser l'ordre" style={{
               padding: "6px 9px", borderRadius: 7, background: "rgba(15,18,30,0.8)",
-              border: "1px solid rgba(99,140,255,0.15)", color: "rgba(160,180,220,0.5)",
+              border: "1px solid rgba(91,141,239,0.15)", color: "rgba(160,180,220,0.5)",
               cursor: "pointer", fontSize: 12 }}>
               {sortDir === "desc" ? "↓" : "↑"}
             </button>
@@ -2166,9 +2331,9 @@ function CatalogTab({ onAnalyze }) {
             <button onClick={() => setShowFilters(f => !f)} style={{
               padding: "6px 10px", borderRadius: 7, fontSize: 10, cursor: "pointer",
               fontFamily: "'DM Mono',monospace",
-              background: showFilters ? "rgba(99,140,255,0.12)" : "rgba(15,18,30,0.5)",
-              border: `1px solid ${showFilters ? "rgba(99,140,255,0.3)" : "rgba(99,140,255,0.08)"}`,
-              color: showFilters ? "#638cff" : "rgba(160,180,220,0.45)",
+              background: showFilters ? "rgba(91,141,239,0.12)" : "rgba(15,18,30,0.5)",
+              border: `1px solid ${showFilters ? "rgba(91,141,239,0.3)" : "rgba(91,141,239,0.08)"}`,
+              color: showFilters ? "#5b8def" : "rgba(160,180,220,0.45)",
               display: "flex", alignItems: "center", gap: 5 }}>
               <Filter size={10} /> {simpleMode ? "Filtres avancés" : "Filtres"}
             </button>
@@ -2177,8 +2342,8 @@ function CatalogTab({ onAnalyze }) {
             <button onClick={applyFilters} style={{
               padding: "6px 14px", borderRadius: 7, fontSize: 10, cursor: "pointer",
               fontFamily: "'DM Mono',monospace",
-              background: "linear-gradient(135deg,rgba(99,140,255,0.18),rgba(139,92,246,0.18))",
-              border: "1px solid rgba(99,140,255,0.25)", color: "#638cff",
+              background: "linear-gradient(135deg,rgba(91,141,239,0.18),rgba(124,58,237,0.18))",
+              border: "1px solid rgba(91,141,239,0.25)", color: "#5b8def",
               display: "flex", alignItems: "center", gap: 4 }}>
               <Search size={10} /> Appliquer
             </button>
@@ -2201,8 +2366,8 @@ function CatalogTab({ onAnalyze }) {
                       type="number" value={f.val} onChange={e => f.set(e.target.value)}
                       placeholder={f.placeholder}
                       style={{ width: "100%", padding: "6px 10px", borderRadius: 7, fontSize: 11,
-                        background: "rgba(15,18,30,0.8)", border: "1px solid rgba(99,140,255,0.15)",
-                        color: "#e0e8f5", fontFamily: "'DM Mono',monospace", outline: "none" }} />
+                        background: "rgba(15,18,30,0.8)", border: "1px solid rgba(91,141,239,0.15)",
+                        color: "#e4e8f7", fontFamily: "'DM Mono',monospace", outline: "none" }} />
                   </div>
                 ))}
                 <div style={{ display: "flex", alignItems: "flex-end" }}>
@@ -2231,30 +2396,33 @@ function CatalogTab({ onAnalyze }) {
             <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 10,
               color: "rgba(160,180,220,0.35)", fontFamily: "'DM Mono',monospace" }}>
               <span>{total.toLocaleString()} étoile{total > 1 ? "s" : ""} · page {page}/{pages}</span>
-              <span style={{ color: "#4ade80" }}>🌍 {nPlanetsFiltered} planète{nPlanetsFiltered > 1 ? "s" : ""}</span>
+              <span style={{ color: "#34d399" }}>🌍 {nPlanetsFiltered} planète{nPlanetsFiltered > 1 ? "s" : ""}</span>
               <span style={{ color: "#f87171" }}>⭐ {(total - nPlanetsFiltered).toLocaleString()} non-planète{(total - nPlanetsFiltered) > 1 ? "s" : ""}</span>
             </div>
           )}
 
           {/* Table */}
+          <Card style={{ padding: 0, overflow: "hidden", border: "1px solid rgba(91,141,239,0.1)" }}>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'DM Mono',monospace", fontSize: 11 }}>
+            <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0,
+              fontFamily: "'DM Mono',monospace", fontSize: 11 }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(99,140,255,0.1)" }}>
+                <tr style={{ background: "rgba(91,141,239,0.04)" }}>
                   {(simpleMode
-                    ? [{l:"ID",k:null},{l:"Type",k:null},{l:"Période",k:"period"},{l:"SNR",k:"snr"},{l:"",k:null}]
-                    : [{l:"ID",k:null},{l:"Label",k:null},{l:"Période (j)",k:"period"},{l:"SNR",k:"snr"},{l:"Profondeur (ppm)",k:"depth"},{l:"Score BLS",k:"score"},{l:"Points",k:null},{l:"",k:null}]
+                    ? [{l:"ID",k:null},{l:"Type",k:null},{l:"Periode",k:"period"},{l:"SNR",k:"snr"},{l:"",k:null}]
+                    : [{l:"ID",k:null},{l:"Label",k:null},{l:"Periode (j)",k:"period"},{l:"SNR",k:"snr"},{l:"Profondeur (ppm)",k:"depth"},{l:"Score BLS",k:"score"},{l:"Points",k:null},{l:"",k:null}]
                   ).map(col => (
                     <th key={col.l} onClick={col.k ? () => {
                       if (sortBy === col.k) setSortDir(d => d === "desc" ? "asc" : "desc");
                       else { setSortBy(col.k); setSortDir("desc"); }
                       setFetchTrigger(t => t + 1);
                     } : undefined} style={{
-                      padding: "8px 10px", textAlign: "left", fontSize: 9,
-                      color: sortBy === col.k ? "#638cff" : "rgba(160,180,220,0.4)",
-                      textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 400,
+                      padding: "10px 12px", textAlign: "left", fontSize: 9,
+                      color: sortBy === col.k ? "#5b8def" : "rgba(160,180,220,0.5)",
+                      textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 600,
                       whiteSpace: "nowrap", cursor: col.k ? "pointer" : "default",
                       userSelect: "none",
+                      borderBottom: "1px solid rgba(91,141,239,0.1)",
                       transition: "color .15s",
                     }}>
                       {col.l}{col.k && <span style={{ marginLeft: 4, opacity: sortBy === col.k ? 1 : 0.3 }}>
@@ -2266,82 +2434,121 @@ function CatalogTab({ onAnalyze }) {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={simpleMode ? 5 : 8} style={{ padding: 32, textAlign: "center",
+                  <tr><td colSpan={simpleMode ? 5 : 8} style={{ padding: 40, textAlign: "center",
                     color: "rgba(160,180,220,0.4)", fontFamily: "'DM Mono',monospace" }}>
                     <Loader2 size={16} style={{ animation: "spin 1s linear infinite", display: "inline-block", marginRight: 8 }} />
-                    Chargement…
+                    Chargement...
                   </td></tr>
                 ) : stars.length === 0 ? (
-                  <tr><td colSpan={simpleMode ? 5 : 8} style={{ padding: 32, textAlign: "center",
+                  <tr><td colSpan={simpleMode ? 5 : 8} style={{ padding: 40, textAlign: "center",
                     color: "rgba(160,180,220,0.25)", fontFamily: "'DM Mono',monospace", fontSize: 12 }}>
-                    Aucun résultat
+                    <Telescope size={20} style={{ opacity: 0.3, display: "inline-block", marginRight: 8, verticalAlign: "middle" }} />
+                    Aucun resultat
                   </td></tr>
-                ) : stars.map((s, i) => (
+                ) : stars.map((s, i) => {
+                  const isEven = i % 2 === 0;
+                  const missionColor = s.mission === "TESS" ? "#e879a8" : "#5b8def";
+                  const missionBg = s.mission === "TESS" ? "rgba(232,121,168,0.1)" : "rgba(91,141,239,0.1)";
+                  const missionBorder = s.mission === "TESS" ? "rgba(232,121,168,0.2)" : "rgba(91,141,239,0.2)";
+                  return (
                   <tr key={s.target_id || s.kepid} style={{
-                    borderBottom: "1px solid rgba(99,140,255,0.05)",
+                    background: isEven ? "rgba(91,141,239,0.02)" : "transparent",
+                    borderBottom: "1px solid rgba(91,141,239,0.06)",
                     transition: "background .15s",
                   }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(99,140,255,0.04)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                    <td style={{ padding: "9px 10px", color: "#e0e8f5", fontWeight: 500 }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <span>{s.name || s.target_id || `KIC ${s.kepid}`}</span>
-                        {s.mission && (
-                          <span style={{ fontSize: 9, color: s.mission === "TESS" ? "#22d3ee" : "#a78bfa",
-                            fontFamily: "'DM Mono',monospace", opacity: 0.7 }}>
-                            {s.mission}
-                          </span>
-                        )}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(91,141,239,0.07)"}
+                    onMouseLeave={e => e.currentTarget.style.background = isEven ? "rgba(91,141,239,0.02)" : "transparent"}>
+                    {/* ID + Mission badge */}
+                    <td style={{ padding: "10px 12px", color: "#e4e8f7", fontWeight: 500,
+                      borderBottom: "1px solid rgba(91,141,239,0.05)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {/* Verdict dot */}
+                        <div style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
+                          background: s.label === 1 ? "#34d399" : "rgba(160,180,220,0.2)",
+                          boxShadow: s.label === 1 ? "0 0 6px rgba(52,211,153,0.4)" : "none" }} />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                          <span>{s.name || s.target_id || `KIC ${s.kepid}`}</span>
+                          {s.mission && (
+                            <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, fontWeight: 600,
+                              background: missionBg, color: missionColor,
+                              border: `1px solid ${missionBorder}`,
+                              textTransform: "uppercase", letterSpacing: 0.8,
+                              width: "fit-content" }}>
+                              {s.mission}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td style={{ padding: "9px 10px" }}>
+                    {/* Type/Label */}
+                    <td style={{ padding: "10px 12px", borderBottom: "1px solid rgba(91,141,239,0.05)" }}>
                       {simpleMode ? (
                         <span style={{ fontSize: 14 }}>{s.label === 1 ? "🌍" : "⭐"}</span>
                       ) : (
-                        <span style={{ padding: "2px 7px", borderRadius: 4, fontSize: 9,
-                          background: `${labelColor(s.label)}15`, border: `1px solid ${labelColor(s.label)}30`,
+                        <span style={{ padding: "3px 8px", borderRadius: 5, fontSize: 9, fontWeight: 600,
+                          background: s.label === 1 ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.08)",
+                          border: `1px solid ${s.label === 1 ? "rgba(52,211,153,0.25)" : "rgba(248,113,113,0.2)"}`,
                           color: labelColor(s.label) }}>
-                          {s.label === 1 ? "Planète" : "Non-planète"}
+                          {s.label === 1 ? "Planete" : "Non-planete"}
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "9px 10px", color: "rgba(160,180,220,0.6)" }}>
-                      {s.period != null ? `${s.period} j` : "—"}
+                    {/* Period */}
+                    <td style={{ padding: "10px 12px", color: "rgba(160,180,220,0.6)",
+                      borderBottom: "1px solid rgba(91,141,239,0.05)" }}>
+                      {s.period != null ? <><span style={{color:"#e4e8f7",fontWeight:500}}>{s.period}</span> <span style={{fontSize:9,opacity:0.5}}>j</span></> : <span style={{opacity:0.3}}>—</span>}
                     </td>
-                    <td style={{ padding: "9px 10px" }}>
+                    {/* SNR */}
+                    <td style={{ padding: "10px 12px", borderBottom: "1px solid rgba(91,141,239,0.05)" }}>
                       {s.bls_snr != null ? (
-                        <span style={{ color: snrColor(s.bls_snr), fontWeight: 600 }}>
-                          {s.bls_snr.toFixed(1)}
-                        </span>
-                      ) : "—"}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(91,141,239,0.08)", overflow: "hidden" }}>
+                            <div style={{ width: `${Math.min(100, (s.bls_snr / 20) * 100)}%`, height: "100%",
+                              borderRadius: 2, background: snrColor(s.bls_snr),
+                              boxShadow: `0 0 4px ${snrColor(s.bls_snr)}40` }} />
+                          </div>
+                          <span style={{ color: snrColor(s.bls_snr), fontWeight: 600, fontSize: 11 }}>
+                            {s.bls_snr.toFixed(1)}
+                          </span>
+                        </div>
+                      ) : <span style={{opacity:0.3}}>—</span>}
                     </td>
                     {!simpleMode && <>
-                      <td style={{ padding: "9px 10px", color: "rgba(160,180,220,0.5)" }}>
-                        {s.bls_depth_ppm != null ? s.bls_depth_ppm.toLocaleString() : "—"}
+                      <td style={{ padding: "10px 12px", color: "rgba(160,180,220,0.5)",
+                        borderBottom: "1px solid rgba(91,141,239,0.05)" }}>
+                        {s.bls_depth_ppm != null ? s.bls_depth_ppm.toLocaleString() : <span style={{opacity:0.3}}>—</span>}
                       </td>
-                      <td style={{ padding: "9px 10px", color: "rgba(160,180,220,0.5)" }}>
-                        {s.bls_score != null ? s.bls_score.toFixed(3) : "—"}
+                      <td style={{ padding: "10px 12px", color: "rgba(160,180,220,0.5)",
+                        borderBottom: "1px solid rgba(91,141,239,0.05)" }}>
+                        {s.bls_score != null ? s.bls_score.toFixed(3) : <span style={{opacity:0.3}}>—</span>}
                       </td>
-                      <td style={{ padding: "9px 10px", color: "rgba(160,180,220,0.4)" }}>
-                        {s.n_points?.toLocaleString() || "—"}
+                      <td style={{ padding: "10px 12px", color: "rgba(160,180,220,0.4)",
+                        borderBottom: "1px solid rgba(91,141,239,0.05)" }}>
+                        {s.n_points?.toLocaleString() || <span style={{opacity:0.3}}>—</span>}
                       </td>
                     </>}
-                    <td style={{ padding: "9px 10px" }}>
+                    {/* Analyze button */}
+                    <td style={{ padding: "10px 12px", borderBottom: "1px solid rgba(91,141,239,0.05)" }}>
                       <button onClick={() => onAnalyze(s.target_id || `KIC ${s.kepid}`)} style={{
-                        padding: "4px 10px", borderRadius: 6, fontSize: 9, cursor: "pointer",
-                        fontFamily: "'DM Mono',monospace",
-                        background: "rgba(99,140,255,0.08)", border: "1px solid rgba(99,140,255,0.2)",
-                        color: "#638cff", whiteSpace: "nowrap",
-                        display: "flex", alignItems: "center", gap: 4 }}>
-                        <ChevronRight size={9} />
-                        {simpleMode ? "Analyser" : "Analyser"}
+                        padding: "5px 12px", borderRadius: 7, fontSize: 9, cursor: "pointer",
+                        fontFamily: "'DM Mono',monospace", fontWeight: 600,
+                        background: "linear-gradient(135deg,rgba(91,141,239,0.12),rgba(124,58,237,0.12))",
+                        border: "1px solid rgba(91,141,239,0.25)",
+                        color: "#5b8def", whiteSpace: "nowrap",
+                        display: "flex", alignItems: "center", gap: 5,
+                        transition: "all 0.2s",
+                        boxShadow: "0 1px 4px rgba(91,141,239,0.08)" }}>
+                        <Telescope size={9} />
+                        Analyser
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
+          </Card>
 
           {/* Pagination */}
           {pages > 1 && (
@@ -2349,7 +2556,7 @@ function CatalogTab({ onAnalyze }) {
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{
                 padding: "5px 12px", borderRadius: 7, fontSize: 10, cursor: page === 1 ? "not-allowed" : "pointer",
                 fontFamily: "'DM Mono',monospace", background: "rgba(15,18,30,0.8)",
-                border: "1px solid rgba(99,140,255,0.15)", color: page === 1 ? "rgba(99,140,255,0.2)" : "#638cff",
+                border: "1px solid rgba(91,141,239,0.15)", color: page === 1 ? "rgba(91,141,239,0.2)" : "#5b8def",
                 opacity: page === 1 ? 0.5 : 1 }}>← Préc.</button>
               {Array.from({ length: Math.min(7, pages) }, (_, i) => {
                 let p;
@@ -2361,9 +2568,9 @@ function CatalogTab({ onAnalyze }) {
                   <button key={p} onClick={() => setPage(p)} style={{
                     padding: "5px 9px", borderRadius: 7, fontSize: 10, cursor: "pointer",
                     fontFamily: "'DM Mono',monospace",
-                    background: page === p ? "rgba(99,140,255,0.18)" : "rgba(15,18,30,0.6)",
-                    border: `1px solid ${page === p ? "rgba(99,140,255,0.35)" : "rgba(99,140,255,0.1)"}`,
-                    color: page === p ? "#638cff" : "rgba(160,180,220,0.45)", minWidth: 30 }}>
+                    background: page === p ? "rgba(91,141,239,0.18)" : "rgba(15,18,30,0.6)",
+                    border: `1px solid ${page === p ? "rgba(91,141,239,0.35)" : "rgba(91,141,239,0.1)"}`,
+                    color: page === p ? "#5b8def" : "rgba(160,180,220,0.45)", minWidth: 30 }}>
                     {p}
                   </button>
                 );
@@ -2371,7 +2578,7 @@ function CatalogTab({ onAnalyze }) {
               <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages} style={{
                 padding: "5px 12px", borderRadius: 7, fontSize: 10, cursor: page === pages ? "not-allowed" : "pointer",
                 fontFamily: "'DM Mono',monospace", background: "rgba(15,18,30,0.8)",
-                border: "1px solid rgba(99,140,255,0.15)", color: page === pages ? "rgba(99,140,255,0.2)" : "#638cff",
+                border: "1px solid rgba(91,141,239,0.15)", color: page === pages ? "rgba(91,141,239,0.2)" : "#5b8def",
                 opacity: page === pages ? 0.5 : 1 }}>Suiv. →</button>
             </div>
           )}
@@ -2384,14 +2591,38 @@ function CatalogTab({ onAnalyze }) {
 
           {/* Format documentation */}
           <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#e0e8f5", marginBottom: 10 }}>
-              {simpleMode ? "📋 Comment préparer ton fichier ?" : "Format CSV requis"}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#e4e8f7" }}>
+                {simpleMode ? "📋 Comment préparer ton fichier ?" : "Format CSV requis"}
+              </div>
+              <button onClick={() => {
+                const rows = [
+                  "time,flux",
+                  "1.00000,1.000312","1.02034,0.999987","1.04068,1.000105","1.06102,0.999843",
+                  "1.08136,1.000201","1.10170,0.999765","1.12204,1.000089","1.14238,0.999934",
+                  "1.16272,1.000267","1.18306,0.999812","1.20340,0.998150","1.22374,0.997823",
+                  "1.24408,0.998301","1.26442,0.999102","1.28476,1.000198","1.30510,0.999876",
+                  "1.32544,1.000043","1.34578,0.999921","1.36612,1.000187","1.38646,0.999654",
+                ];
+                const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = "exemple_courbe_lumiere.csv"; a.click();
+                URL.revokeObjectURL(url);
+              }} style={{
+                padding: "5px 12px", borderRadius: 6, fontSize: 10, cursor: "pointer",
+                fontFamily: "'DM Mono',monospace", display: "flex", alignItems: "center", gap: 5,
+                background: "rgba(91,141,239,0.08)", border: "1px solid rgba(91,141,239,0.25)",
+                color: "#5b8def",
+              }}>
+                ⬇ {simpleMode ? "Télécharger un exemple" : "Exemple .csv"}
+              </button>
             </div>
             {simpleMode ? (
               <div style={{ fontSize: 12, color: "rgba(200,215,240,0.65)", lineHeight: 1.8 }}>
-                <p style={{ marginBottom: 8 }}>Ton fichier doit être un <strong style={{ color: "#638cff" }}>.csv</strong> avec au minimum ces deux colonnes :</p>
-                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, background: "rgba(99,140,255,0.06)",
-                  border: "1px solid rgba(99,140,255,0.15)", borderRadius: 8, padding: "10px 14px", marginBottom: 8 }}>
+                <p style={{ marginBottom: 8 }}>Ton fichier doit être un <strong style={{ color: "#5b8def" }}>.csv</strong> avec au minimum ces deux colonnes :</p>
+                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, background: "rgba(91,141,239,0.06)",
+                  border: "1px solid rgba(91,141,239,0.15)", borderRadius: 8, padding: "10px 14px", marginBottom: 8 }}>
                   time,flux<br />
                   1.0,1.0003<br />
                   1.02,0.9998<br />
@@ -2399,23 +2630,23 @@ function CatalogTab({ onAnalyze }) {
                   ...
                 </div>
                 <ul style={{ paddingLeft: 16, fontSize: 11, color: "rgba(160,180,220,0.6)" }}>
-                  <li><strong style={{ color: "#e0e8f5" }}>time</strong> — moment de la mesure (en jours, valeur numérique)</li>
-                  <li><strong style={{ color: "#e0e8f5" }}>flux</strong> — luminosité de l'étoile (valeur proche de 1.0 normalement)</li>
+                  <li><strong style={{ color: "#e4e8f7" }}>time</strong> — moment de la mesure (en jours, valeur numérique)</li>
+                  <li><strong style={{ color: "#e4e8f7" }}>flux</strong> — luminosité de l'étoile (valeur proche de 1.0 normalement)</li>
                   <li>Minimum <strong style={{ color: "#fbbf24" }}>50 points</strong> de données requis</li>
                   <li>Les valeurs manquantes (NaN) sont ignorées automatiquement</li>
                 </ul>
               </div>
             ) : (
               <div style={{ fontSize: 11, color: "rgba(160,180,220,0.6)", lineHeight: 1.7 }}>
-                <div style={{ fontFamily: "'DM Mono',monospace", background: "rgba(99,140,255,0.06)",
-                  border: "1px solid rgba(99,140,255,0.15)", borderRadius: 8, padding: "10px 14px", marginBottom: 10, fontSize: 10 }}>
-                  <span style={{ color: "#4ade80" }}>time</span>,<span style={{ color: "#638cff" }}>flux</span><span style={{ color: "rgba(160,180,220,0.3)" }}>[,flux_err]</span><br />
+                <div style={{ fontFamily: "'DM Mono',monospace", background: "rgba(91,141,239,0.06)",
+                  border: "1px solid rgba(91,141,239,0.15)", borderRadius: 8, padding: "10px 14px", marginBottom: 10, fontSize: 10 }}>
+                  <span style={{ color: "#34d399" }}>time</span>,<span style={{ color: "#5b8def" }}>flux</span><span style={{ color: "rgba(160,180,220,0.3)" }}>[,flux_err]</span><br />
                   <span style={{ color: "rgba(160,180,220,0.4)" }}>1.02345,1.000312</span><br />
                   <span style={{ color: "rgba(160,180,220,0.4)" }}>1.04321,0.999987</span>
                 </div>
                 <ul style={{ paddingLeft: 14, fontSize: 10 }}>
-                  <li><strong style={{ color: "#4ade80" }}>time</strong> — temps en jours BKJD ou BJD (numérique)</li>
-                  <li><strong style={{ color: "#638cff" }}>flux</strong> — flux normalisé (proche de 1.0) ou brut</li>
+                  <li><strong style={{ color: "#34d399" }}>time</strong> — temps en jours BKJD ou BJD (numérique)</li>
+                  <li><strong style={{ color: "#5b8def" }}>flux</strong> — flux normalisé (proche de 1.0) ou brut</li>
                   <li>Colonnes supplémentaires ignorées · NaN filtrés automatiquement</li>
                   <li>Minimum 50 points · Encodage UTF-8 · Séparateur virgule</li>
                 </ul>
@@ -2430,9 +2661,9 @@ function CatalogTab({ onAnalyze }) {
             onDrop={onDrop}
             onClick={() => fileInputRef.current?.click()}
             style={{
-              border: `2px dashed ${dragOver ? "rgba(99,140,255,0.6)" : uploadFile ? "rgba(74,222,160,0.4)" : "rgba(99,140,255,0.2)"}`,
+              border: `2px dashed ${dragOver ? "rgba(91,141,239,0.6)" : uploadFile ? "rgba(52,211,153,0.4)" : "rgba(91,141,239,0.2)"}`,
               borderRadius: 12, padding: "32px 20px", textAlign: "center", cursor: "pointer",
-              background: dragOver ? "rgba(99,140,255,0.05)" : "rgba(15,18,30,0.4)",
+              background: dragOver ? "rgba(91,141,239,0.05)" : "rgba(15,18,30,0.4)",
               transition: "all .2s",
             }}>
             <input ref={fileInputRef} type="file" accept=".csv" style={{ display: "none" }}
@@ -2440,7 +2671,7 @@ function CatalogTab({ onAnalyze }) {
             {uploadFile ? (
               <>
                 <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
-                <div style={{ fontSize: 12, color: "#4ade80", fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{uploadFile.name}</div>
+                <div style={{ fontSize: 12, color: "#34d399", fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{uploadFile.name}</div>
                 <div style={{ fontSize: 10, color: "rgba(160,180,220,0.4)", marginTop: 4 }}>
                   {(uploadFile.size / 1024).toFixed(1)} ko · Cliquer pour changer
                 </div>
@@ -2465,16 +2696,16 @@ function CatalogTab({ onAnalyze }) {
               value={uploadTargetId} onChange={e => setUploadTargetId(e.target.value)}
               placeholder={simpleMode ? "ex: Mon étoile préférée" : "ex: TIC 123456789"}
               style={{ width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 11,
-                background: "rgba(15,18,30,0.8)", border: "1px solid rgba(99,140,255,0.15)",
-                color: "#e0e8f5", fontFamily: "'DM Mono',monospace", outline: "none" }} />
+                background: "rgba(15,18,30,0.8)", border: "1px solid rgba(91,141,239,0.15)",
+                color: "#e4e8f7", fontFamily: "'DM Mono',monospace", outline: "none" }} />
           </div>
 
           {/* Analyze button */}
           <button onClick={handleUpload} disabled={!uploadFile || uploadLoading} style={{
             padding: "10px 20px", borderRadius: 9, fontSize: 12, cursor: !uploadFile || uploadLoading ? "not-allowed" : "pointer",
             fontFamily: "'DM Mono',monospace", opacity: !uploadFile || uploadLoading ? 0.6 : 1,
-            background: "linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))",
-            border: "1px solid rgba(99,140,255,0.3)", color: "#638cff",
+            background: "linear-gradient(135deg,rgba(91,141,239,0.2),rgba(124,58,237,0.2))",
+            border: "1px solid rgba(91,141,239,0.3)", color: "#5b8def",
             display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
             {uploadLoading
               ? <><Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> Analyse en cours…</>
@@ -2495,7 +2726,7 @@ function CatalogTab({ onAnalyze }) {
             <Card glow style={{ padding: 16, animation: "fadeIn .4s ease-out" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 14, color: "#e0e8f5" }}>
+                  <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: 14, color: "#e4e8f7" }}>
                     {uploadResult.target}
                   </div>
                   <div style={{ fontSize: 10, color: "rgba(160,180,220,0.4)", marginTop: 2 }}>
@@ -2504,9 +2735,9 @@ function CatalogTab({ onAnalyze }) {
                 </div>
                 <span style={{
                   padding: "4px 12px", borderRadius: 12, fontSize: 11, fontFamily: "'DM Mono',monospace",
-                  color: uploadResult.score >= 0.7 ? "#4ade80" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171",
-                  background: `${uploadResult.score >= 0.7 ? "#4ade80" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171"}15`,
-                  border: `1px solid ${uploadResult.score >= 0.7 ? "#4ade80" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171"}30`,
+                  color: uploadResult.score >= 0.7 ? "#34d399" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171",
+                  background: `${uploadResult.score >= 0.7 ? "#34d399" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171"}15`,
+                  border: `1px solid ${uploadResult.score >= 0.7 ? "#34d399" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171"}30`,
                 }}>
                   {uploadResult.verdict}
                 </span>
@@ -2516,7 +2747,7 @@ function CatalogTab({ onAnalyze }) {
                   <div style={{ fontSize: 40, marginBottom: 8 }}>
                     {uploadResult.score >= 0.7 ? "🌍" : uploadResult.score >= 0.35 ? "🤔" : "❌"}
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: uploadResult.score >= 0.7 ? "#4ade80" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171" }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: uploadResult.score >= 0.7 ? "#34d399" : uploadResult.score >= 0.35 ? "#fbbf24" : "#f87171" }}>
                     {uploadResult.verdict}
                   </div>
                   <div style={{ fontSize: 12, color: "rgba(160,180,220,0.5)", marginTop: 6 }}>
@@ -2527,9 +2758,9 @@ function CatalogTab({ onAnalyze }) {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                   <ScoreGauge score={uploadResult.score} size={110} />
                   <div style={{ flex: 1, fontSize: 11, fontFamily: "'DM Mono',monospace", color: "rgba(160,180,220,0.55)" }}>
-                    <div>Score : <span style={{ color: "#638cff", fontWeight: 600 }}>{(uploadResult.score * 100).toFixed(1)}%</span></div>
-                    <div style={{ marginTop: 4 }}>Période : <span style={{ color: "#e0e8f5" }}>{uploadResult.period_days} j</span></div>
-                    <div style={{ marginTop: 4 }}>Points analysés : <span style={{ color: "#e0e8f5" }}>{uploadResult.n_points?.toLocaleString()}</span></div>
+                    <div>Score : <span style={{ color: "#5b8def", fontWeight: 600 }}>{(uploadResult.score * 100).toFixed(1)}%</span></div>
+                    <div style={{ marginTop: 4 }}>Période : <span style={{ color: "#e4e8f7" }}>{uploadResult.period_days} j</span></div>
+                    <div style={{ marginTop: 4 }}>Points analysés : <span style={{ color: "#e4e8f7" }}>{uploadResult.n_points?.toLocaleString()}</span></div>
                   </div>
                 </div>
               )}
@@ -2578,39 +2809,86 @@ function LoginScreen({ onLogin }) {
   };
 
   return (
-    <div style={{minHeight:"100vh",background:"linear-gradient(165deg,#050710 0%,#0a0e1a 40%,#0d1025 100%)",
+    <div style={{minHeight:"100vh",
+      background:"linear-gradient(165deg,#030510 0%,#060a14 30%,#0c1222 60%,#0d1030 100%)",
       display:"flex",alignItems:"center",justifyContent:"center",
-      fontFamily:"'DM Mono',monospace",position:"relative"}}>
+      fontFamily:"'DM Mono',monospace",position:"relative",overflow:"hidden"}}>
       <style>{GLOBAL_CSS}</style>
       <StarField/>
-      <div style={{position:"relative",zIndex:10,width:"100%",maxWidth:400,padding:"0 24px"}}>
-        <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",
-            width:52,height:52,borderRadius:14,marginBottom:12,
-            background:"linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))",
-            border:"1px solid rgba(99,140,255,0.2)"}}>
-            <Telescope size={26} style={{color:"#638cff"}}/>
+
+      {/* Nebula glow orbs */}
+      <div style={{position:"absolute",top:"-20%",left:"-10%",width:"50%",height:"60%",
+        background:"radial-gradient(circle,rgba(91,141,239,0.08) 0%,transparent 70%)",
+        pointerEvents:"none",filter:"blur(60px)"}}/>
+      <div style={{position:"absolute",bottom:"-15%",right:"-10%",width:"45%",height:"55%",
+        background:"radial-gradient(circle,rgba(124,58,237,0.06) 0%,transparent 70%)",
+        pointerEvents:"none",filter:"blur(60px)"}}/>
+      <div style={{position:"absolute",top:"30%",right:"20%",width:"30%",height:"30%",
+        background:"radial-gradient(circle,rgba(232,121,168,0.04) 0%,transparent 70%)",
+        pointerEvents:"none",filter:"blur(40px)"}}/>
+
+      <div style={{position:"relative",zIndex:10,width:"100%",maxWidth:420,padding:"0 24px"}}>
+
+        {/* Transit animation */}
+        <div style={{display:"flex",justifyContent:"center",alignItems:"center",
+          marginBottom:24,position:"relative",height:72}}>
+          {/* Star */}
+          <div style={{width:52,height:52,borderRadius:"50%",
+            background:"radial-gradient(circle at 40% 40%,#fff8e1,#f0c040,#e8a020)",
+            boxShadow:"0 0 30px rgba(240,192,64,0.35),0 0 60px rgba(240,192,64,0.15),0 0 90px rgba(240,192,64,0.08)",
+            position:"relative",animation:"stellar-glow 3s ease-in-out infinite"}}>
+            {/* Transiting planet */}
+            <div style={{width:13,height:13,borderRadius:"50%",
+              background:"radial-gradient(circle at 60% 40%,#1a2540,#0c1222)",
+              boxShadow:"inset 1px 1px 3px rgba(255,255,255,0.08),0 0 4px rgba(0,0,0,0.5)",
+              position:"absolute",top:"50%",left:"50%",
+              animation:"transit-orbit 4.5s ease-in-out infinite"}}/>
           </div>
-          <h1 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:26,fontWeight:700,
-            background:"linear-gradient(135deg,#638cff,#8b5cf6)",
-            WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>
-            ExoPlanet AI
-          </h1>
-          <p style={{fontSize:12,color:"rgba(160,180,220,0.45)"}}>
-            Détection automatisée d'exoplanètes — Kepler / TESS
-          </p>
+          {/* Orbital ring hint */}
+          <div style={{position:"absolute",width:120,height:40,border:"1px solid rgba(91,141,239,0.08)",
+            borderRadius:"50%",top:"50%",left:"50%",transform:"translate(-50%,-50%) rotateX(70deg)",
+            pointerEvents:"none"}}/>
         </div>
 
-        <Card style={{padding:24}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <h1 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:28,fontWeight:700,
+            background:"linear-gradient(135deg,#5b8def,#7c3aed,#e879a8)",backgroundSize:"200% 200%",
+            WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6,
+            animation:"gradient-shift 6s ease infinite"}}>
+            ExoPlanet AI
+          </h1>
+          <p style={{fontSize:12,color:"rgba(160,180,220,0.5)",marginBottom:4}}>
+            Rejoignez la chasse aux exoplanetes
+          </p>
+          <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:8}}>
+            <span style={{fontSize:9,padding:"3px 8px",borderRadius:4,
+              background:"rgba(91,141,239,0.1)",color:"#5b8def",
+              border:"1px solid rgba(91,141,239,0.2)",fontFamily:"'DM Mono',monospace",
+              letterSpacing:1,textTransform:"uppercase"}}>Kepler</span>
+            <span style={{fontSize:9,padding:"3px 8px",borderRadius:4,
+              background:"rgba(232,121,168,0.1)",color:"#e879a8",
+              border:"1px solid rgba(232,121,168,0.2)",fontFamily:"'DM Mono',monospace",
+              letterSpacing:1,textTransform:"uppercase"}}>TESS</span>
+            <span style={{fontSize:9,padding:"3px 8px",borderRadius:4,
+              background:"rgba(52,211,153,0.1)",color:"#34d399",
+              border:"1px solid rgba(52,211,153,0.2)",fontFamily:"'DM Mono',monospace",
+              letterSpacing:1,textTransform:"uppercase"}}>NASA MAST</span>
+          </div>
+        </div>
+
+        <Card style={{padding:28,background:"rgba(11,17,32,0.8)",
+          border:"1px solid rgba(91,141,239,0.12)",
+          boxShadow:"0 20px 60px rgba(0,0,0,0.4),0 0 80px rgba(91,141,239,0.05)"}}>
           {/* tabs */}
-          <div style={{display:"flex",borderRadius:8,overflow:"hidden",
-            border:"1px solid rgba(99,140,255,0.1)",marginBottom:22}}>
+          <div style={{display:"flex",borderRadius:10,overflow:"hidden",
+            border:"1px solid rgba(91,141,239,0.12)",marginBottom:22,
+            background:"rgba(6,10,20,0.5)"}}>
             {[["login","Connexion",LogIn],["register","Inscription",UserPlus]].map(([t,l,Icon])=>(
               <button key={t} onClick={()=>{setTab(t);setErr(null);setOk(null);}} style={{
-                flex:1,padding:"8px 0",cursor:"pointer",fontSize:11,
-                fontFamily:"'DM Mono',monospace",border:"none",
-                background:tab===t?"rgba(99,140,255,0.15)":"transparent",
-                color:tab===t?"#638cff":"rgba(160,180,220,0.4)",
+                flex:1,padding:"9px 0",cursor:"pointer",fontSize:11,
+                fontFamily:"'DM Mono',monospace",border:"none",transition:"all 0.2s",
+                background:tab===t?"rgba(91,141,239,0.15)":"transparent",
+                color:tab===t?"#5b8def":"rgba(160,180,220,0.35)",
                 display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
                 <Icon size={12}/>{l}
               </button>
@@ -2623,48 +2901,56 @@ function LoginScreen({ onLogin }) {
             <AlertTriangle size={13}/>{err}
           </div>}
           {ok&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",
-            borderRadius:8,background:"rgba(74,222,160,0.08)",
-            border:"1px solid rgba(74,222,160,0.15)",fontSize:12,color:"#4ade80",marginBottom:16}}>
+            borderRadius:8,background:"rgba(52,211,153,0.08)",
+            border:"1px solid rgba(52,211,153,0.15)",fontSize:12,color:"#34d399",marginBottom:16}}>
             <CheckCircle2 size={13}/>{ok}
           </div>}
 
           <form onSubmit={submit}>
             {[["Identifiant",u,setU,"text","simon",User],
               ["Mot de passe",pw,setPw,show?"text":"password","••••••••",Lock]].map(([lbl,val,setter,type,ph,Icon],idx)=>(
-              <div key={idx} style={{marginBottom:14}}>
+              <div key={idx} style={{marginBottom:16}}>
                 <label style={{display:"block",fontSize:10,color:"rgba(160,180,220,0.5)",
                   marginBottom:5,textTransform:"uppercase",letterSpacing:1.5}}>{lbl}</label>
                 <div style={{display:"flex",alignItems:"center",
-                  background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.12)",
-                  borderRadius:9,overflow:"hidden"}}>
-                  <Icon size={13} style={{color:"rgba(99,140,255,0.4)",marginLeft:11}}/>
+                  background:"rgba(6,10,20,0.6)",border:"1px solid rgba(91,141,239,0.12)",
+                  borderRadius:10,overflow:"hidden",transition:"border-color 0.2s"}}>
+                  <Icon size={13} style={{color:"rgba(91,141,239,0.4)",marginLeft:12,flexShrink:0}}/>
                   <input value={val} onChange={e=>setter(e.target.value)} type={type}
-                    placeholder={ph} style={{flex:1,padding:10,background:"transparent",
-                    border:"none",outline:"none",color:"#e0e8f5",
+                    placeholder={ph} style={{flex:1,padding:"11px 10px",background:"transparent",
+                    border:"none",outline:"none",color:"#e4e8f7",
                     fontFamily:"'DM Mono',monospace",fontSize:13}}/>
                   {idx===1&&<button type="button" onClick={()=>setShow(!show)}
-                    style={{background:"none",border:"none",padding:"8px 11px",cursor:"pointer",
-                      color:"rgba(99,140,255,0.4)"}}>
+                    style={{background:"none",border:"none",padding:"8px 12px",cursor:"pointer",
+                      color:"rgba(91,141,239,0.4)"}}>
                     {show?<EyeOff size={13}/>:<Eye size={13}/>}
                   </button>}
                 </div>
               </div>
             ))}
             <button type="submit" disabled={ld} style={{
-              width:"100%",padding:"11px 0",borderRadius:9,marginTop:8,
-              background:"linear-gradient(135deg,rgba(99,140,255,0.25),rgba(139,92,246,0.25))",
-              border:"1px solid rgba(99,140,255,0.3)",color:"#fff",
+              width:"100%",padding:"12px 0",borderRadius:10,marginTop:10,
+              background:"linear-gradient(135deg,#5b8def,#7c3aed)",
+              border:"none",color:"#fff",
               fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
-              cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+              boxShadow:"0 4px 20px rgba(91,141,239,0.25)",
+              transition:"opacity 0.2s,transform 0.2s,box-shadow 0.2s"}}>
               {ld?<Loader2 size={15} style={{animation:"spin 1s linear infinite"}}/>
                  :tab==="login"?<LogIn size={15}/>:<UserPlus size={15}/>}
-              {tab==="login"?"Se connecter":"Créer mon compte"}
+              {tab==="login"?"Se connecter":"Creer mon compte"}
             </button>
           </form>
         </Card>
-        <p style={{textAlign:"center",fontSize:10,color:"rgba(160,180,220,0.18)",marginTop:14}}>
-          ECE Paris — ING4 Group 1 · Accès restreint
-        </p>
+
+        <div style={{textAlign:"center",marginTop:18}}>
+          <p style={{fontSize:10,color:"rgba(160,180,220,0.22)"}}>
+            ECE Paris — ING4 Group 1
+          </p>
+          <p style={{fontSize:9,color:"rgba(160,180,220,0.15)",marginTop:3}}>
+            Transit photometrique · XGBoost + TSFRESH · NASA MAST Archive
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -2753,13 +3039,13 @@ function HistoryTab({ history, onClear, onDelete, onAnalyze }) {
       {/* ── Barre de filtres ── */}
       <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
         {/* Tabs verdict */}
-        <div style={{display:"flex",gap:2,background:"rgba(10,14,26,0.6)",borderRadius:9,padding:3,border:"1px solid rgba(99,140,255,0.1)"}}>
+        <div style={{display:"flex",gap:2,background:"rgba(10,14,26,0.6)",borderRadius:9,padding:3,border:"1px solid rgba(91,141,239,0.1)"}}>
           {VERDICT_TABS.map(t => (
             <button key={t.id} onClick={()=>setVerdict(t.id)} style={{
               padding:"5px 12px",borderRadius:7,fontSize:11,cursor:"pointer",border:"none",
               fontFamily:"'DM Mono',monospace",transition:"all .15s",
-              background: verdict===t.id ? "rgba(99,140,255,0.18)" : "none",
-              color: verdict===t.id ? "#638cff" : "rgba(160,180,220,0.4)",
+              background: verdict===t.id ? "rgba(91,141,239,0.18)" : "none",
+              color: verdict===t.id ? "#5b8def" : "rgba(160,180,220,0.4)",
               fontWeight: verdict===t.id ? 600 : 400,
             }}>
               {t.label}
@@ -2777,8 +3063,8 @@ function HistoryTab({ history, onClear, onDelete, onAnalyze }) {
             style={{
               width:"100%",padding:"7px 10px 7px 28px",
               background:"rgba(10,14,26,0.6)",
-              border:"1px solid rgba(99,140,255,0.1)",
-              borderRadius:8,color:"#e0e8f5",outline:"none",
+              border:"1px solid rgba(91,141,239,0.1)",
+              borderRadius:8,color:"#e4e8f7",outline:"none",
               fontFamily:"'DM Mono',monospace",fontSize:12,
               boxSizing:"border-box",
             }}
@@ -2795,7 +3081,7 @@ function HistoryTab({ history, onClear, onDelete, onAnalyze }) {
           padding:"7px 12px",borderRadius:8,fontSize:11,cursor:"pointer",
           fontFamily:"'DM Mono',monospace",
           background:"rgba(10,14,26,0.6)",
-          border:"1px solid rgba(99,140,255,0.1)",
+          border:"1px solid rgba(91,141,239,0.1)",
           color:"rgba(160,180,220,0.5)",
           display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap",
           transition:"all .15s",
@@ -2815,8 +3101,8 @@ function HistoryTab({ history, onClear, onDelete, onAnalyze }) {
           <button onClick={exportCSV} style={{
             padding:"5px 12px",borderRadius:7,fontSize:10,cursor:"pointer",
             fontFamily:"'DM Mono',monospace",
-            background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
-            color:"#638cff",display:"flex",alignItems:"center",gap:5,transition:"all .2s",
+            background:"rgba(91,141,239,0.08)",border:"1px solid rgba(91,141,239,0.2)",
+            color:"#5b8def",display:"flex",alignItems:"center",gap:5,transition:"all .2s",
           }}>
             <FileText size={11}/> Exporter CSV
           </button>
@@ -2842,7 +3128,7 @@ function HistoryTab({ history, onClear, onDelete, onAnalyze }) {
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'DM Mono',monospace",fontSize:12}}>
             <thead>
-              <tr style={{borderBottom:"1px solid rgba(99,140,255,0.1)"}}>
+              <tr style={{borderBottom:"1px solid rgba(91,141,239,0.1)"}}>
                 {(simpleMode?["Étoile","Résultat","Date",""]:["Cible","Score","Verdict","Période","Date",""]).map(h=>(
                   <th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,
                     color:"rgba(160,180,220,0.4)",textTransform:"uppercase",letterSpacing:1.2,
@@ -2852,11 +3138,11 @@ function HistoryTab({ history, onClear, onDelete, onAnalyze }) {
             </thead>
             <tbody>
               {filtered.map((row,i)=>{
-                const col=row.score>=0.70?"#4ade80":row.score>=0.35?"#fbbf24":"#f87171";
+                const col=row.score>=0.70?"#34d399":row.score>=0.35?"#fbbf24":"#f87171";
                 const emoji=row.score>=0.70?"🌍":row.score>=0.35?"🔶":"⭐";
                 return (
-                  <tr key={i} style={{borderBottom:"1px solid rgba(99,140,255,0.05)"}}>
-                    <td style={{padding:"10px 12px",color:"#e0e8f5",fontWeight:500}}>{row.target}</td>
+                  <tr key={i} style={{borderBottom:"1px solid rgba(91,141,239,0.05)"}}>
+                    <td style={{padding:"10px 12px",color:"#e4e8f7",fontWeight:500}}>{row.target}</td>
                     {simpleMode?(
                       <td style={{padding:"10px 12px",fontSize:18}}>{emoji}</td>
                     ):(
@@ -2883,8 +3169,8 @@ function HistoryTab({ history, onClear, onDelete, onAnalyze }) {
                         <button onClick={()=>onAnalyze(row.target)} style={{
                           padding:"3px 10px",borderRadius:6,fontSize:9,cursor:"pointer",
                           fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",
-                          background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
-                          color:"#638cff",display:"flex",alignItems:"center",gap:4}}>
+                          background:"rgba(91,141,239,0.08)",border:"1px solid rgba(91,141,239,0.2)",
+                          color:"#5b8def",display:"flex",alignItems:"center",gap:4}}>
                           <ChevronRight size={9}/>{simpleMode?"Revoir":"Analyser"}
                         </button>
                         <button onClick={()=>onDelete(i)} style={{
@@ -3006,15 +3292,15 @@ function GlossaryFlipCard({ item }) {
         <Card style={{
           position: "absolute", width: "100%", height: "100%", padding: "18px 20px", display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center", backfaceVisibility: "hidden",
-          background: hovered ? "rgba(99,140,255,0.08)" : "rgba(15,18,30,0.5)",
-          border: hovered ? "1px solid rgba(99,140,255,0.3)" : "1px solid rgba(99,140,255,0.06)",
+          background: hovered ? "rgba(91,141,239,0.08)" : "rgba(15,18,30,0.5)",
+          border: hovered ? "1px solid rgba(91,141,239,0.3)" : "1px solid rgba(91,141,239,0.06)",
           transition: "all 0.3s"
         }}>
-          <div style={{fontSize: 20, fontWeight: 700, color: hovered ? "#8b5cf6" : "#e0e8f5", fontFamily: "'Space Grotesk',sans-serif", textAlign:"center", transition: "color 0.3s"}}>
+          <div style={{fontSize: 20, fontWeight: 700, color: hovered ? "#7c3aed" : "#e4e8f7", fontFamily: "'Space Grotesk',sans-serif", textAlign:"center", transition: "color 0.3s"}}>
             {item.term}
           </div>
           <div style={{
-            fontSize: 12, color: "#638cff", fontFamily: "'DM Mono',monospace", marginTop: 16,
+            fontSize: 12, color: "#5b8def", fontFamily: "'DM Mono',monospace", marginTop: 16,
             opacity: hovered ? 1 : 0, transition: "all 0.3s", transform: hovered ? "translateY(0)" : "translateY(10px)"
           }}>
             Qu'est-ce que c'est ? (Cliquez)
@@ -3027,8 +3313,8 @@ function GlossaryFlipCard({ item }) {
           justifyContent: "center", alignItems: "center", backfaceVisibility: "hidden",
           transform: "rotateX(180deg)",
           background: "linear-gradient(135deg, rgba(30,15,40,0.95), rgba(40,20,60,0.95))",
-          border: "1px solid rgba(139,92,246,0.4)",
-          boxShadow: "0 0 20px rgba(139,92,246,0.15)"
+          border: "1px solid rgba(124,58,237,0.4)",
+          boxShadow: "0 0 20px rgba(124,58,237,0.15)"
         }}>
           <div style={{fontSize: 13, color: "rgba(230,230,255,0.9)", lineHeight: 1.6, fontFamily: "'DM Mono',monospace", textAlign: "center"}}>
             {item.def}
@@ -3045,8 +3331,8 @@ function DocTab() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn .5s ease-out" }}>
       {/* Introduction Hero */}
-      <Card glow style={{ padding: "28px 32px", background: "linear-gradient(135deg, rgba(8,11,22,0.8), rgba(20,25,45,0.8))", border: "1px solid rgba(99,140,255,0.15)" }}>
-         <h2 style={{ fontSize: 24, fontFamily: "'Space Grotesk',sans-serif", color: "#e0e8f5", marginBottom: 12 }}>
+      <Card glow style={{ padding: "28px 32px", background: "linear-gradient(135deg, rgba(8,11,22,0.8), rgba(20,25,45,0.8))", border: "1px solid rgba(91,141,239,0.15)" }}>
+         <h2 style={{ fontSize: 24, fontFamily: "'Space Grotesk',sans-serif", color: "#e4e8f7", marginBottom: 12 }}>
             Comprendre ExoPlanet AI
          </h2>
          <p style={{ color: "rgba(160,180,220,0.7)", fontSize: 13, lineHeight: 1.6, maxWidth: 850, fontFamily: "'DM Mono',monospace" }}>
@@ -3055,7 +3341,7 @@ function DocTab() {
       </Card>
 
       {/* Interactive Master-Detail */}
-      <h3 style={{fontSize: 14, color: "#e0e8f5", marginTop: 8, fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: 1.5}}>
+      <h3 style={{fontSize: 14, color: "#e4e8f7", marginTop: 8, fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: 1.5}}>
         Architecture du Pipeline
       </h3>
       
@@ -3067,22 +3353,22 @@ function DocTab() {
                 style={{
                   display: "flex", alignItems: "center", gap: 16, padding: "16px 20px",
                   borderRadius: 12, border: "none", cursor: "pointer", textAlign: "left",
-                  background: activeStep.id === s.id ? "rgba(99,140,255,0.12)" : "rgba(15,18,30,0.5)",
-                  border: `1px solid ${activeStep.id === s.id ? "rgba(99,140,255,0.4)" : "rgba(99,140,255,0.05)"}`,
-                  boxShadow: activeStep.id === s.id ? "0 4px 20px rgba(99,140,255,0.15)" : "none",
+                  background: activeStep.id === s.id ? "rgba(91,141,239,0.12)" : "rgba(15,18,30,0.5)",
+                  border: `1px solid ${activeStep.id === s.id ? "rgba(91,141,239,0.4)" : "rgba(91,141,239,0.05)"}`,
+                  boxShadow: activeStep.id === s.id ? "0 4px 20px rgba(91,141,239,0.15)" : "none",
                   transition: "all 0.3s cubic-bezier(0.25, 1, 0.5, 1)",
                   transform: activeStep.id === s.id ? "translateX(6px)" : "none"
               }}>
                 <div style={{ 
                   width: 42, height: 42, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
-                  background: activeStep.id === s.id ? "linear-gradient(135deg,#638cff,#8b5cf6)" : "rgba(99,140,255,0.05)",
+                  background: activeStep.id === s.id ? "linear-gradient(135deg,#5b8def,#7c3aed)" : "rgba(91,141,239,0.05)",
                   color: activeStep.id === s.id ? "#fff" : "rgba(160,180,220,0.5)",
                   transition: "all 0.3s"
                 }}>
                   <s.icon size={20} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "'Space Grotesk',sans-serif", color: activeStep.id === s.id ? "#fff" : "#e0e8f5", transition: "color 0.3s" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "'Space Grotesk',sans-serif", color: activeStep.id === s.id ? "#fff" : "#e4e8f7", transition: "color 0.3s" }}>
                     {s.title}
                   </div>
                   <div style={{ fontSize: 11, fontFamily: "'DM Mono',monospace", color: activeStep.id === s.id ? "rgba(255,255,255,0.7)" : "rgba(160,180,220,0.4)", marginTop: 4 }}>
@@ -3096,17 +3382,17 @@ function DocTab() {
         {/* Right: Detailed View */}
         <Card style={{ flex: "2 1 500px", minHeight: 460, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", padding: "32px" }}>
             {/* Background glowing icon */}
-            <activeStep.icon size={300} style={{ position: "absolute", bottom: -40, right: -40, opacity: 0.03, color: "#638cff", transform: "rotate(-15deg)", transition: "all 0.5s ease-out" }} />
+            <activeStep.icon size={300} style={{ position: "absolute", bottom: -40, right: -40, opacity: 0.03, color: "#5b8def", transform: "rotate(-15deg)", transition: "all 0.5s ease-out" }} />
             
             <div key={activeStep.id} style={{ animation: "slideIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-                     <div style={{ padding: "6px 14px", borderRadius: 6, background: "rgba(99,140,255,0.15)", border: "1px solid rgba(99,140,255,0.3)", color: "#638cff", fontSize: 10, fontFamily: "'DM Mono',monospace", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>
+                     <div style={{ padding: "6px 14px", borderRadius: 6, background: "rgba(91,141,239,0.15)", border: "1px solid rgba(91,141,239,0.3)", color: "#5b8def", fontSize: 10, fontFamily: "'DM Mono',monospace", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>
                         Détails Techniques
                      </div>
                      <span style={{ fontSize: 11, color: "rgba(160,180,220,0.4)", fontFamily: "'DM Mono',monospace" }}>{activeStep.tech}</span>
                 </div>
                 
-                <h3 style={{ fontSize: 26, fontWeight: 700, color: "#e0e8f5", fontFamily: "'Space Grotesk',sans-serif", marginBottom: 16 }}>
+                <h3 style={{ fontSize: 26, fontWeight: 700, color: "#e4e8f7", fontFamily: "'Space Grotesk',sans-serif", marginBottom: 16 }}>
                   {activeStep.title}
                 </h3>
                 
@@ -3122,7 +3408,7 @@ function DocTab() {
                       {activeStep.details.map((det, idx) => (
                          <div key={idx} style={{ 
                             padding: "16px 20px", borderRadius: 10, background: "rgba(0,0,0,0.25)", 
-                            borderLeft: "3px solid #8b5cf6", fontSize: 12, color: "rgba(160,180,220,0.9)", lineHeight: 1.7,
+                            borderLeft: "3px solid #7c3aed", fontSize: 12, color: "rgba(160,180,220,0.9)", lineHeight: 1.7,
                             fontFamily: "'DM Mono',monospace", boxShadow: "inset 0 0 10px rgba(0,0,0,0.2)"
                          }}>
                             {det}
@@ -3135,7 +3421,7 @@ function DocTab() {
       </div>
 
       {/* Dynamic Glossary Grid */}
-      <h3 style={{fontSize: 14, color: "#e0e8f5", marginTop: 20, fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: 1.5}}>
+      <h3 style={{fontSize: 14, color: "#e4e8f7", marginTop: 20, fontFamily: "'Space Grotesk',sans-serif", textTransform: "uppercase", letterSpacing: 1.5}}>
         Glossaire & Astrométrie
       </h3>
       <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap: 14}}>
@@ -3148,21 +3434,38 @@ function DocTab() {
 }
 
 /* ─── Suggestion Sidebar ─────────────────────────────────────── */
+
+// Étoiles hôtes TESS confirmées (identifiants TIC)
 const TESS_TARGETS = [
-  { id: "TOI-700",   label: "TOI-700",   note: "zone hab." },
-  { id: "TOI-700d",  label: "TOI-700d",  note: "super-Terre" },
-  { id: "TOI-1338",  label: "TOI-1338",  note: "circumbinaire" },
-  { id: "TOI-1452",  label: "TOI-1452",  note: "océan possible" },
-  { id: "TOI-849",   label: "TOI-849",   note: "noyau planétaire" },
-  { id: "TOI-125",   label: "TOI-125",   note: "3 planètes" },
-  { id: "TOI-178",   label: "TOI-178",   note: "résonance orbitale" },
-  { id: "TOI-270",   label: "TOI-270",   note: "3 planètes" },
-  { id: "TOI-1266",  label: "TOI-1266",  note: "naine M" },
-  { id: "TOI-776",   label: "TOI-776",   note: "2 super-Terres" },
+  "TIC 231670397","TIC 16288184","TIC 144065872","TIC 66818296",
+  "TIC 317060587","TIC 366989877","TIC 320004517","TIC 38846515",
+  "TIC 149601557","TIC 400595342","TIC 304021498","TIC 363260203",
+  "TIC 261136679","TIC 55525572","TIC 192826603",
+];
+
+// Catalogue TOI (objets d'intérêt TESS)
+const TOI_TARGETS = [
+  "TOI-700","TOI-700d","TOI-700e","TOI-1338","TOI-1338b",
+  "TOI-1452","TOI-1452b","TOI-849","TOI-849b","TOI-125",
+  "TOI-125b","TOI-125c","TOI-178","TOI-178b","TOI-178c",
+  "TOI-270","TOI-270b","TOI-270c","TOI-270d","TOI-1266",
+  "TOI-1266b","TOI-776","TOI-776b","TOI-776c","TOI-431",
+  "TOI-431b","TOI-431d","TOI-561","TOI-561b","TOI-561c",
+  "TOI-1231","TOI-1231b","TOI-1259","TOI-1259b","TOI-1634",
+  "TOI-1634b","TOI-132","TOI-132b","TOI-469","TOI-469b",
+  "TOI-469c","TOI-469d","TOI-530","TOI-530b","TOI-1410",
+  "TOI-1410b","TOI-2076","TOI-2076b","TOI-2076c","TOI-2076d",
+  "TOI-1233","TOI-1233b","TOI-1233c","TOI-1233d","TOI-1233e",
+  "TOI-174","TOI-174b","TOI-396","TOI-396b","TOI-396c",
+  "TOI-5205","TOI-5205b","TOI-4010","TOI-4010b","TOI-4010c",
+  "TOI-4010d","TOI-5688","TOI-5688b","TOI-1453","TOI-1453b",
+  "TOI-421","TOI-421b","TOI-421c","TOI-1685","TOI-1685b",
+  "TOI-1728","TOI-1728b","TOI-2068","TOI-2068b","TOI-1444",
+  "TOI-1444b","TOI-1749","TOI-1749b","TOI-1749c","TOI-1749d",
 ];
 
 function SuggestionSidebar({ current, onPick }) {
-  const [section, setSection] = useState("kepler"); // kepler | tess | kic
+  const [section, setSection] = useState("kepler"); // kepler | tess | toi | kic
 
   const SectionBtn = ({ id, label, color }) => (
     <button onClick={() => setSection(id)} style={{
@@ -3185,16 +3488,17 @@ function SuggestionSidebar({ current, onPick }) {
       {/* Onglets mission */}
       <Card style={{ padding: "6px 8px" }}>
         <div style={{ display: "flex", gap: 2 }}>
-          <SectionBtn id="kepler" label="Kepler"  color="#638cff"/>
-          <SectionBtn id="tess"   label="TESS"    color="#22d3ee"/>
-          <SectionBtn id="kic"    label="KIC"     color="rgba(160,180,220,0.5)"/>
+          <SectionBtn id="kepler" label="Kepler" color="#5b8def"/>
+          <SectionBtn id="tess"   label="TESS"   color="#e879a8"/>
+          <SectionBtn id="toi"    label="TOI"    color="#a78bfa"/>
+          <SectionBtn id="kic"    label="KIC"    color="rgba(160,180,220,0.5)"/>
         </div>
       </Card>
 
       {/* Kepler nommées */}
       {section === "kepler" && (
         <Card style={{ padding: "10px 12px" }}>
-          <div style={{ fontSize: 9, color: "rgba(99,140,255,0.5)", textTransform: "uppercase",
+          <div style={{ fontSize: 9, color: "rgba(91,141,239,0.5)", textTransform: "uppercase",
             letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
             Kepler nommées
           </div>
@@ -3202,10 +3506,10 @@ function SuggestionSidebar({ current, onPick }) {
             {PRESET_TARGETS.map(p => (
               <button key={p.id} onClick={() => onPick(p.id)} style={{
                 textAlign: "left", padding: "5px 8px", borderRadius: 6, border: "none",
-                background: current === p.id ? "rgba(99,140,255,0.15)" : "transparent",
-                color: current === p.id ? "#638cff" : "rgba(160,180,220,0.6)",
+                background: current === p.id ? "rgba(91,141,239,0.15)" : "transparent",
+                color: current === p.id ? "#5b8def" : "rgba(160,180,220,0.6)",
                 fontFamily: "'DM Mono',monospace", fontSize: 11, cursor: "pointer",
-                borderLeft: `2px solid ${current === p.id ? "#638cff" : "transparent"}`,
+                borderLeft: `2px solid ${current === p.id ? "#5b8def" : "transparent"}`,
                 transition: "all 0.15s",
               }}>{p.label}</button>
             ))}
@@ -3213,27 +3517,45 @@ function SuggestionSidebar({ current, onPick }) {
         </Card>
       )}
 
-      {/* TESS */}
+      {/* TESS (TIC) */}
       {section === "tess" && (
-        <Card style={{ padding: "10px 12px" }}>
-          <div style={{ fontSize: 9, color: "rgba(34,211,238,0.5)", textTransform: "uppercase",
+        <Card style={{ padding: "10px 12px", flex: 1, overflowY: "auto", minHeight: 0 }}>
+          <div style={{ fontSize: 9, color: "rgba(232,121,168,0.6)", textTransform: "uppercase",
             letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
-            TESS — TOI confirmés
+            Étoiles TESS (TIC)
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {TESS_TARGETS.map(p => (
-              <button key={p.id} onClick={() => onPick(p.id)} style={{
-                textAlign: "left", padding: "5px 8px", borderRadius: 6, border: "none",
-                background: current === p.id ? "rgba(34,211,238,0.1)" : "transparent",
-                color: current === p.id ? "#22d3ee" : "rgba(160,180,220,0.6)",
-                fontFamily: "'DM Mono',monospace", fontSize: 11, cursor: "pointer",
-                borderLeft: `2px solid ${current === p.id ? "#22d3ee" : "transparent"}`,
-                transition: "all 0.15s",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <span>{p.label}</span>
-                <span style={{ fontSize: 9, color: "rgba(34,211,238,0.4)", fontStyle: "italic" }}>{p.note}</span>
-              </button>
+            {TESS_TARGETS.map(id => (
+              <button key={id} onClick={() => onPick(id)} style={{
+                textAlign: "left", padding: "4px 8px", borderRadius: 6, border: "none",
+                background: current === id ? "rgba(232,121,168,0.12)" : "transparent",
+                color: current === id ? "#e879a8" : "rgba(160,180,220,0.55)",
+                fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
+                borderLeft: `2px solid ${current === id ? "#e879a8" : "transparent"}`,
+                transition: "all 0.15s", whiteSpace: "nowrap",
+              }}>{id}</button>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* TOI catalogue */}
+      {section === "toi" && (
+        <Card style={{ padding: "10px 12px", flex: 1, overflowY: "auto", minHeight: 0 }}>
+          <div style={{ fontSize: 9, color: "rgba(167,139,250,0.6)", textTransform: "uppercase",
+            letterSpacing: 1.2, marginBottom: 8, fontFamily: "'DM Mono',monospace" }}>
+            Catalogue TOI
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {TOI_TARGETS.map(id => (
+              <button key={id} onClick={() => onPick(id)} style={{
+                textAlign: "left", padding: "4px 8px", borderRadius: 6, border: "none",
+                background: current === id ? "rgba(167,139,250,0.12)" : "transparent",
+                color: current === id ? "#a78bfa" : "rgba(160,180,220,0.55)",
+                fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
+                borderLeft: `2px solid ${current === id ? "#a78bfa" : "transparent"}`,
+                transition: "all 0.15s", whiteSpace: "nowrap",
+              }}>{id}</button>
             ))}
           </div>
         </Card>
@@ -3250,10 +3572,10 @@ function SuggestionSidebar({ current, onPick }) {
             {VERIFIED_KIC_POOL.map(id => (
               <button key={id} onClick={() => onPick(id)} style={{
                 textAlign: "left", padding: "4px 8px", borderRadius: 6, border: "none",
-                background: current === id ? "rgba(99,140,255,0.15)" : "transparent",
-                color: current === id ? "#638cff" : "rgba(160,180,220,0.45)",
+                background: current === id ? "rgba(91,141,239,0.15)" : "transparent",
+                color: current === id ? "#5b8def" : "rgba(160,180,220,0.45)",
                 fontFamily: "'DM Mono',monospace", fontSize: 10, cursor: "pointer",
-                borderLeft: `2px solid ${current === id ? "#638cff" : "transparent"}`,
+                borderLeft: `2px solid ${current === id ? "#5b8def" : "transparent"}`,
                 transition: "all 0.15s", whiteSpace: "nowrap",
               }}>{id}</button>
             ))}
@@ -3307,14 +3629,14 @@ function ComparisonTab() {
   };
 
   const verdictColor = (score) =>
-    score >= 0.70 ? "#4ade80" : score >= 0.35 ? "#fbbf24" : "#f87171";
+    score >= 0.70 ? "#34d399" : score >= 0.35 ? "#fbbf24" : "#f87171";
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .5s ease-out"}}>
       {/* Header row */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
         <div>
-          <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:15,fontWeight:600,color:"#e0e8f5",marginBottom:2}}>
+          <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:15,fontWeight:600,color:"#e4e8f7",marginBottom:2}}>
             Comparaison multi-étoiles
           </h2>
           <p style={{fontSize:11,color:"rgba(160,180,220,0.45)",fontFamily:"'DM Mono',monospace"}}>
@@ -3328,9 +3650,9 @@ function ComparisonTab() {
             display:"flex",alignItems:"center",gap:6,
             padding:"7px 14px",borderRadius:9,fontSize:11,
             fontFamily:"'DM Mono',monospace",cursor:slots.length>=3?"not-allowed":"pointer",
-            background:"rgba(99,140,255,0.08)",
-            border:"1px solid rgba(99,140,255,0.2)",
-            color:slots.length>=3?"rgba(99,140,255,0.3)":"#638cff",
+            background:"rgba(91,141,239,0.08)",
+            border:"1px solid rgba(91,141,239,0.2)",
+            color:slots.length>=3?"rgba(91,141,239,0.3)":"#5b8def",
             opacity:slots.length>=3?0.5:1,
           }}>
           <Columns size={12}/> Ajouter une étoile
@@ -3345,7 +3667,7 @@ function ComparisonTab() {
         alignItems:"start",
       }}>
         {slots.map(slot => {
-          const col = slot.data ? verdictColor(slot.data.score) : "#638cff";
+          const col = slot.data ? verdictColor(slot.data.score) : "#5b8def";
           return (
             <Card key={slot.id} style={{padding:14,display:"flex",flexDirection:"column",gap:12}}>
               {/* Slot header with remove button */}
@@ -3371,23 +3693,23 @@ function ComparisonTab() {
               {/* Search bar */}
               <div style={{display:"flex",gap:6}}>
                 <div style={{flex:1,display:"flex",alignItems:"center",
-                  background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.15)",
+                  background:"rgba(15,18,30,0.8)",border:"1px solid rgba(91,141,239,0.15)",
                   borderRadius:8,overflow:"hidden"}}>
-                  <Search size={11} style={{color:"rgba(99,140,255,0.4)",marginLeft:9,flexShrink:0}}/>
+                  <Search size={11} style={{color:"rgba(91,141,239,0.4)",marginLeft:9,flexShrink:0}}/>
                   <input
                     value={slot.input}
                     onChange={e => updateSlot(slot.id, {input:e.target.value})}
                     onKeyDown={e => e.key==="Enter" && analyzeSlot(slot.id)}
                     placeholder="Kepler-10, KIC…"
                     style={{flex:1,padding:"7px 8px",background:"transparent",border:"none",
-                      outline:"none",color:"#e0e8f5",fontFamily:"'DM Mono',monospace",fontSize:11}}/>
+                      outline:"none",color:"#e4e8f7",fontFamily:"'DM Mono',monospace",fontSize:11}}/>
                 </div>
                 {/* Random button */}
                 <button
                   onClick={() => randomizeSlot(slot.id)}
                   title="Étoile aléatoire"
-                  style={{padding:"7px 9px",borderRadius:8,background:"rgba(99,140,255,0.06)",
-                    border:"1px solid rgba(99,140,255,0.15)",color:"#638cff",cursor:"pointer",fontSize:12}}>
+                  style={{padding:"7px 9px",borderRadius:8,background:"rgba(91,141,239,0.06)",
+                    border:"1px solid rgba(91,141,239,0.15)",color:"#5b8def",cursor:"pointer",fontSize:12}}>
                   <Dice6 size={13}/>
                 </button>
                 {/* Analyze button */}
@@ -3396,8 +3718,8 @@ function ComparisonTab() {
                   disabled={slot.loading || !slot.input.trim()}
                   style={{padding:"7px 11px",borderRadius:8,fontSize:10,
                     fontFamily:"'DM Mono',monospace",cursor:slot.loading||!slot.input.trim()?"not-allowed":"pointer",
-                    background:"linear-gradient(135deg,rgba(99,140,255,0.18),rgba(139,92,246,0.18))",
-                    border:"1px solid rgba(99,140,255,0.25)",color:"#638cff",
+                    background:"linear-gradient(135deg,rgba(91,141,239,0.18),rgba(124,58,237,0.18))",
+                    border:"1px solid rgba(91,141,239,0.25)",color:"#5b8def",
                     display:"flex",alignItems:"center",gap:4,flexShrink:0,
                     opacity:slot.loading||!slot.input.trim()?0.6:1}}>
                   {slot.loading
@@ -3411,7 +3733,7 @@ function ComparisonTab() {
               {slot.loading && (
                 <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,
                   padding:20,color:"rgba(160,180,220,0.5)",fontFamily:"'DM Mono',monospace",fontSize:11}}>
-                  <Loader2 size={16} style={{color:"#638cff",animation:"spin 1s linear infinite"}}/>
+                  <Loader2 size={16} style={{color:"#5b8def",animation:"spin 1s linear infinite"}}/>
                   Analyse en cours…
                 </div>
               )}
@@ -3432,7 +3754,7 @@ function ComparisonTab() {
                   {/* Target name + verdict badge */}
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,flexWrap:"wrap"}}>
                     <span style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:13,fontWeight:600,
-                      color:"#e0e8f5"}}>{slot.data.target}</span>
+                      color:"#e4e8f7"}}>{slot.data.target}</span>
                     <span style={{padding:"3px 10px",borderRadius:12,fontSize:10,
                       fontFamily:"'DM Mono',monospace",
                       color:col,background:`${col}15`,border:`1px solid ${col}30`}}>
@@ -3544,8 +3866,8 @@ function TourOverlay({ step, onNext, onSkip }) {
           borderRadius: 12,
           boxShadow: [
             "0 0 0 9999px rgba(2,4,12,0.85)",
-            "0 0 0 2px rgba(99,140,255,1)",
-            "0 0 32px 8px rgba(99,140,255,0.55)",
+            "0 0 0 2px rgba(91,141,239,1)",
+            "0 0 32px 8px rgba(91,141,239,0.55)",
           ].join(", "),
           zIndex: 9995,
           pointerEvents: "none",
@@ -3567,13 +3889,13 @@ function TourOverlay({ step, onNext, onSkip }) {
           : { top: ttop, left: tleft }),
         width: tooltipW,
         background:"rgba(8,11,22,0.98)",
-        border:"1px solid rgba(99,140,255,0.35)",
+        border:"1px solid rgba(91,141,239,0.35)",
         borderRadius:14, padding:"20px 22px",
         zIndex:9999, pointerEvents:"all",
-        boxShadow:"0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,140,255,0.1)",
+        boxShadow:"0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(91,141,239,0.1)",
         animation:"fadeIn .22s ease",
       }}>
-        <div style={{ fontSize:15, fontWeight:700, color:"#e0e8f5", marginBottom:10,
+        <div style={{ fontSize:15, fontWeight:700, color:"#e4e8f7", marginBottom:10,
           fontFamily:"'Space Grotesk',sans-serif" }}>{def.title}</div>
         <p style={{ fontSize:12, color:"rgba(200,215,240,0.72)", lineHeight:1.75,
           marginBottom:18, fontFamily:"'Space Grotesk',sans-serif" }}>{def.desc}</p>
@@ -3591,8 +3913,8 @@ function TourOverlay({ step, onNext, onSkip }) {
             <button onClick={onNext} style={{
               padding:"5px 18px", borderRadius:7, fontSize:10, cursor:"pointer",
               fontFamily:"'DM Mono',monospace", fontWeight:600,
-              background:"linear-gradient(135deg,rgba(99,140,255,0.22),rgba(139,92,246,0.22))",
-              border:"1px solid rgba(99,140,255,0.4)", color:"#638cff" }}>
+              background:"linear-gradient(135deg,rgba(91,141,239,0.22),rgba(124,58,237,0.22))",
+              border:"1px solid rgba(91,141,239,0.4)", color:"#5b8def" }}>
               {step === TOUR_STEPS.length-1 ? "Terminer ✓" : "Suivant →"}
             </button>
           </div>
@@ -3636,8 +3958,7 @@ const PROFILE_NAV = [
   {
     id: "activite", label: "Activité", icon: Clock,
     items: [
-      { id: "historique",    label: "Historique"    },
-      { id: "documentation", label: "Documentation" },
+      { id: "historique", label: "Historique" },
     ]
   },
 ];
@@ -3720,9 +4041,9 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
   };
 
   const achievements = [
-    { id:"novice",      label:"Novice",       icon:Star,      desc:"Première analyse effectuée",   unlocked:totalAnalyzed>=1,   color:"#638cff", current:Math.min(totalAnalyzed,1),   max:1   },
+    { id:"novice",      label:"Novice",       icon:Star,      desc:"Première analyse effectuée",   unlocked:totalAnalyzed>=1,   color:"#5b8def", current:Math.min(totalAnalyzed,1),   max:1   },
     { id:"explorateur", label:"Explorateur",  icon:Globe,     desc:"10 analyses complétées",        unlocked:totalAnalyzed>=10,  color:"#a78bfa", current:Math.min(totalAnalyzed,10),  max:10  },
-    { id:"chasseur",    label:"Chasseur",     icon:Sparkles,  desc:"Première planète détectée",     unlocked:planetsFound>=1,    color:"#4ade80", current:Math.min(planetsFound,1),    max:1   },
+    { id:"chasseur",    label:"Chasseur",     icon:Sparkles,  desc:"Première planète détectée",     unlocked:planetsFound>=1,    color:"#34d399", current:Math.min(planetsFound,1),    max:1   },
     { id:"veteran",     label:"Vétéran",      icon:Zap,       desc:"50 analyses complétées",        unlocked:totalAnalyzed>=50,  color:"#f59e0b", current:Math.min(totalAnalyzed,50),  max:50  },
     { id:"chercheur",   label:"Chercheur",    icon:Telescope, desc:"5 planètes détectées",          unlocked:planetsFound>=5,    color:"#06b6d4", current:Math.min(planetsFound,5),    max:5   },
     { id:"scientifique",label:"Scientifique", icon:Activity,  desc:"100 analyses complétées",       unlocked:totalAnalyzed>=100, color:"#ec4899", current:Math.min(totalAnalyzed,100), max:100 },
@@ -3732,8 +4053,8 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
   const inputStyle = {
     width:"100%", padding:"10px 14px",
     background:"rgba(15,18,30,0.8)",
-    border:"1px solid rgba(99,140,255,0.2)",
-    borderRadius:8, color:"#e0e8f5", outline:"none",
+    border:"1px solid rgba(91,141,239,0.2)",
+    borderRadius:8, color:"#e4e8f7", outline:"none",
     fontFamily:"'DM Mono',monospace", fontSize:13,
     boxSizing:"border-box",
   };
@@ -3750,9 +4071,9 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
   const StatusMsg = ({ status }) => !status ? null : (
     <div style={{
       padding:"10px 14px", marginBottom:12, fontSize:12, borderRadius:8,
-      background:status.ok?"rgba(74,222,160,0.1)":"rgba(248,113,113,0.1)",
-      color:status.ok?"#4ade80":"#f87171",
-      border:`1px solid ${status.ok?"rgba(74,222,160,0.3)":"rgba(248,113,113,0.3)"}`,
+      background:status.ok?"rgba(52,211,153,0.1)":"rgba(248,113,113,0.1)",
+      color:status.ok?"#34d399":"#f87171",
+      border:`1px solid ${status.ok?"rgba(52,211,153,0.3)":"rgba(248,113,113,0.3)"}`,
       fontFamily:"'DM Mono',monospace",
     }}>{status.msg}</div>
   );
@@ -3768,13 +4089,13 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
             <div style={{display:"flex",alignItems:"center",gap:24,marginBottom:36,flexWrap:"wrap"}}>
               <div style={{
                 width:88,height:88,borderRadius:"50%",
-                background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+                background:"linear-gradient(135deg,#5b8def,#7c3aed)",
                 display:"flex",alignItems:"center",justifyContent:"center",
-                boxShadow:"0 12px 32px rgba(99,140,255,0.3)",
+                boxShadow:"0 12px 32px rgba(91,141,239,0.3)",
                 border:"2px solid rgba(255,255,255,0.08)",flexShrink:0,
               }}><CurrentIcon size={44} color="#fff"/></div>
               <div>
-                <h2 style={{margin:0,fontFamily:"'Space Grotesk',sans-serif",fontSize:24,fontWeight:700,color:"#e0e8f5"}}>{authState.username}</h2>
+                <h2 style={{margin:0,fontFamily:"'Space Grotesk',sans-serif",fontSize:24,fontWeight:700,color:"#e4e8f7"}}>{authState.username}</h2>
                 <div style={{fontSize:12,color:"rgba(160,180,220,0.5)",fontFamily:"'DM Mono',monospace",marginTop:4}}>Explorateur stellaire</div>
                 <div style={{display:"flex",gap:6,marginTop:12,flexWrap:"wrap"}}>
                   {achievements.filter(a=>a.unlocked).map(a => {
@@ -3793,12 +4114,12 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               {[
-                { label:"Identifiant",         value:authState.username, color:"#e0e8f5" },
-                { label:"Rang actuel",          value:rank,               color:"#638cff" },
-                { label:"Analyses réalisées",   value:`${totalAnalyzed} cibles`, color:"#e0e8f5" },
-                { label:"Planètes détectées",   value:`${planetsFound} planète${planetsFound!==1?"s":""}`, color:"#4ade80" },
+                { label:"Identifiant",         value:authState.username, color:"#e4e8f7" },
+                { label:"Rang actuel",          value:rank,               color:"#5b8def" },
+                { label:"Analyses réalisées",   value:`${totalAnalyzed} cibles`, color:"#e4e8f7" },
+                { label:"Planètes détectées",   value:`${planetsFound} planète${planetsFound!==1?"s":""}`, color:"#34d399" },
               ].map(item => (
-                <div key={item.label} style={{padding:"16px 20px",background:"rgba(15,18,30,0.6)",borderRadius:10,border:"1px solid rgba(99,140,255,0.08)"}}>
+                <div key={item.label} style={{padding:"16px 20px",background:"rgba(15,18,30,0.6)",borderRadius:10,border:"1px solid rgba(91,141,239,0.08)"}}>
                   <div style={subTitleStyle}>{item.label}</div>
                   <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:item.color}}>{item.value}</div>
                 </div>
@@ -3819,7 +4140,7 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
               <div style={{fontSize:11,color:"rgba(248,113,113,0.6)",fontFamily:"'DM Mono',monospace",marginBottom:12,textTransform:"uppercase",letterSpacing:1}}>Session active</div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap"}}>
                 <div>
-                  <div style={{fontSize:14,color:"#e0e8f5",fontFamily:"'DM Mono',monospace",fontWeight:600}}>{authState.username}</div>
+                  <div style={{fontSize:14,color:"#e4e8f7",fontFamily:"'DM Mono',monospace",fontWeight:600}}>{authState.username}</div>
                   <div style={{fontSize:11,color:"rgba(160,180,220,0.4)",marginTop:4}}>Connecté maintenant</div>
                 </div>
                 <button onClick={onLogout} style={{
@@ -3842,9 +4163,9 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
             <p style={{color:"rgba(160,180,220,0.6)",fontFamily:"'DM Mono',monospace",fontSize:13,lineHeight:1.8,marginBottom:20}}>
               Ton nom d'utilisateur est visible dans ton profil. Il doit contenir au minimum 3 caractères.
             </p>
-            <div style={{padding:"14px 18px",background:"rgba(15,18,30,0.6)",borderRadius:10,border:"1px solid rgba(99,140,255,0.08)",marginBottom:24}}>
+            <div style={{padding:"14px 18px",background:"rgba(15,18,30,0.6)",borderRadius:10,border:"1px solid rgba(91,141,239,0.08)",marginBottom:24}}>
               <div style={subTitleStyle}>Pseudo actuel</div>
-              <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#638cff"}}>{authState.username}</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"#5b8def"}}>{authState.username}</div>
             </div>
             <StatusMsg status={unameStatus}/>
             <form onSubmit={handleChangeUname} style={{display:"flex",flexDirection:"column",gap:14}}>
@@ -3855,7 +4176,7 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
               </div>
               <button type="submit" style={{
                 padding:"12px 24px",borderRadius:8,
-                background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+                background:"linear-gradient(135deg,#5b8def,#7c3aed)",
                 border:"none",color:"#fff",cursor:"pointer",
                 fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
                 alignSelf:"flex-start",transition:"all .2s",
@@ -3899,8 +4220,8 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
               </div>
               <button type="submit" style={{
                 padding:"12px 24px",borderRadius:8,
-                background:"linear-gradient(135deg,rgba(99,140,255,0.18),rgba(139,92,246,0.18))",
-                border:"1px solid rgba(99,140,255,0.4)",color:"#638cff",cursor:"pointer",
+                background:"linear-gradient(135deg,rgba(91,141,239,0.18),rgba(124,58,237,0.18))",
+                border:"1px solid rgba(91,141,239,0.4)",color:"#5b8def",cursor:"pointer",
                 fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600,
                 alignSelf:"flex-start",transition:"all .2s",
               }}>Modifier le mot de passe</button>
@@ -3915,9 +4236,9 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
               <div style={{
                 width:96,height:96,borderRadius:"50%",
-                background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+                background:"linear-gradient(135deg,#5b8def,#7c3aed)",
                 display:"flex",alignItems:"center",justifyContent:"center",
-                boxShadow:"0 12px 32px rgba(99,140,255,0.3)",
+                boxShadow:"0 12px 32px rgba(91,141,239,0.3)",
                 border:"2px solid rgba(255,255,255,0.08)",
               }}><CurrentIcon size={50} color="#fff"/></div>
               <div style={{fontSize:10,color:"rgba(160,180,220,0.4)",fontFamily:"'DM Mono',monospace"}}>Avatar actuel</div>
@@ -3931,12 +4252,12 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
                   return (
                     <button key={a.id} onClick={()=>handleAvatarSelect(a.id)} style={{
                       padding:20,borderRadius:12,cursor:"pointer",
-                      background:isSel?"linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))":"rgba(15,18,30,0.6)",
-                      border:isSel?"2px solid rgba(99,140,255,0.6)":"2px solid rgba(255,255,255,0.05)",
+                      background:isSel?"linear-gradient(135deg,rgba(91,141,239,0.2),rgba(124,58,237,0.2))":"rgba(15,18,30,0.6)",
+                      border:isSel?"2px solid rgba(91,141,239,0.6)":"2px solid rgba(255,255,255,0.05)",
                       display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all .2s",
                     }}>
-                      <Icon size={28} color={isSel?"#638cff":"rgba(160,180,220,0.55)"}/>
-                      <span style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:isSel?"#638cff":"rgba(160,180,220,0.35)",textTransform:"capitalize"}}>{a.id}</span>
+                      <Icon size={28} color={isSel?"#5b8def":"rgba(160,180,220,0.55)"}/>
+                      <span style={{fontSize:10,fontFamily:"'DM Mono',monospace",color:isSel?"#5b8def":"rgba(160,180,220,0.35)",textTransform:"capitalize"}}>{a.id}</span>
                     </button>
                   );
                 })}
@@ -3952,15 +4273,15 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
             <p style={{color:"rgba(160,180,220,0.6)",fontFamily:"'DM Mono',monospace",fontSize:13,lineHeight:1.8,margin:0}}>
               Personnalise l'affichage de l'interface pour un meilleur confort visuel.
             </p>
-            <div style={{padding:"18px 22px",background:"rgba(15,18,30,0.6)",borderRadius:12,border:"1px solid rgba(99,140,255,0.08)"}}>
+            <div style={{padding:"18px 22px",background:"rgba(15,18,30,0.6)",borderRadius:12,border:"1px solid rgba(91,141,239,0.08)"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16}}>
                 <div>
-                  <div style={{fontSize:14,color:"#e0e8f5",fontFamily:"'DM Mono',monospace",fontWeight:600}}>Mode Jour</div>
+                  <div style={{fontSize:14,color:"#e4e8f7",fontFamily:"'DM Mono',monospace",fontWeight:600}}>Mode Jour</div>
                   <div style={{fontSize:11,color:"rgba(160,180,220,0.4)",marginTop:4}}>Inversion visuelle pour plein soleil</div>
                 </div>
                 <button onClick={()=>setIsLightMode(!isLightMode)} style={{
                   width:48,height:26,borderRadius:13,cursor:"pointer",border:"none",
-                  background:isLightMode?"#638cff":"rgba(255,255,255,0.1)",
+                  background:isLightMode?"#5b8def":"rgba(255,255,255,0.1)",
                   position:"relative",transition:"background .25s",flexShrink:0,padding:0,
                 }}>
                   <div style={{
@@ -3981,8 +4302,8 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
           <div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:16,marginBottom:24}}>
               {[
-                { val:totalAnalyzed, label:"Cibles analysées",        color:"#638cff", bg:"rgba(99,140,255,0.08)",  border:"rgba(99,140,255,0.15)"  },
-                { val:planetsFound,  label:"Planètes probables",       color:"#4ade80", bg:"rgba(74,222,160,0.08)",  border:"rgba(74,222,160,0.15)"  },
+                { val:totalAnalyzed, label:"Cibles analysées",        color:"#5b8def", bg:"rgba(91,141,239,0.08)",  border:"rgba(91,141,239,0.15)"  },
+                { val:planetsFound,  label:"Planètes probables",       color:"#34d399", bg:"rgba(52,211,153,0.08)",  border:"rgba(52,211,153,0.15)"  },
                 { val:fpFound,       label:"Faux positifs écartés",    color:"#f87171", bg:"rgba(248,113,113,0.08)", border:"rgba(248,113,113,0.15)" },
                 { val:`${detectionRate}%`, label:"Taux de détection",  color:"#f59e0b", bg:"rgba(245,158,11,0.08)",  border:"rgba(245,158,11,0.15)"  },
               ].map(s => (
@@ -3993,15 +4314,15 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
               ))}
             </div>
             {totalAnalyzed > 0 && (
-              <div style={{padding:"18px 22px",background:"rgba(15,18,30,0.6)",borderRadius:12,border:"1px solid rgba(99,140,255,0.08)"}}>
+              <div style={{padding:"18px 22px",background:"rgba(15,18,30,0.6)",borderRadius:12,border:"1px solid rgba(91,141,239,0.08)"}}>
                 <div style={subTitleStyle}>Répartition des résultats</div>
                 <div style={{display:"flex",height:8,borderRadius:4,overflow:"hidden",marginTop:12,gap:1}}>
-                  <div style={{flex:planetsFound,background:"#4ade80",minWidth:planetsFound>0?4:0,transition:"flex .5s ease"}}/>
+                  <div style={{flex:planetsFound,background:"#34d399",minWidth:planetsFound>0?4:0,transition:"flex .5s ease"}}/>
                   <div style={{flex:fpFound,background:"#f87171",minWidth:fpFound>0?4:0,transition:"flex .5s ease"}}/>
                   <div style={{flex:Math.max(0,totalAnalyzed-planetsFound-fpFound),background:"rgba(160,180,220,0.12)"}}/>
                 </div>
                 <div style={{display:"flex",gap:16,marginTop:10,flexWrap:"wrap"}}>
-                  <span style={{fontSize:11,color:"#4ade80",fontFamily:"'DM Mono',monospace"}}>● Planètes {planetsFound}</span>
+                  <span style={{fontSize:11,color:"#34d399",fontFamily:"'DM Mono',monospace"}}>● Planètes {planetsFound}</span>
                   <span style={{fontSize:11,color:"#f87171",fontFamily:"'DM Mono',monospace"}}>● Faux positifs {fpFound}</span>
                   <span style={{fontSize:11,color:"rgba(160,180,220,0.35)",fontFamily:"'DM Mono',monospace"}}>● Autres {Math.max(0,totalAnalyzed-planetsFound-fpFound)}</span>
                 </div>
@@ -4033,7 +4354,7 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
                     }}><Icon size={20} color={a.unlocked?a.color:"rgba(160,180,220,0.25)"}/></div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:3}}>
-                        <span style={{fontSize:14,fontWeight:600,color:a.unlocked?"#e0e8f5":"rgba(160,180,220,0.35)",fontFamily:"'Space Grotesk',sans-serif"}}>{a.label}</span>
+                        <span style={{fontSize:14,fontWeight:600,color:a.unlocked?"#e4e8f7":"rgba(160,180,220,0.35)",fontFamily:"'Space Grotesk',sans-serif"}}>{a.label}</span>
                         <span style={{fontSize:10,color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace"}}>{a.current}/{a.max}</span>
                       </div>
                       <div style={{fontSize:11,color:"rgba(160,180,220,0.38)",fontFamily:"'DM Mono',monospace",marginBottom:a.max>1?8:0}}>{a.desc}</div>
@@ -4063,15 +4384,15 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:"rgba(15,18,30,0.6)",borderRadius:10,border:"1px solid rgba(255,255,255,0.05)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:12}}>
                   <FileText size={14} color="rgba(160,180,220,0.4)"/>
-                  <span style={{fontSize:13,fontFamily:"'DM Mono',monospace",color:"#e0e8f5"}}>{log.target}</span>
+                  <span style={{fontSize:13,fontFamily:"'DM Mono',monospace",color:"#e4e8f7"}}>{log.target}</span>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:14}}>
                   <span style={{fontSize:11,color:"rgba(160,180,220,0.4)"}}>{new Date(log.date).toLocaleDateString()}</span>
                   <span style={{
                     fontSize:11,padding:"3px 10px",borderRadius:20,
-                    background:log.verdict==="Planète probable"?"rgba(74,222,160,0.1)":"rgba(248,113,113,0.1)",
-                    color:log.verdict==="Planète probable"?"#4ade80":"#f87171",
-                    border:log.verdict==="Planète probable"?"1px solid rgba(74,222,160,0.2)":"1px solid rgba(248,113,113,0.2)",
+                    background:log.verdict==="Planète probable"?"rgba(52,211,153,0.1)":"rgba(248,113,113,0.1)",
+                    color:log.verdict==="Planète probable"?"#34d399":"#f87171",
+                    border:log.verdict==="Planète probable"?"1px solid rgba(52,211,153,0.2)":"1px solid rgba(248,113,113,0.2)",
                     fontFamily:"'DM Mono',monospace",
                   }}>{log.verdict}</span>
                 </div>
@@ -4098,31 +4419,31 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
       display:"flex", minHeight:600,
       background:"rgba(5,8,18,0.5)",
       borderRadius:16,
-      border:"1px solid rgba(99,140,255,0.08)",
+      border:"1px solid rgba(91,141,239,0.08)",
       overflow:"hidden",
       animation:"fadeIn .5s ease-out",
     }}>
       {/* ── Sidebar ── */}
       <div style={{
         width:228, flexShrink:0,
-        borderRight:"1px solid rgba(99,140,255,0.07)",
+        borderRight:"1px solid rgba(91,141,239,0.07)",
         display:"flex", flexDirection:"column",
         background:"rgba(4,6,15,0.6)",
       }}>
         {/* Mini user card */}
         <div style={{
           padding:"22px 18px",
-          borderBottom:"1px solid rgba(99,140,255,0.07)",
+          borderBottom:"1px solid rgba(91,141,239,0.07)",
           display:"flex",alignItems:"center",gap:12,
         }}>
           <div style={{
             width:42,height:42,borderRadius:"50%",flexShrink:0,
-            background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+            background:"linear-gradient(135deg,#5b8def,#7c3aed)",
             display:"flex",alignItems:"center",justifyContent:"center",
-            boxShadow:"0 4px 12px rgba(99,140,255,0.22)",
+            boxShadow:"0 4px 12px rgba(91,141,239,0.22)",
           }}><CurrentIcon size={22} color="#fff"/></div>
           <div style={{minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{authState.username}</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#e4e8f7",fontFamily:"'Space Grotesk',sans-serif",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{authState.username}</div>
             <div style={{fontSize:10,color:"rgba(160,180,220,0.38)",fontFamily:"'DM Mono',monospace",marginTop:1}}>Explorateur stellaire</div>
           </div>
         </div>
@@ -4137,7 +4458,7 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
                 <button onClick={()=>handleSectionClick(section.id)} style={{
                   width:"100%",display:"flex",alignItems:"center",gap:10,
                   padding:"9px 18px",background:"none",border:"none",cursor:"pointer",
-                  color:isExpanded?"#e0e8f5":"rgba(160,180,220,0.45)",
+                  color:isExpanded?"#e4e8f7":"rgba(160,180,220,0.45)",
                   fontFamily:"'DM Mono',monospace",fontSize:12,
                   fontWeight:isExpanded?600:400,textAlign:"left",transition:"color .15s",
                 }}>
@@ -4153,11 +4474,11 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
                   <button key={item.id} onClick={()=>setActiveItem(item.id)} style={{
                     width:"100%",display:"flex",alignItems:"center",
                     padding:"7px 18px 7px 42px",
-                    background:activeItem===item.id?"rgba(99,140,255,0.09)":"none",
+                    background:activeItem===item.id?"rgba(91,141,239,0.09)":"none",
                     border:"none",
-                    borderLeft:activeItem===item.id?"2px solid #638cff":"2px solid transparent",
+                    borderLeft:activeItem===item.id?"2px solid #5b8def":"2px solid transparent",
                     cursor:"pointer",
-                    color:activeItem===item.id?"#638cff":"rgba(160,180,220,0.4)",
+                    color:activeItem===item.id?"#5b8def":"rgba(160,180,220,0.4)",
                     fontFamily:"'DM Mono',monospace",fontSize:12,
                     textAlign:"left",transition:"all .15s",
                   }}>
@@ -4175,7 +4496,7 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
         {/* Breadcrumb */}
         <div style={{
           padding:"16px 30px",
-          borderBottom:"1px solid rgba(99,140,255,0.07)",
+          borderBottom:"1px solid rgba(91,141,239,0.07)",
           display:"flex",alignItems:"center",gap:8,
         }}>
           <span style={{fontSize:11,color:"rgba(160,180,220,0.3)",fontFamily:"'DM Mono',monospace"}}>{activeSectionLabel}</span>
@@ -4185,8 +4506,8 @@ function ProfileTab({ authState, history, onLogout, setAuthState, isLightMode, s
 
         {/* Title + page content */}
         <div style={{flex:1,padding:"26px 30px",overflowY:"auto"}}>
-          <h2 style={{margin:"0 0 4px",fontFamily:"'Space Grotesk',sans-serif",fontSize:20,fontWeight:700,color:"#e0e8f5"}}>{activeItemLabel}</h2>
-          <div style={{height:1,background:"rgba(99,140,255,0.07)",margin:"14px 0 22px"}}/>
+          <h2 style={{margin:"0 0 4px",fontFamily:"'Space Grotesk',sans-serif",fontSize:20,fontWeight:700,color:"#e4e8f7"}}>{activeItemLabel}</h2>
+          <div style={{height:1,background:"rgba(91,141,239,0.07)",margin:"14px 0 22px"}}/>
           {renderContent()}
         </div>
       </div>
@@ -4322,18 +4643,19 @@ export default function ExoPlanetDashboard() {
   if(!authState) return <LoginScreen onLogin={handleLogin}/>;
 
   const TABS=[
-    {key:"analysis",       label:"Analyse",      icon:Telescope},
-    {key:"comparison",     label:"Comparaison",  icon:Columns},
-    {key:"metrics",        label:"Métriques",    icon:BarChart2},
-    {key:"catalog",        label:"Catalogue",    icon:Database},
-    {key:"profile",        label:"Profil",       icon:User},
+    {key:"analysis",       label:"Analyse",       icon:Telescope},
+    {key:"comparison",     label:"Comparaison",   icon:Columns},
+    {key:"metrics",        label:"Métriques",     icon:BarChart2},
+    {key:"catalog",        label:"Catalogue",     icon:Database},
+    {key:"docs",           label:"Documentation", icon:BookOpen},
+    {key:"profile",        label:"Profil",        icon:User},
   ];
 
   return (
     <ModeContext.Provider value={simpleMode}>
     <div style={{minHeight:"100vh",
-      background:"linear-gradient(165deg,#050710 0%,#0a0e1a 40%,#0d1025 100%)",
-      fontFamily:"'DM Mono','JetBrains Mono',monospace",color:"#e0e8f5",position:"relative",
+      background:"linear-gradient(165deg,#030510 0%,#060a14 30%,#0c1222 60%,#0d1030 100%)",
+      fontFamily:"'DM Mono','JetBrains Mono',monospace",color:"#e4e8f7",position:"relative",
       filter: isLightMode ? "invert(1) hue-rotate(180deg)" : "none",
       transition: "filter 0.5s ease"
     }}>
@@ -4342,30 +4664,45 @@ export default function ExoPlanetDashboard() {
       {tourActive && <TourOverlay step={tourStep} onNext={tourNext} onSkip={tourSkip}/>}
 
       {/* ── Header ── */}
-      <header style={{position:"relative",zIndex:10,padding:"20px 32px 0",
+      <header style={{position:"relative",zIndex:10,padding:"18px 32px 0",
         display:"flex",justifyContent:"space-between",alignItems:"flex-start",
         flexWrap:"wrap",gap:10}}>
         <div>
-          <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:3}}>
-            <div style={{width:30,height:30,borderRadius:8,display:"flex",
-              alignItems:"center",justifyContent:"center",
-              background:"linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))",
-              border:"1px solid rgba(99,140,255,0.2)"}}>
-              <Telescope size={15} style={{color:"#638cff"}}/>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+            {/* Logo with transit animation */}
+            <div style={{width:34,height:34,borderRadius:10,display:"flex",
+              alignItems:"center",justifyContent:"center",position:"relative",
+              background:"linear-gradient(135deg,rgba(91,141,239,0.2),rgba(124,58,237,0.2))",
+              border:"1px solid rgba(91,141,239,0.2)",overflow:"hidden"}}>
+              <Telescope size={16} style={{color:"#5b8def",position:"relative",zIndex:1}}/>
+              {/* Mini orbiting dot */}
+              <div style={{position:"absolute",width:4,height:4,borderRadius:"50%",
+                background:"#f0c040",boxShadow:"0 0 6px rgba(240,192,64,0.5)",
+                animation:"mini-orbit 3s linear infinite"}}/>
             </div>
-            <h1 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:20,fontWeight:700,
-              background:"linear-gradient(135deg,#638cff,#8b5cf6)",
+            <h1 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:21,fontWeight:700,
+              background:"linear-gradient(135deg,#5b8def,#7c3aed)",
               WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
               ExoPlanet AI
             </h1>
-            <span style={{fontSize:8,padding:"2px 6px",borderRadius:4,
-              background:"rgba(99,140,255,0.1)",color:"#638cff",
-              border:"1px solid rgba(99,140,255,0.2)",textTransform:"uppercase",letterSpacing:1.5}}>
-              v2.0
-            </span>
+            {/* Mission badges instead of version */}
+            <div style={{display:"flex",gap:4}}>
+              <span style={{fontSize:7,padding:"2px 6px",borderRadius:4,fontWeight:600,
+                background:"rgba(91,141,239,0.1)",color:"#5b8def",
+                border:"1px solid rgba(91,141,239,0.2)",textTransform:"uppercase",letterSpacing:1,
+                fontFamily:"'DM Mono',monospace"}}>
+                Kepler
+              </span>
+              <span style={{fontSize:7,padding:"2px 6px",borderRadius:4,fontWeight:600,
+                background:"rgba(232,121,168,0.1)",color:"#e879a8",
+                border:"1px solid rgba(232,121,168,0.2)",textTransform:"uppercase",letterSpacing:1,
+                fontFamily:"'DM Mono',monospace"}}>
+                TESS
+              </span>
+            </div>
           </div>
           <p style={{fontSize:11,color:"rgba(160,180,220,0.38)"}}>
-            Détection automatisée d'exoplanètes — Kepler / TESS · XGBoost + TSFRESH
+            Pipeline de detection par transit photometrique · XGBoost + TSFRESH
           </p>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -4373,54 +4710,71 @@ export default function ExoPlanetDashboard() {
           {/* Tour button */}
           <button onClick={()=>{setTourActive(true);setTourStep(0);}} title="Tutoriel interactif" style={{
             width:28,height:28,borderRadius:"50%",fontSize:12,fontWeight:700,cursor:"pointer",
-            background:"rgba(99,140,255,0.08)",border:"1px solid rgba(99,140,255,0.2)",
-            color:"rgba(99,140,255,0.6)",display:"flex",alignItems:"center",justifyContent:"center",
+            background:"rgba(91,141,239,0.08)",border:"1px solid rgba(91,141,239,0.2)",
+            color:"rgba(91,141,239,0.6)",display:"flex",alignItems:"center",justifyContent:"center",
             fontFamily:"'Space Grotesk',sans-serif",flexShrink:0,
           }}>?</button>
           {/* Simple / Expert segmented toggle */}
           <div data-tour="mode-toggle" style={{display:"flex",borderRadius:20,overflow:"hidden",
-            border:"1px solid rgba(99,140,255,0.15)",background:"rgba(10,12,22,0.7)"}}>
+            border:"1px solid rgba(91,141,239,0.15)",background:"rgba(10,12,22,0.7)"}}>
             <button onClick={()=>setSimpleMode(true)} style={{
               padding:"5px 13px",fontSize:10,fontFamily:"'DM Mono',monospace",cursor:"pointer",
               border:"none",transition:"all .2s",
-              background:simpleMode?"rgba(139,92,246,0.22)":"transparent",
+              background:simpleMode?"rgba(124,58,237,0.22)":"transparent",
               color:simpleMode?"#a78bfa":"rgba(160,180,220,0.3)",
             }}>✨ Débutant</button>
-            <div style={{width:1,background:"rgba(99,140,255,0.12)",flexShrink:0}}/>
+            <div style={{width:1,background:"rgba(91,141,239,0.12)",flexShrink:0}}/>
             <button onClick={()=>setSimpleMode(false)} style={{
               padding:"5px 13px",fontSize:10,fontFamily:"'DM Mono',monospace",cursor:"pointer",
               border:"none",transition:"all .2s",
-              background:!simpleMode?"rgba(99,140,255,0.18)":"transparent",
-              color:!simpleMode?"#638cff":"rgba(160,180,220,0.3)",
+              background:!simpleMode?"rgba(91,141,239,0.18)":"transparent",
+              color:!simpleMode?"#5b8def":"rgba(160,180,220,0.3)",
             }}>🔭 Expert</button>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",
-            borderRadius:7,background:"rgba(99,140,255,0.06)",
-            border:"1px solid rgba(99,140,255,0.1)",cursor:"pointer"}}
+            borderRadius:7,background:"rgba(91,141,239,0.06)",
+            border:"1px solid rgba(91,141,239,0.1)",cursor:"pointer"}}
             onClick={() => setActiveTab("profile")}
             title="Voir mon profil">
             {(()=>{ 
               const HIcon = AVATARS.find(a=>a.id===authState?.avatar)?.icon || User; 
-              return <HIcon size={12} style={{color:"#4ade80"}}/>; 
+              return <HIcon size={12} style={{color:"#34d399"}}/>; 
             })()}
-            <span style={{fontSize:11,color:"#e0e8f5",fontWeight:500}}>{authState.username}</span>
+            <span style={{fontSize:11,color:"#e4e8f7",fontWeight:500}}>{authState.username}</span>
           </div>
         </div>
       </header>
 
       {/* ── Nav tabs ── */}
       <nav data-tour="nav" style={{position:"relative",zIndex:10,padding:"14px 32px 0",
-        display:"flex",gap:4,borderBottom:"1px solid rgba(99,140,255,0.07)",
+        display:"flex",gap:2,borderBottom:"1px solid rgba(91,141,239,0.07)",
         paddingBottom:0,marginBottom:0}}>
         {TABS.map(({key,label,icon:Icon})=>(
           <button key={key} data-tour={`tab-${key}`} onClick={()=>setActiveTab(key)} style={{
-            display:"flex",alignItems:"center",gap:6,padding:"8px 14px",
+            position:"relative",
+            display:"flex",alignItems:"center",gap:6,padding:"9px 16px",
             fontSize:11,fontFamily:"'DM Mono',monospace",border:"none",cursor:"pointer",
-            borderBottom:`2px solid ${activeTab===key?"#638cff":"transparent"}`,
+            borderBottom: activeTab===key ? "2px solid #5b8def" : "2px solid transparent",
             background:"transparent",
-            color:activeTab===key?"#638cff":"rgba(160,180,220,0.45)",
-            transition:"color .2s"}}>
+            color:activeTab===key?"#5b8def":"rgba(160,180,220,0.4)",
+            transition:"color .2s, border-color .2s"}}>
             <Icon size={13}/>{label}
+            {/* Badge count on profile tab for history */}
+            {key==="profile"&&history.length>0&&(
+              <span style={{fontSize:8,minWidth:14,height:14,display:"flex",
+                alignItems:"center",justifyContent:"center",padding:"0 3px",
+                borderRadius:7,background:"rgba(91,141,239,0.2)",
+                color:"#5b8def",fontWeight:700,fontFamily:"'DM Mono',monospace"}}>
+                {history.length}
+              </span>
+            )}
+            {/* Glow effect on active tab */}
+            {activeTab===key && (
+              <div style={{position:"absolute",bottom:-2,left:"50%",transform:"translateX(-50%)",
+                width:"60%",height:2,background:"#5b8def",
+                boxShadow:"0 0 8px rgba(91,141,239,0.4),0 0 20px rgba(91,141,239,0.2)",
+                borderRadius:1}}/>
+            )}
           </button>
         ))}
       </nav>
@@ -4442,9 +4796,9 @@ export default function ExoPlanetDashboard() {
                   if(activeSug>=0&&suggestions[activeSug]){ const s=suggestions[activeSug]; setInput(s); setTarget(s); analyze(s); setActiveSug(-1); }
                   else if(input.trim()){ setTarget(input.trim()); analyze(input.trim()); }
                 }} style={{display:"flex",alignItems:"center",
-                  background:"rgba(15,18,30,0.8)",border:"1px solid rgba(99,140,255,0.14)",
+                  background:"rgba(15,18,30,0.8)",border:"1px solid rgba(91,141,239,0.14)",
                   borderRadius:11,overflow:"hidden"}}>
-                  <Search size={13} style={{color:"rgba(99,140,255,0.4)",marginLeft:11}}/>
+                  <Search size={13} style={{color:"rgba(91,141,239,0.4)",marginLeft:11}}/>
                   <input value={input}
                     onChange={e=>{
                       const v=e.target.value; setInput(v); setActiveSug(-1);
@@ -4468,12 +4822,12 @@ export default function ExoPlanetDashboard() {
                     onFocus={()=>{ if(suggestions.length>0) setShowSug(true); }}
                     placeholder={simpleMode?"Nom d'une étoile (ex: Kepler-10)…":"Kepler-10, KIC 11446443, TIC 12345678…"}
                     style={{flex:1,padding:"9px 11px",background:"transparent",
-                      border:"none",outline:"none",color:"#e0e8f5",
+                      border:"none",outline:"none",color:"#e4e8f7",
                       fontFamily:"'DM Mono',monospace",fontSize:13}}/>
                   <button type="submit" disabled={loading} style={{
-                    padding:"8px 14px",background:"linear-gradient(135deg,rgba(99,140,255,0.2),rgba(139,92,246,0.2))",
-                    border:"none",borderLeft:"1px solid rgba(99,140,255,0.12)",
-                    color:"#638cff",fontFamily:"'DM Mono',monospace",fontSize:11,
+                    padding:"8px 14px",background:"linear-gradient(135deg,rgba(91,141,239,0.2),rgba(124,58,237,0.2))",
+                    border:"none",borderLeft:"1px solid rgba(91,141,239,0.12)",
+                    color:"#5b8def",fontFamily:"'DM Mono',monospace",fontSize:11,
                     cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
                     {loading?<Loader2 size={12} style={{animation:"spin 1s linear infinite"}}/>
                             :<ChevronRight size={12}/>} {simpleMode?"Analyser !":"Analyser"}
@@ -4484,7 +4838,7 @@ export default function ExoPlanetDashboard() {
                 {showSug && suggestions.length>0 && (
                   <div style={{
                     position:"absolute",top:"calc(100% + 4px)",left:0,right:0,
-                    background:"rgba(8,11,22,0.97)",border:"1px solid rgba(99,140,255,0.2)",
+                    background:"rgba(8,11,22,0.97)",border:"1px solid rgba(91,141,239,0.2)",
                     borderRadius:9,overflow:"hidden",zIndex:200,
                     boxShadow:"0 8px 24px rgba(0,0,0,0.5)",
                   }}>
@@ -4494,10 +4848,10 @@ export default function ExoPlanetDashboard() {
                         style={{
                           padding:"8px 12px",cursor:"pointer",fontSize:12,
                           fontFamily:"'DM Mono',monospace",
-                          background:activeSug===i?"rgba(99,140,255,0.12)":"transparent",
-                          color:activeSug===i?"#638cff":"rgba(200,215,240,0.75)",
+                          background:activeSug===i?"rgba(91,141,239,0.12)":"transparent",
+                          color:activeSug===i?"#5b8def":"rgba(200,215,240,0.75)",
                           display:"flex",alignItems:"center",gap:8,
-                          borderBottom: i<suggestions.length-1?"1px solid rgba(99,140,255,0.06)":"none",
+                          borderBottom: i<suggestions.length-1?"1px solid rgba(91,141,239,0.06)":"none",
                           transition:"background .1s",
                         }}
                         onMouseEnter={()=>setActiveSug(i)}
@@ -4527,26 +4881,45 @@ export default function ExoPlanetDashboard() {
                 const isMaybe = aData.score>=0.35;
                 const emoji   = isPlant?"🌍":isMaybe?"🔶":"⭐";
                 const title   = isPlant
-                  ?`${aData.target} a probablement une planète !`
+                  ?`${aData.target} a probablement une planete !`
                   :isMaybe
-                  ?`${aData.target} — résultat ambigu`
-                  :`${aData.target} — aucune planète détectée`;
+                  ?`${aData.target} — resultat ambigu`
+                  :`${aData.target} — aucune planete detectee`;
                 const subtitle= isPlant
-                  ?`Notre intelligence artificielle est confiante à ${Math.round(aData.score*100)}%. Un objet en orbite crée des mini-éclipses régulières visibles sur le graphique ci-dessous.`
+                  ?`Notre intelligence artificielle est confiante a ${Math.round(aData.score*100)}%. Un objet en orbite cree des mini-eclipses regulieres visibles sur le graphique ci-dessous.`
                   :isMaybe
-                  ?`La confiance est de ${Math.round(aData.score*100)}%. Le signal est présent mais peu clair — il faudrait plus de données pour conclure.`
-                  :`Confiance : ${Math.round(aData.score*100)}%. La luminosité de cette étoile ne montre pas de passage régulier d'une planète.`;
-                const col = isPlant?"#4ade80":isMaybe?"#fbbf24":"#94a3b8";
-                const bg  = isPlant?"rgba(74,222,128,0.07)":isMaybe?"rgba(251,191,36,0.07)":"rgba(148,163,184,0.05)";
-                const border=isPlant?"rgba(74,222,128,0.25)":isMaybe?"rgba(251,191,36,0.25)":"rgba(148,163,184,0.15)";
+                  ?`La confiance est de ${Math.round(aData.score*100)}%. Le signal est present mais peu clair — il faudrait plus de donnees pour conclure.`
+                  :`Confiance : ${Math.round(aData.score*100)}%. La luminosite de cette etoile ne montre pas de passage regulier d'une planete.`;
+                const col = isPlant?"#34d399":isMaybe?"#fbbf24":"#94a3b8";
+                const bg  = isPlant?"rgba(52,211,153,0.06)":isMaybe?"rgba(251,191,36,0.07)":"rgba(148,163,184,0.05)";
+                const border=isPlant?"rgba(52,211,153,0.25)":isMaybe?"rgba(251,191,36,0.25)":"rgba(148,163,184,0.15)";
                 return (
                   <div style={{display:"flex",flexDirection:"column",gap:14,animation:"fadeIn .5s ease-out"}}>
                     {/* Big verdict card */}
-                    <Card style={{padding:"24px 28px",background:bg,border:`1px solid ${border}`}}>
-                      <div style={{fontSize:48,marginBottom:12,lineHeight:1}}>{emoji}</div>
-                      <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:18,fontWeight:700,
-                        color:col,marginBottom:8}}>{title}</h2>
-                      <p style={{fontSize:13,color:"rgba(200,215,240,0.75)",lineHeight:1.6,maxWidth:560}}>{subtitle}</p>
+                    <Card style={{padding:"24px 28px",background:bg,border:`1px solid ${border}`,
+                      position:"relative",overflow:"hidden"}}>
+                      {/* Mission indicator stripe */}
+                      <div style={{position:"absolute",top:0,left:0,width:3,height:"100%",
+                        background:isPlant?"#34d399":isMaybe?"#fbbf24":"#64748b",borderRadius:"3px 0 0 3px"}}/>
+                      <div style={{display:"flex",alignItems:"flex-start",gap:16}}>
+                        <div style={{fontSize:48,lineHeight:1,flexShrink:0}}>{emoji}</div>
+                        <div>
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                            <h2 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:18,fontWeight:700,
+                              color:col}}>{title}</h2>
+                            {aData.mission && (
+                              <span style={{fontSize:8,padding:"2px 7px",borderRadius:4,fontWeight:600,
+                                background:aData.mission==="Kepler"?"rgba(91,141,239,0.1)":"rgba(232,121,168,0.1)",
+                                color:aData.mission==="Kepler"?"#5b8def":"#e879a8",
+                                border:`1px solid ${aData.mission==="Kepler"?"rgba(91,141,239,0.2)":"rgba(232,121,168,0.2)"}`,
+                                textTransform:"uppercase",letterSpacing:1,fontFamily:"'DM Mono',monospace"}}>
+                                {aData.mission}
+                              </span>
+                            )}
+                          </div>
+                          <p style={{fontSize:13,color:"rgba(200,215,240,0.7)",lineHeight:1.6,maxWidth:520}}>{subtitle}</p>
+                        </div>
+                      </div>
                     </Card>
 
                     {/* Light curve + plain explanation */}
@@ -4563,18 +4936,25 @@ export default function ExoPlanetDashboard() {
                       </div>
                     </Card>
 
-                    {/* Simple stats */}
+                    {/* Simple stats with planet type icons */}
                     {aData.characterization && (
                       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
                         {[
-                          {label:"Durée d'une orbite", value: aData.period_days ? `${aData.period_days} jours` : "—", icon:"🔄"},
-                          {label:"Taille estimée",     value: aData.characterization.planet_radius_earth ? `${aData.characterization.planet_radius_earth} × la Terre` : "—", icon:"📏"},
-                          {label:"Type de planète",    value: aData.characterization.planet_type || "Indéterminé", icon:"🪐"},
-                        ].map(({label,value,icon})=>(
-                          <Card key={label} style={{padding:"14px 16px",textAlign:"center"}}>
-                            <div style={{fontSize:22,marginBottom:6}}>{icon}</div>
-                            <div style={{fontSize:11,color:"rgba(160,180,220,0.45)",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>{label}</div>
-                            <div style={{fontSize:13,fontWeight:600,color:"#e0e8f5",fontFamily:"'Space Grotesk',sans-serif"}}>{value}</div>
+                          {label:"Duree d'une orbite", value: aData.period_days ? `${aData.period_days} jours` : "—",
+                            iconEl:<Orbit size={20} style={{color:"#5b8def"}}/>},
+                          {label:"Taille estimee",     value: aData.characterization.planet_radius_earth ? `${aData.characterization.planet_radius_earth} x Terre` : "—",
+                            iconEl:<Globe size={20} style={{color:"#34d399"}}/>},
+                          {label:"Type de planete",    value: aData.characterization.planet_type || "Indetermine",
+                            iconEl:<Star size={20} style={{color:"#f0c040"}}/>},
+                        ].map(({label,value,iconEl})=>(
+                          <Card key={label} style={{padding:"16px 16px",textAlign:"center",
+                            border:"1px solid rgba(91,141,239,0.08)",
+                            transition:"border-color 0.2s,box-shadow 0.2s"}}>
+                            <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}>{iconEl}</div>
+                            <div style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:5,
+                              fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:0.5}}>{label}</div>
+                            <div style={{fontSize:14,fontWeight:600,color:"#e4e8f7",
+                              fontFamily:"'Space Grotesk',sans-serif"}}>{value}</div>
                           </Card>
                         ))}
                       </div>
@@ -4589,22 +4969,35 @@ export default function ExoPlanetDashboard() {
                   {/* verdict banner */}
                   {aData&&!loading&&(
                     <div style={{
-                      display:"flex",alignItems:"center",gap:12,padding:"10px 16px",
-                      borderRadius:10,animation:"fadeIn .4s ease-out",
-                      background:aData.score>=0.70?"rgba(74,222,160,0.08)":
-                                 aData.score>=0.35 ?"rgba(251,191,36,0.08)":"rgba(248,113,113,0.08)",
-                      border:`1px solid ${aData.score>=0.70?"rgba(74,222,160,0.2)":
+                      display:"flex",alignItems:"center",gap:12,padding:"11px 16px",
+                      borderRadius:10,animation:"fadeIn .4s ease-out",position:"relative",overflow:"hidden",
+                      background:aData.score>=0.70?"rgba(52,211,153,0.06)":
+                                 aData.score>=0.35 ?"rgba(251,191,36,0.06)":"rgba(248,113,113,0.06)",
+                      border:`1px solid ${aData.score>=0.70?"rgba(52,211,153,0.2)":
                                           aData.score>=0.35 ?"rgba(251,191,36,0.2)":"rgba(248,113,113,0.2)"}`,
                     }}>
-                      {aData.score>=0.70?<CheckCircle2 size={16} style={{color:"#4ade80"}}/>
+                      {/* Left verdict stripe */}
+                      <div style={{position:"absolute",top:0,left:0,width:3,height:"100%",
+                        background:aData.score>=0.70?"#34d399":aData.score>=0.35?"#fbbf24":"#f87171",
+                        borderRadius:"3px 0 0 3px"}}/>
+                      {aData.score>=0.70?<CheckCircle2 size={16} style={{color:"#34d399"}}/>
                         :aData.score>=0.35?<Info size={16} style={{color:"#fbbf24"}}/>
                         :<AlertTriangle size={16} style={{color:"#f87171"}}/>}
-                      <div>
-                        <span style={{fontSize:13,fontWeight:600,color:"#e0e8f5"}}>{aData.target}</span>
-                        <span style={{fontSize:12,color:"rgba(160,180,220,0.6)",marginLeft:10}}>{aData.verdict}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:13,fontWeight:600,color:"#e4e8f7"}}>{aData.target}</span>
+                        {/* Mission badge */}
+                        <span style={{fontSize:7,padding:"2px 6px",borderRadius:4,fontWeight:600,
+                          background:aData.mission==="Kepler"?"rgba(91,141,239,0.1)":"rgba(232,121,168,0.1)",
+                          color:aData.mission==="Kepler"?"#5b8def":"#e879a8",
+                          border:`1px solid ${aData.mission==="Kepler"?"rgba(91,141,239,0.2)":"rgba(232,121,168,0.2)"}`,
+                          textTransform:"uppercase",letterSpacing:1,fontFamily:"'DM Mono',monospace"}}>
+                          {aData.mission}
+                        </span>
+                        <span style={{fontSize:12,color:"rgba(160,180,220,0.55)"}}>{aData.verdict}</span>
                       </div>
-                      <div style={{marginLeft:"auto",fontSize:11,color:"rgba(160,180,220,0.35)"}}>
-                        Mission: {aData.mission} · analysé par {aData.analyzed_by}
+                      <div style={{marginLeft:"auto",fontSize:10,color:"rgba(160,180,220,0.3)",
+                        fontFamily:"'DM Mono',monospace",display:"flex",alignItems:"center",gap:6}}>
+                        <Telescope size={10} style={{opacity:0.5}}/> {aData.analyzed_by}
                       </div>
                     </div>
                   )}
@@ -4620,9 +5013,9 @@ export default function ExoPlanetDashboard() {
                         </div>
                         <button onClick={()=>analyze(target)} disabled={loading} style={{
                           display:"flex",alignItems:"center",gap:4,padding:"4px 8px",
-                          borderRadius:6,background:"rgba(99,140,255,0.07)",
-                          border:"1px solid rgba(99,140,255,0.14)",
-                          color:"#638cff",fontSize:10,fontFamily:"'DM Mono',monospace",cursor:"pointer"}}>
+                          borderRadius:6,background:"rgba(91,141,239,0.07)",
+                          border:"1px solid rgba(91,141,239,0.14)",
+                          color:"#5b8def",fontSize:10,fontFamily:"'DM Mono',monospace",cursor:"pointer"}}>
                           <RotateCcw size={11}/> Recharger
                         </button>
                       </div>
@@ -4635,7 +5028,7 @@ export default function ExoPlanetDashboard() {
                       <Card style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"16px 14px"}}>
                         <h3 style={{fontSize:10,color:"rgba(160,180,220,0.45)",marginBottom:8,
                           textTransform:"uppercase",letterSpacing:1.5}}>Verdict de l'IA</h3>
-                        {aData?<ScoreGauge score={aData.score}/>
+                        {aData?<ScoreGauge score={aData.score} scoreStd={aData.score_std ?? null}/>
                           :<div style={{color:"rgba(160,180,220,0.3)",fontSize:12,padding:16}}>En attente…</div>}
                       </Card>
                       {aData?.feature_importances?.length>0
@@ -4674,6 +5067,8 @@ export default function ExoPlanetDashboard() {
         {/* ─ Catalog tab ─ */}
         {activeTab==="catalog"&&<CatalogTab onAnalyze={analyzeFromCatalog}/>}
 
+        {activeTab==="docs"&&<DocTab/>}
+
         {activeTab==="profile"&&<ProfileTab
           authState={authState} history={history}
           onLogout={handleLogout} setAuthState={setAuthState}
@@ -4690,11 +5085,40 @@ export default function ExoPlanetDashboard() {
         />}
 
         {/* footer */}
-        <div style={{display:"flex",justifyContent:"space-between",
-          padding:"10px 0",borderTop:"1px solid rgba(99,140,255,0.06)",
-          fontSize:10,color:"rgba(160,180,220,0.2)"}}>
-          <span>ECE Paris — ING4 Group 1 · S. Gallais, M. Rolland, C. De Blauwe, M. Leitao, O. Schwartz, K. Benjelloum</span>
-          <span>NASA MAST Archive · Kepler / TESS</span>
+        <div style={{borderTop:"1px solid rgba(91,141,239,0.06)",
+          padding:"16px 0 8px",marginTop:8}}>
+          {/* Mission tags row */}
+          <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:12,marginBottom:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:"#5b8def",
+                boxShadow:"0 0 6px rgba(91,141,239,0.4)"}}/>
+              <span style={{fontSize:9,color:"rgba(91,141,239,0.6)",fontFamily:"'DM Mono',monospace",
+                letterSpacing:0.5,textTransform:"uppercase"}}>Kepler</span>
+            </div>
+            <div style={{width:1,height:10,background:"rgba(91,141,239,0.1)"}}/>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:"#e879a8",
+                boxShadow:"0 0 6px rgba(232,121,168,0.4)"}}/>
+              <span style={{fontSize:9,color:"rgba(232,121,168,0.6)",fontFamily:"'DM Mono',monospace",
+                letterSpacing:0.5,textTransform:"uppercase"}}>TESS</span>
+            </div>
+            <div style={{width:1,height:10,background:"rgba(91,141,239,0.1)"}}/>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:"#34d399",
+                boxShadow:"0 0 6px rgba(52,211,153,0.4)"}}/>
+              <span style={{fontSize:9,color:"rgba(52,211,153,0.5)",fontFamily:"'DM Mono',monospace",
+                letterSpacing:0.5,textTransform:"uppercase"}}>NASA MAST</span>
+            </div>
+            <div style={{width:1,height:10,background:"rgba(91,141,239,0.1)"}}/>
+            <span style={{fontSize:9,color:"rgba(160,180,220,0.25)",fontFamily:"'DM Mono',monospace",
+              letterSpacing:0.5}}>Transit Photometrique · XGBoost</span>
+          </div>
+          {/* Credits row */}
+          <div style={{display:"flex",justifyContent:"space-between",
+            fontSize:9,color:"rgba(160,180,220,0.18)"}}>
+            <span>ECE Paris — ING4 Group 1 · S. Gallais, M. Rolland, C. De Blauwe, M. Leitao, O. Schwartz, K. Benjelloum</span>
+            <span style={{fontFamily:"'DM Mono',monospace"}}>5000+ exoplanetes confirmees</span>
+          </div>
         </div>
       </main>
     </div>

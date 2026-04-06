@@ -14,5 +14,11 @@
     "created_at": "2026-04-01T14:00:11.819921",
     "has_seen_tutorial": true,
     "avatar": "user"
+  },
+  "mederic": {
+    "password_hash": "8b8fb223b0346fecf8090acb1d9d0af8d41fdbba862469aff4b5249bc014c104",
+    "created_at": "2026-04-06T19:11:01.678260",
+    "has_seen_tutorial": true,
+    "avatar": "user"
   }
 }

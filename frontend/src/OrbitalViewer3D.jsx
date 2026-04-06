@@ -299,7 +299,7 @@ export default function OrbitalViewer3D({ data, nasaPlanets }) {
           textTransform: 'uppercase', letterSpacing: 1.5,
           fontFamily: "'DM Mono',monospace", marginBottom: 3,
         }}>Aperçu orbital 3D</div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#e0e8f5', fontFamily: "'Space Grotesk',sans-serif" }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#e4e8f7', fontFamily: "'Space Grotesk',sans-serif" }}>
           {hasData ? data.target : 'En attente...'}
         </div>
         {nasaPlanets?.length > 1 && (
@@ -336,11 +336,11 @@ export default function OrbitalViewer3D({ data, nasaPlanets }) {
             <div key={i} style={{
               padding: '3px 9px', borderRadius: 6,
               background: 'rgba(4,7,18,0.82)', backdropFilter: 'blur(4px)',
-              border: '1px solid rgba(99,140,255,0.12)',
+              border: '1px solid rgba(91,141,239,0.12)',
               fontFamily: "'DM Mono',monospace", fontSize: 9,
             }}>
               <span style={{ color: 'rgba(160,180,220,0.4)' }}>{item.label} </span>
-              <span style={{ color: '#e0e8f5' }}>{item.value}</span>
+              <span style={{ color: '#e4e8f7' }}>{item.value}</span>
             </div>
           ))}
         </div>

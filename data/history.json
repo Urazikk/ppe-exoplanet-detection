@@ -1,407 +1,415 @@
 {
   "oscarico": [
     {
-      "target": "TIC 149601557",
-      "score": 0.1562,
-      "verdict": "Probable faux positif",
-      "period_days": 26.4186,
+      "target": "TOI-1749b",
+      "score": 0.9622,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 24.312,
       "mission": "TESS",
-      "date": "2026-04-01T11:54:29.986772"
+      "date": "2026-04-06T19:59:13.330998"
     },
     {
-      "target": "TIC 16288184",
-      "score": 0.8236,
+      "target": "TOI-1749",
+      "score": 0.9622,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 24.312,
+      "mission": "TESS",
+      "date": "2026-04-06T19:58:41.848913"
+    },
+    {
+      "target": "Kepler-10",
+      "score": 0.996,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:58:11.757788"
+    },
+    {
+      "target": "TOI-1452b",
+      "score": 0.7641,
       "verdict": "Exoplan\u00e8te probable",
-      "period_days": 24.8912,
+      "period_days": 0.9403,
       "mission": "TESS",
-      "date": "2026-04-01T11:54:21.550189"
+      "date": "2026-04-06T19:53:58.835567"
     },
     {
-      "target": "TIC 231670397",
-      "score": 0.9828,
+      "target": "Kepler-10",
+      "score": 0.996,
       "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 50.5052,
-      "mission": "TESS",
-      "date": "2026-04-01T11:53:25.189171"
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:52:41.849379"
     },
     {
-      "target": "TIC 304021498",
-      "score": 0.0227,
+      "target": "TOI-1749b",
+      "score": 0.9622,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 24.312,
+      "mission": "TESS",
+      "date": "2026-04-06T19:52:36.508477"
+    },
+    {
+      "target": "TOI-1749b",
+      "score": 0.9622,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 24.312,
+      "mission": "TESS",
+      "date": "2026-04-06T19:52:32.528669"
+    },
+    {
+      "target": "Kepler-10",
+      "score": 0.996,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:39:09.861165"
+    },
+    {
+      "target": "KIC 10657406",
+      "score": 0.9997,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 62.9454,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:26:05.968873"
+    },
+    {
+      "target": "KIC 10657406",
+      "score": 0.9997,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 62.9454,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:26:05.509733"
+    },
+    {
+      "target": "3343866",
+      "score": 0.005,
       "verdict": "Faux positif tr\u00e8s probable",
-      "period_days": 25.4138,
+      "period_days": 18.6731,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:25:22.383859"
+    },
+    {
+      "target": "10281311",
+      "score": 0.8719,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 4.5385,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:22:35.011962"
+    },
+    {
+      "target": "Kepler-452",
+      "score": 0.8043,
+      "verdict": "Exoplan\u00e8te probable",
+      "period_days": 18.4166,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:21:29.414600"
+    },
+    {
+      "target": "Custom Star",
+      "score": 0.324,
+      "verdict": "Non plan\u00e9taire",
+      "period_days": 3.4828,
+      "mission": "Custom CSV",
+      "date": "2026-04-06T19:20:10.022450"
+    },
+    {
+      "target": "KIC 6131977",
+      "score": 0.134,
+      "verdict": "Faux positif tr\u00e8s probable",
+      "period_days": 28.1274,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:18:43.613279"
+    },
+    {
+      "target": "Kepler-55",
+      "score": 0.9994,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 40.7586,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:17:20.925836"
+    },
+    {
+      "target": "KIC 4843751",
+      "score": 0.0001,
+      "verdict": "Faux positif tr\u00e8s probable",
+      "period_days": 15.0075,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:17:07.566313"
+    },
+    {
+      "target": "KIC 7838675",
+      "score": 0.7701,
+      "verdict": "Exoplan\u00e8te probable",
+      "period_days": 0.5,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:17:04.015177"
+    },
+    {
+      "target": "Kepler-186",
+      "score": 0.9992,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 54.6408,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:16:23.173949"
+    },
+    {
+      "target": "10158990",
+      "score": 0.0891,
+      "verdict": "Faux positif tr\u00e8s probable",
+      "period_days": 55.0194,
+      "mission": "Kepler",
+      "date": "2026-04-06T19:15:46.298704"
+    },
+    {
+      "target": "TOI-270",
+      "score": 0.9776,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 11.3183,
       "mission": "TESS",
-      "date": "2026-04-01T11:52:14.062528"
-    },
-    {
-      "target": "Kepler-22",
-      "score": 0.9941,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 16.6398,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:50:59.498327"
-    },
-    {
-      "target": "Kepler-22 b",
-      "score": 0.9941,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 16.6398,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:50:13.633376"
-    },
-    {
-      "target": "KIC 8890150",
-      "score": 0.9881,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 17.5306,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:48:11.689499"
+      "date": "2026-04-06T19:15:01.645419"
     },
     {
       "target": "TOI-178",
-      "score": 0.9699,
+      "score": 0.9566,
       "verdict": "Exoplan\u00e8te tr\u00e8s probable",
       "period_days": 242.6268,
       "mission": "TESS",
-      "date": "2026-04-01T11:46:14.674470"
-    },
-    {
-      "target": "TOI-1338",
-      "score": 0.1789,
-      "verdict": "Probable faux positif",
-      "period_days": 14.5906,
-      "mission": "TESS",
-      "date": "2026-04-01T11:45:34.710006"
-    },
-    {
-      "target": "TOI-776",
-      "score": 0.9929,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 29.4512,
-      "mission": "TESS",
-      "date": "2026-04-01T11:42:51.578772"
-    },
-    {
-      "target": "TOI-270",
-      "score": 0.9876,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 11.3183,
-      "mission": "TESS",
-      "date": "2026-04-01T11:42:38.328947"
-    },
-    {
-      "target": "TOI-700d",
-      "score": 0.9748,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 4.0138,
-      "mission": "TESS",
-      "date": "2026-04-01T11:42:25.780918"
-    },
-    {
-      "target": "TOI-700",
-      "score": 0.9748,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 4.0138,
-      "mission": "TESS",
-      "date": "2026-04-01T11:41:55.251725"
+      "date": "2026-04-06T19:15:01.468946"
     },
     {
       "target": "Kepler-10",
-      "score": 0.9949,
+      "score": 0.996,
       "verdict": "Exoplan\u00e8te tr\u00e8s probable",
       "period_days": 45.1,
       "mission": "Kepler",
-      "date": "2026-04-01T11:41:44.736515"
+      "date": "2026-04-06T19:12:59.157314"
     },
     {
-      "target": "6266741",
-      "score": 0.9972,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 7.9459,
+      "target": "KIC 10321391",
+      "score": 0.1444,
+      "verdict": "Faux positif tr\u00e8s probable",
+      "period_days": 10.7183,
       "mission": "Kepler",
-      "date": "2026-04-01T11:37:30.799439"
+      "date": "2026-04-03T21:33:51.318894"
     },
     {
-      "target": "6191521",
-      "score": 0.9952,
+      "target": "Kepler-62",
+      "score": 0.9998,
       "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 55.1456,
+      "period_days": 18.1683,
       "mission": "Kepler",
-      "date": "2026-04-01T11:36:58.956996"
+      "date": "2026-04-03T21:33:31.617116"
+    },
+    {
+      "target": "Kepler-452",
+      "score": 0.8043,
+      "verdict": "Exoplan\u00e8te probable",
+      "period_days": 18.4166,
+      "mission": "Kepler",
+      "date": "2026-04-03T21:31:36.357595"
+    },
+    {
+      "target": "Kepler-10",
+      "score": 0.996,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-03T20:49:18.107572"
+    },
+    {
+      "target": "Custom Star",
+      "score": 0.324,
+      "verdict": "Non plan\u00e9taire",
+      "period_days": 3.4828,
+      "mission": "Custom CSV",
+      "date": "2026-04-03T08:21:29.693534"
+    },
+    {
+      "target": "Kepler-10",
+      "score": 0.996,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-03T08:20:31.119656"
+    },
+    {
+      "target": "9513865",
+      "score": 0.9991,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 19.3042,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:17:47.840354"
+    },
+    {
+      "target": "8299955",
+      "score": 0.1379,
+      "verdict": "Faux positif tr\u00e8s probable",
+      "period_days": 13.3139,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:08:49.666786"
+    },
+    {
+      "target": "8351704",
+      "score": 0.9932,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 62.3392,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:08:30.530140"
+    },
+    {
+      "target": "7742408",
+      "score": 0.5833,
+      "verdict": "Candidat \u00e0 confirmer",
+      "period_days": 20.7649,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:07:58.900950"
+    },
+    {
+      "target": "8081187",
+      "score": 0.4487,
+      "verdict": "Ind\u00e9termin\u00e9",
+      "period_days": 14.7473,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:07:21.093049"
+    },
+    {
+      "target": "10677186",
+      "score": 0.0003,
+      "verdict": "Faux positif tr\u00e8s probable",
+      "period_days": 33.4514,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:07:06.568658"
+    },
+    {
+      "target": "4349442",
+      "score": 0.9914,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 12.7124,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:06:32.402035"
+    },
+    {
+      "target": "11869052",
+      "score": 0.6106,
+      "verdict": "Candidat \u00e0 confirmer",
+      "period_days": 20.5265,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:05:58.365642"
+    },
+    {
+      "target": "Kepler-99",
+      "score": 0.9987,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 44.4184,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:05:16.869993"
+    },
+    {
+      "target": "Kepler-69",
+      "score": 0.9995,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 13.7102,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:04:37.528361"
+    },
+    {
+      "target": "Kepler-67",
+      "score": 0.9995,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 91.394,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:04:05.558067"
+    },
+    {
+      "target": "Kepler-10",
+      "score": 0.996,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-02T22:03:23.810538"
+    },
+    {
+      "target": "TOI-270",
+      "score": 0.9776,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 11.3183,
+      "mission": "TESS",
+      "date": "2026-04-02T21:53:35.318724"
     },
     {
       "target": "Kepler-186",
-      "score": 0.9989,
+      "score": 0.9992,
       "verdict": "Exoplan\u00e8te tr\u00e8s probable",
       "period_days": 54.6408,
       "mission": "Kepler",
-      "date": "2026-04-01T11:35:15.437965"
-    },
-    {
-      "target": "11456405",
-      "score": 0.0153,
-      "verdict": "Faux positif tr\u00e8s probable",
-      "period_days": 10.7224,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:34:56.736125"
-    },
-    {
-      "target": "8397947",
-      "score": 0.1069,
-      "verdict": "Faux positif tr\u00e8s probable",
-      "period_days": 9.5709,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:34:30.563403"
-    },
-    {
-      "target": "TOI-776",
-      "score": 0.4425,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 29.4512,
-      "mission": "TESS",
-      "date": "2026-04-01T11:33:50.428958"
-    },
-    {
-      "target": "TOI-270",
-      "score": 0.4357,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 11.3183,
-      "mission": "TESS",
-      "date": "2026-04-01T11:33:33.262921"
-    },
-    {
-      "target": "TOI-125",
-      "score": 0.4756,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 4.6531,
-      "mission": "TESS",
-      "date": "2026-04-01T11:33:15.151284"
-    },
-    {
-      "target": "TOI-700",
-      "score": 0.4301,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 4.0138,
-      "mission": "TESS",
-      "date": "2026-04-01T11:33:01.948886"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.9949,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:32:51.365900"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.9949,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:30:51.125413"
-    },
-    {
-      "target": "KIC 10330115",
-      "score": 0.9937,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 9.2045,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:21:34.067005"
-    },
-    {
-      "target": "TOI-1452",
-      "score": 0.6919,
-      "verdict": "Candidat \u00e0 confirmer",
-      "period_days": 5.5249,
-      "mission": "TESS",
-      "date": "2026-04-01T11:21:26.166133"
-    },
-    {
-      "target": "TOI-125",
-      "score": 0.6919,
-      "verdict": "Candidat \u00e0 confirmer",
-      "period_days": 4.6531,
-      "mission": "TESS",
-      "date": "2026-04-01T11:20:58.631083"
-    },
-    {
-      "target": "TOI-270",
-      "score": 0.6919,
-      "verdict": "Candidat \u00e0 confirmer",
-      "period_days": 11.3183,
-      "mission": "TESS",
-      "date": "2026-04-01T11:20:08.872355"
-    },
-    {
-      "target": "TOI-700",
-      "score": 0.6919,
-      "verdict": "Candidat \u00e0 confirmer",
-      "period_days": 4.0138,
-      "mission": "TESS",
-      "date": "2026-04-01T11:19:43.298378"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.9949,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-04-01T11:19:18.467029"
-    },
-    {
-      "target": "KIC 8953257",
-      "score": 0.0002,
-      "verdict": "Faux positif tr\u00e8s probable",
-      "period_days": 5.7984,
-      "mission": "Kepler",
-      "date": "2026-04-01T10:49:00.931450"
-    },
-    {
-      "target": "KIC 9291039",
-      "score": 0.4266,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 2.1506,
-      "mission": "Kepler",
-      "date": "2026-04-01T10:48:55.273334"
-    },
-    {
-      "target": "KIC 9291039",
-      "score": 0.4266,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 2.1506,
-      "mission": "Kepler",
-      "date": "2026-04-01T10:48:55.053046"
-    },
-    {
-      "target": "TOI-125",
-      "score": 0.0623,
-      "verdict": "Faux positif tr\u00e8s probable",
-      "period_days": 4.6531,
-      "mission": "TESS",
-      "date": "2026-04-01T10:48:42.813023"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.9957,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-04-01T10:48:17.299279"
-    },
-    {
-      "target": "TOI 700",
-      "score": 0.0623,
-      "verdict": "Faux positif tr\u00e8s probable",
-      "period_days": 4.0138,
-      "mission": "TESS",
-      "date": "2026-04-01T10:19:25.850500"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.9957,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-04-01T10:18:08.113470"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.9957,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:38:20.633956"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.9957,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:24:43.589375"
-    },
-    {
-      "target": "Kepler-186",
-      "score": 0.5,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 54.6408,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:20:31.767257"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.5,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:20:22.183890"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.5,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:17:49.296917"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.5,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:15:53.950648"
-    },
-    {
-      "target": "Kepler-10",
-      "score": 0.5,
-      "verdict": "Ind\u00e9termin\u00e9",
-      "period_days": 45.1,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:15:50.468124"
-    },
-    {
-      "target": "TOI-600",
-      "score": 0.0623,
-      "verdict": "Faux positif tr\u00e8s probable",
-      "period_days": 4.3522,
-      "mission": "TESS",
-      "date": "2026-03-30T22:06:12.509933"
+      "date": "2026-04-02T21:53:03.294279"
     },
     {
       "target": "Kepler-90",
-      "score": 0.9967,
+      "score": 0.9827,
       "verdict": "Exoplan\u00e8te tr\u00e8s probable",
       "period_days": 35.7105,
       "mission": "Kepler",
-      "date": "2026-03-30T22:03:33.283388"
+      "date": "2026-04-02T21:52:16.447235"
     },
     {
-      "target": "KIC 7283710",
-      "score": 0.0004,
+      "target": "Kepler-10",
+      "score": 0.996,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-02T21:51:42.297070"
+    },
+    {
+      "target": "Kepler-22",
+      "score": 0.9945,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 16.6398,
+      "mission": "Kepler",
+      "date": "2026-04-02T21:51:21.006000"
+    },
+    {
+      "target": "Kepler-10",
+      "score": 0.996,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-02T21:40:12.204784"
+    },
+    {
+      "target": "TOI 104.01",
+      "score": 0.9843,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 50.5052,
+      "mission": "TESS",
+      "date": "2026-04-02T20:58:27.115087"
+    },
+    {
+      "target": "TIC 231670397",
+      "score": 0.9843,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 50.5052,
+      "mission": "TESS",
+      "date": "2026-04-02T20:57:59.771850"
+    },
+    {
+      "target": "231670397",
+      "score": 0.1323,
       "verdict": "Faux positif tr\u00e8s probable",
-      "period_days": 61.5577,
+      "period_days": 13.525,
       "mission": "Kepler",
-      "date": "2026-03-30T22:03:20.304448"
-    },
-    {
-      "target": "KIC 11521793",
-      "score": 0.9981,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 11.9799,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:03:16.881822"
-    },
-    {
-      "target": "KIC 6776401",
-      "score": 0.9929,
-      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
-      "period_days": 0.5,
-      "mission": "Kepler",
-      "date": "2026-03-30T22:03:16.666601"
+      "date": "2026-04-02T20:57:31.847716"
     }
   ],
   "simon1": [
+    {
+      "target": "Kepler-10",
+      "score": 0.996,
+      "verdict": "Exoplan\u00e8te tr\u00e8s probable",
+      "period_days": 45.1,
+      "mission": "Kepler",
+      "date": "2026-04-03T21:14:33.070374"
+    },
     {
       "target": "TIC 130181866",
       "score": 0.9977,

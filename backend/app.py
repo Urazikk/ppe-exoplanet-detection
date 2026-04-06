@@ -26,6 +26,7 @@ import json
 import time
 import hashlib
 import datetime
+import threading
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -201,6 +202,120 @@ def load_resources():
 load_results_cache()
 
 load_resources()
+
+
+# =============================================================================
+# Refresh catalogue TESS (état global partagé)
+# =============================================================================
+
+_refresh_lock   = threading.Lock()
+_refresh_status = {
+    "state":      "idle",   # idle | running | done | error
+    "started_at": None,
+    "finished_at": None,
+    "message":    "Aucune mise à jour effectuée depuis le démarrage.",
+    "n_confirmed": None,
+    "n_fp":        None,
+    "n_total":     None,
+}
+
+
+def _run_tess_refresh():
+    """
+    Télécharge le catalogue TESS TOI depuis NASA TAP, recharge tess_catalog_df
+    en mémoire et reconstruit l'index du catalogue.
+    Tourne dans un thread séparé pour ne pas bloquer le serveur.
+    """
+    global tess_catalog_df, _refresh_status
+
+    TAP_URL = (
+        "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?"
+        "query=SELECT+tid,toi,tfopwg_disp,"
+        "pl_orbper,pl_orbpererr1,pl_orbpererr2,"
+        "pl_tranmid,pl_tranmiderr1,pl_tranmiderr2,"
+        "pl_trandurh,pl_trandurherr1,pl_trandurherr2,"
+        "pl_trandep,pl_trandeperr1,pl_trandeperr2,"
+        "pl_rade,pl_radeerr1,pl_radeerr2,"
+        "pl_eqt,pl_eqterr1,pl_eqterr2,"
+        "pl_insol,pl_insolerr1,pl_insolerr2,"
+        "st_teff,st_tefferr1,st_tefferr2,"
+        "st_logg,st_loggerr1,st_loggerr2,"
+        "st_rad,st_raderr1,st_raderr2,"
+        "st_tmag,ra,dec"
+        "+FROM+toi&format=csv"
+    )
+    COLUMN_MAP = {
+        "pl_orbper": "koi_period", "pl_orbpererr1": "koi_period_err1",
+        "pl_orbpererr2": "koi_period_err2", "pl_tranmid": "koi_time0bk",
+        "pl_tranmiderr1": "koi_time0bk_err1", "pl_tranmiderr2": "koi_time0bk_err2",
+        "pl_trandurh": "koi_duration", "pl_trandurherr1": "koi_duration_err1",
+        "pl_trandurherr2": "koi_duration_err2", "pl_trandep": "koi_depth",
+        "pl_trandeperr1": "koi_depth_err1", "pl_trandeperr2": "koi_depth_err2",
+        "pl_rade": "koi_prad", "pl_radeerr1": "koi_prad_err1",
+        "pl_radeerr2": "koi_prad_err2", "pl_eqt": "koi_teq",
+        "pl_insol": "koi_insol", "pl_insolerr1": "koi_insol_err1",
+        "pl_insolerr2": "koi_insol_err2", "st_teff": "koi_steff",
+        "st_tefferr1": "koi_steff_err1", "st_tefferr2": "koi_steff_err2",
+        "st_logg": "koi_slogg", "st_loggerr1": "koi_slogg_err1",
+        "st_loggerr2": "koi_slogg_err2", "st_rad": "koi_srad",
+        "st_raderr1": "koi_srad_err1", "st_raderr2": "koi_srad_err2",
+        "st_tmag": "koi_kepmag",
+    }
+    DISPOSITION_MAP = {"CP": 1, "KP": 1, "FP": 0, "FA": 0}
+
+    with _refresh_lock:
+        _refresh_status.update({"state": "running", "started_at": datetime.datetime.utcnow().isoformat(),
+                                 "finished_at": None, "message": "Téléchargement depuis NASA TAP…"})
+    try:
+        df = pd.read_csv(TAP_URL)
+
+        valid = set(DISPOSITION_MAP.keys())
+        df_f = df[df["tfopwg_disp"].isin(valid)].copy()
+        if len(df_f) == 0:
+            raise ValueError("Aucune entrée CP/KP/FP/FA dans la réponse NASA.")
+
+        df_f["target_planet"] = df_f["tfopwg_disp"].map(DISPOSITION_MAP)
+        df_f = df_f.rename(columns=COLUMN_MAP)
+        df_f["mission"] = "TESS"
+
+        kepler_cols = list(COLUMN_MAP.values()) + ["ra", "dec", "target_planet", "mission", "tid", "toi"]
+        existing = [c for c in kepler_cols if c in df_f.columns]
+        df_out = df_f[existing].copy()
+
+        num_cols = [c for c in df_out.columns if c not in ("mission", "tid", "toi", "target_planet")]
+        for col in num_cols:
+            df_out[col] = pd.to_numeric(df_out[col], errors="coerce")
+            if df_out[col].isna().any():
+                df_out[col] = df_out[col].fillna(df_out[col].median())
+
+        df_out.to_csv(TESS_CATALOG_PATH, index=False)
+
+        # Recharger en mémoire
+        tess_catalog_df = df_out
+        _build_catalog_index()
+
+        n_confirmed = int((df_out["target_planet"] == 1).sum())
+        n_fp        = int((df_out["target_planet"] == 0).sum())
+
+        with _refresh_lock:
+            _refresh_status.update({
+                "state":       "done",
+                "finished_at": datetime.datetime.utcnow().isoformat(),
+                "message":     f"Catalogue mis à jour : {len(df_out)} entrées ({n_confirmed} confirmées, {n_fp} faux positifs).",
+                "n_confirmed": n_confirmed,
+                "n_fp":        n_fp,
+                "n_total":     len(df_out),
+            })
+        print(f"[Refresh] TESS TOI mis à jour : {len(df_out)} entrées")
+
+    except Exception as e:
+        with _refresh_lock:
+            _refresh_status.update({
+                "state":       "error",
+                "finished_at": datetime.datetime.utcnow().isoformat(),
+                "message":     f"Erreur : {str(e)}",
+            })
+        print(f"[Refresh] Erreur : {e}")
 
 
 def _build_catalog_index():
@@ -682,16 +797,34 @@ def run_full_analysis(target_id, mission, username):
 
     log(f"Pipeline terminée en {time.time()-t0:.1f}s")
 
+    bls_snr = float(bls_stats.get("bls_snr", 0)) if bls_stats else 0
+    signal_quality = {
+        "bls_snr": round(bls_snr, 2),
+        "low_snr_warning": bls_snr < 5,
+        "warning_message": (
+            "Signal BLS très faible (SNR < 5) — aucun transit clair détecté. "
+            "La période estimée est peu fiable et le score IA est indicatif seulement."
+            if bls_snr < 5 else
+            "Signal BLS faible (SNR 5–8) — transit détecté mais bruité. "
+            "Interpréter le résultat avec prudence."
+            if bls_snr < 8 else None
+        ),
+    }
+
+    score_ci = compute_score_confidence(model, input_data) if model else None
+
     result = json_safe({
         "target": target_id,
         "mission": mission,
         "score": round(float(score), 4),
+        "score_std": score_ci,
         "verdict": classify_score(score),
         "period_days": round(float(period), 4) if is_finite_number(period) else None,
         "points_count": len(lc_raw),
         "characterization": characterization,
         "metadata": metadata,
         "feature_importances": feature_importances,
+        "signal_quality": signal_quality,
         "data": chart_data,
         "analyzed_by": username,
     })
@@ -811,6 +944,7 @@ def analyze_stream():
             yield evt("progress", {"step": "prediction", "message": "Prédiction par le modèle IA...", "percent": 70})
             score = 0.5
             top_features = []
+            input_data = None
             if model and selected_features:
                 _BLS_FEATURES = {"bls_snr", "bls_depth_ppm", "bls_transit_fraction",
                                  "bls_power", "bls_duration_days", "bls_score",
@@ -853,15 +987,33 @@ def analyze_stream():
 
             chart_data = build_chart_data(lc_folded)
 
+            bls_snr = float(bls_stats.get("bls_snr", 0)) if bls_stats else 0
+            signal_quality = {
+                "bls_snr": round(bls_snr, 2),
+                "low_snr_warning": bls_snr < 5,
+                "warning_message": (
+                    "Signal BLS très faible (SNR < 5) — aucun transit clair détecté. "
+                    "La période estimée est peu fiable et le score IA est indicatif seulement."
+                    if bls_snr < 5 else
+                    "Signal BLS faible (SNR 5–8) — transit détecté mais bruité. "
+                    "Interpréter le résultat avec prudence."
+                    if bls_snr < 8 else None
+                ),
+            }
+
+            score_ci = compute_score_confidence(model, input_data) if model and input_data is not None else None
+
             result = json_safe({
                 "target": target_id,
                 "mission": mission,
                 "score": round(float(score), 4),
+                "score_std": score_ci,
                 "verdict": classify_score(score),
                 "period": round(float(period), 4) if is_finite_number(period) else None,
                 "points_count": len(lc_raw),
                 "characterization": characterization,
                 "top_features": top_features,
+                "signal_quality": signal_quality,
                 "data": chart_data,
                 "analyzed_by": username,
             })
@@ -1193,6 +1345,26 @@ def upload_custom_star():
         return jsonify({"error": f"Erreur lors de l'analyse : {e}"}), 500
 
 
+@app.route('/api/admin/refresh-catalog', methods=['POST'])
+@token_required
+def start_catalog_refresh():
+    """Lance un rafraichissement du catalogue TESS TOI en arriere-plan."""
+    with _refresh_lock:
+        if _refresh_status["state"] == "running":
+            return jsonify({"error": "Mise a jour deja en cours."}), 409
+    t = threading.Thread(target=_run_tess_refresh, daemon=True)
+    t.start()
+    return jsonify({"status": "started", "message": "Mise a jour du catalogue TESS lancee en arriere-plan."})
+
+
+@app.route('/api/admin/refresh-catalog', methods=['GET'])
+@token_required
+def get_catalog_refresh_status():
+    """Retourne l'etat actuel du rafraichissement du catalogue TESS."""
+    with _refresh_lock:
+        return jsonify(dict(_refresh_status))
+
+
 # =============================================================================
 # Fonctions utilitaires
 # =============================================================================
@@ -1521,6 +1693,29 @@ def classify_score(score):
         return "Probable faux positif"
     else:
         return "Faux positif très probable"
+
+
+def compute_score_confidence(mdl, input_data):
+    """
+    Estime l'intervalle de confiance du score XGBoost en calculant la variance
+    des prédictions à 4 profondeurs de l'ensemble (25%, 50%, 75%, 100% des arbres).
+    Retourne le std en float (ex: 0.06 -> ±6%), ou None si indisponible.
+    """
+    try:
+        booster = mdl.get_booster()
+        n_trees = len(booster.get_dump())
+        if n_trees < 4:
+            return None
+        dmatrix = xgb.DMatrix(input_data)
+        checkpoints = [max(1, int(n_trees * p)) for p in (0.25, 0.50, 0.75, 1.0)]
+        preds = []
+        for n in checkpoints:
+            raw = booster.predict(dmatrix, iteration_range=(0, n), output_margin=True)
+            prob = float(1.0 / (1.0 + np.exp(-raw[0])))
+            preds.append(prob)
+        return round(float(np.std(preds)), 4)
+    except Exception:
+        return None
 
 
 def compute_characterization(lc_clean, lc_folded, period, score):

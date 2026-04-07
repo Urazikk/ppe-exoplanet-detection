@@ -30,7 +30,7 @@ import threading
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-
+from functools import wraps
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
 from flask import Flask, request, jsonify, g, Response, stream_with_context
